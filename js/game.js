@@ -15,6 +15,21 @@ if (startHint) startHint.textContent = START_HINT_TEXT;
 
 const SAVE_KEY = 'astroLeapSave_v1';
 
+// El canvas dibuja siempre en el sistema de coordenadas lógico GAME_WIDTH x GAME_HEIGHT,
+// pero el buffer interno se redimensiona a la resolución real de pantalla (con devicePixelRatio)
+// para que las formas, gradientes y texto salgan nítidos en vez de pixelados/borrosos al escalar por CSS.
+let fitCanvasW = 0, fitCanvasH = 0;
+function fitCanvas() {
+    const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
+    if (cssW === 0 || cssH === 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    const targetW = Math.round(cssW * dpr), targetH = Math.round(cssH * dpr);
+    if (targetW === fitCanvasW && targetH === fitCanvasH) return;
+    fitCanvasW = targetW; fitCanvasH = targetH;
+    canvas.width = targetW; canvas.height = targetH;
+    ctx.setTransform(targetW / GAME_WIDTH, 0, 0, targetH / GAME_HEIGHT, 0, 0);
+}
+
 function makeStars(count, maxX) {
     const stars = [];
     for (let i = 0; i < count; i++) {
@@ -251,6 +266,7 @@ class Game {
     }
 
     draw() {
+        fitCanvas();
         this.updateTouchUI();
         const shakeX = this.shake ? (Math.random() - 0.5) * this.shake : 0;
         const shakeY = this.shake ? (Math.random() - 0.5) * this.shake * 0.6 : 0;
