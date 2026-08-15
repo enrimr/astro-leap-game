@@ -199,7 +199,8 @@ class Game {
         } else {
             if (!this.levelCompleting) this.player.update(this.keys, this.platforms, this.particles);
             this.particles.update();
-            this.cameraX = Math.max(0, Math.min(this.player.x - GAME_WIDTH / 2, LEVELS[this.currentLevel].goal - GAME_WIDTH));
+            const CAMERA_END_MARGIN = 40; // deja la meta con aire a la derecha en vez de pegada al borde
+            this.cameraX = Math.max(0, Math.min(this.player.x - GAME_WIDTH / 2, LEVELS[this.currentLevel].goal + CAMERA_END_MARGIN - GAME_WIDTH));
             if (this.playerInvulnerable > 0) this.playerInvulnerable--;
 
             for (const enemy of this.enemies) {
