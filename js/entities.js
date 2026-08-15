@@ -127,7 +127,8 @@ const ENEMY_STATS = {
     magnetite:  { level: 5, hp: 22, atk: 8, def: 5, xp: 18, color: '#ffd23f', speed: 0.4, canJump: false, range: 35, boss: false, flying: false },
     ionwisp:    { level: 6, hp: 20, atk: 9, def: 3, xp: 22, color: '#b58bff', speed: 0.9, canJump: false, range: 45, boss: false, flying: true },
     queen_larva:{ level: 8, hp: 55, atk: 12, def: 6, xp: 60, color: '#ff5ecb', speed: 0, canJump: false, range: 0, boss: true, flying: false },
-    sentinel:   { level: 12, hp: 90, atk: 17, def: 9, xp: 120, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false }
+    sentinel:   { level: 12, hp: 90, atk: 17, def: 9, xp: 120, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false },
+    overlord:   { level: 16, hp: 140, atk: 23, def: 12, xp: 220, color: '#ff3b3b', speed: 0, canJump: false, range: 0, boss: true, flying: false }
 };
 
 class Enemy {
@@ -268,15 +269,18 @@ class LevelNode {
 class WorldMap {
     constructor() {
         this.nodes = [
-            new LevelNode(40, 130, 0, 'Cráter de Amerizaje'),
-            new LevelNode(85, 100, 1, 'Grietas de Hielo'),
-            new LevelNode(130, 120, 2, 'Nido de la Reina Larva'),
-            new LevelNode(190, 90, 3, 'Chatarral Magnético'),
-            new LevelNode(240, 65, 4, 'Tormenta de Iones'),
-            new LevelNode(285, 90, 5, 'Núcleo del Centinela')
+            new LevelNode(28, 140, 0, 'Cráter de Amerizaje'),
+            new LevelNode(58, 108, 1, 'Grietas de Hielo'),
+            new LevelNode(90, 138, 2, 'Nido de la Reina Larva'),
+            new LevelNode(130, 104, 3, 'Chatarral Magnético'),
+            new LevelNode(162, 74, 4, 'Tormenta de Iones'),
+            new LevelNode(195, 104, 5, 'Núcleo del Centinela'),
+            new LevelNode(230, 134, 6, 'Muelle de Carga'),
+            new LevelNode(262, 100, 7, 'Túnel de Escape'),
+            new LevelNode(298, 68, 8, 'Núcleo del Reactor')
         ];
         this.currentNodeIndex = 0;
-        this.paths = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]];
+        this.paths = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8]];
     }
     update(keys) {
         const node = this.nodes[this.currentNodeIndex];

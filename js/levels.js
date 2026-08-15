@@ -58,5 +58,43 @@ const LEVELS = [
         ],
         enemies: [[160, 138, 'magnetite'], [270, 118, 'hoverbot', 40], [365, 138, 'ionwisp', 50], [780, 138, 'sentinel']],
         goal: 900, boss: 'sentinel'
+    },
+
+    // ===== MUNDO 3: ESTACIÓN COLAPSADA =====
+    // Una estación abandonada donde encuentras la pieza que falta para reparar la nave.
+    // Al tomarla, el núcleo despierta y empieza la cuenta atrás de autodestrucción.
+    {
+        name: 'Muelle de Carga', world: 3, variant: 'metal',
+        platforms: [
+            [0, 150, 80, 15], [140, 150, 55, 15], [230, 130, 45, 6],
+            [320, 150, 55, 15], [410, 115, 45, 6], [500, 150, 55, 15],
+            [590, 130, 45, 6], [680, 150, 150, 15]
+        ],
+        enemies: [[150, 138, 'crawler'], [240, 118, 'hoverbot', 50], [330, 138, 'spiker'], [420, 103, 'ionwisp', 55], [600, 118, 'magnetite']],
+        goal: 780
+    },
+    {
+        name: 'Túnel de Escape', world: 3, variant: 'metal',
+        // Nivel de scroll forzado: la pared de energía del núcleo avanza sola.
+        // Quedarte atrás del borde izquierdo de la cámara duele — hay que mantener el ritmo.
+        forcedScroll: { speed: 1.1, startDelay: 90 },
+        platforms: [
+            [0, 150, 60, 15], [90, 150, 50, 15], [170, 140, 45, 6],
+            [240, 150, 55, 15], [325, 135, 45, 6], [400, 150, 60, 15],
+            [490, 125, 45, 6], [565, 150, 55, 15], [650, 140, 45, 6],
+            [725, 150, 60, 15], [815, 125, 45, 6], [890, 150, 170, 15]
+        ],
+        enemies: [[100, 138, 'spiker'], [250, 138, 'magnetite'], [410, 138, 'crawler'], [575, 138, 'hoverbot', 40], [735, 138, 'spiker'], [900, 138, 'ionwisp', 50]],
+        goal: 1000
+    },
+    {
+        name: 'Núcleo del Reactor', world: 3, variant: 'metal',
+        platforms: [
+            [0, 150, 70, 15], [130, 150, 55, 15], [235, 130, 45, 6],
+            [330, 150, 55, 15], [420, 110, 45, 6], [510, 150, 55, 15],
+            [600, 125, 45, 6], [690, 150, 55, 15], [780, 150, 320, 15]
+        ],
+        enemies: [[145, 138, 'magnetite'], [250, 118, 'ionwisp', 40], [340, 138, 'spiker'], [430, 98, 'hoverbot', 45], [520, 138, 'crawler'], [615, 113, 'ionwisp', 50], [900, 138, 'overlord']],
+        goal: 1050, boss: 'overlord'
     }
 ];

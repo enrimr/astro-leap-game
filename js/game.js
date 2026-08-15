@@ -46,6 +46,7 @@ class Game {
         this.levelUpMessage = 0; this.levelCompleteMessage = 0;
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
         this.levelCompleting = false; this.playerInvulnerable = 0;
+        this.autoScrollX = 0; this.forcedScrollDelay = 0;
         this.particles = new ParticleSystem();
         this.shake = 0;
         this.mapStars = makeStars(70, GAME_WIDTH);
@@ -102,11 +103,24 @@ class Game {
         this.goalFlag = new GoalFlag(level.goal, 128);
         this.player.x = 20; this.player.y = 100; this.player.vx = 0; this.player.vy = 0;
         this.player.energy = this.player.maxEnergy; this.cameraX = 0;
+        this.autoScrollX = 0;
+        this.forcedScrollDelay = level.forcedScroll ? level.forcedScroll.startDelay : 0;
     }
 
     exitLevel() {
         this.inLevel = false; this.inWorldMap = true;
         this.player.hp = this.player.maxHp; this.player.energy = this.player.maxEnergy;
+    }
+
+    triggerGameOver(message) {
+        if (window.SFX) SFX.gameOver();
+        this.gameStarted = false;
+        startScreen.innerHTML = `<h1>${message}</h1><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
+        startScreen.style.display = 'flex';
+        this.player = new Player(20, 100);
+        this.loadProgress();
+        this.loadLevel(0);
+        this.combat = null;
     }
 
     setupInput() {
@@ -184,23 +198,39 @@ class Game {
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     this.saveProgress();
                 } else if (this.combat.result === 'lose') {
-                    if (window.SFX) SFX.gameOver();
-                    this.gameStarted = false;
-                    startScreen.innerHTML = `<h1>MISIÓN FALLIDA</h1><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
-                    startScreen.style.display = 'flex';
-                    this.player = new Player(20, 100);
-                    this.loadProgress();
-                    this.loadLevel(0);
+                    this.triggerGameOver('MISIÓN FALLIDA');
+                    return;
                 } else if (this.combat.result === 'flee') {
                     this.playerInvulnerable = 180;
                 }
                 this.combat = null;
             }
         } else {
+            const level = LEVELS[this.currentLevel];
             if (!this.levelCompleting) this.player.update(this.keys, this.platforms, this.particles);
+            if (this.player.hp <= 0) { this.triggerGameOver('MISIÓN FALLIDA'); return; }
             this.particles.update();
             const CAMERA_END_MARGIN = 40; // deja la meta con aire a la derecha en vez de pegada al borde
-            this.cameraX = Math.max(0, Math.min(this.player.x - GAME_WIDTH / 2, LEVELS[this.currentLevel].goal + CAMERA_END_MARGIN - GAME_WIDTH));
+            const maxScroll = level.goal + CAMERA_END_MARGIN - GAME_WIDTH;
+
+            if (level.forcedScroll) {
+                if (this.forcedScrollDelay > 0) this.forcedScrollDelay--;
+                else this.autoScrollX = Math.min(this.autoScrollX + level.forcedScroll.speed, maxScroll);
+                this.cameraX = Math.max(0, this.autoScrollX);
+                const leftEdge = this.cameraX + 2;
+                if (this.player.x < leftEdge) {
+                    this.player.x = leftEdge;
+                    if (this.playerInvulnerable === 0) {
+                        this.player.takeDamage(3);
+                        this.playerInvulnerable = 40;
+                        this.shake = Math.max(this.shake, 4);
+                        if (window.SFX) SFX.hitPlayer();
+                        if (this.player.hp <= 0) { this.triggerGameOver('MISIÓN FALLIDA'); return; }
+                    }
+                }
+            } else {
+                this.cameraX = Math.max(0, Math.min(this.player.x - GAME_WIDTH / 2, maxScroll));
+            }
             if (this.playerInvulnerable > 0) this.playerInvulnerable--;
 
             for (const enemy of this.enemies) {
@@ -219,7 +249,6 @@ class Game {
                 }
             }
 
-            const level = LEVELS[this.currentLevel];
             if (this.player.x >= level.goal && !this.levelCompleting) {
                 if (level.boss) {
                     const boss = this.enemies.find(e => e.isBoss);
@@ -295,6 +324,30 @@ class Game {
             this.particles.draw(ctx, this.cameraX);
             if (this.playerInvulnerable === 0 || Math.floor(this.playerInvulnerable / 8) % 2 === 0) {
                 this.player.draw(ctx, this.cameraX);
+            }
+
+            const level = LEVELS[this.currentLevel];
+            if (level.forcedScroll) {
+                const pulse = 0.6 + Math.sin(Date.now() * 0.012) * 0.4;
+                const wallGrad = ctx.createLinearGradient(0, 0, 18, 0);
+                wallGrad.addColorStop(0, `rgba(255,70,70,${0.9 * pulse})`);
+                wallGrad.addColorStop(1, 'rgba(255,70,70,0)');
+                ctx.fillStyle = wallGrad;
+                ctx.fillRect(0, 20, 18, GAME_HEIGHT - 20);
+                if (this.forcedScrollDelay === 0) {
+                    ctx.fillStyle = `rgba(255,100,100,${0.7 + pulse * 0.3})`;
+                    ctx.font = 'bold 8px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
+                    ctx.fillText('⚠ NÚCLEO', 90, 28);
+                    ctx.textAlign = 'left';
+                }
+                if (this.forcedScrollDelay > 0) {
+                    ctx.fillStyle = PALETTE.accent2; ctx.font = 'bold 22px "Orbitron", sans-serif'; ctx.textAlign = 'center';
+                    const secs = Math.ceil(this.forcedScrollDelay / 60);
+                    ctx.fillText(secs > 0 ? String(secs) : '¡CORRE!', GAME_WIDTH / 2, GAME_HEIGHT / 2);
+                    ctx.font = '10px "Rajdhani", sans-serif'; ctx.fillStyle = PALETTE.dim;
+                    ctx.fillText('EL NÚCLEO VA A COLAPSAR', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 18);
+                    ctx.textAlign = 'left';
+                }
             }
 
             ctx.fillStyle = 'rgba(11,6,32,0.75)'; ctx.fillRect(0, 0, GAME_WIDTH, 20);

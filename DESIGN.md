@@ -105,18 +105,33 @@ Esto crea una decisión constante que no existía en el original: *¿gasto energ
 - Sonido: sintetizado por código (Web Audio, sin archivos externos) — bleeps y pulsos tipo sci-fi retro.
 - Animación *squash & stretch* en el jugador al saltar/aterrizar, y *screen shake* leve en golpes fuertes.
 
-### 2.4 Contenido (2 mundos × 3 niveles, igual que el original)
+### 2.4 Contenido (3 zonas × 3 niveles)
 
-| Mundo | Nivel | Nombre | Enfoque |
+| Zona | Nivel | Nombre | Enfoque |
 |---|---|---|---|
 | 1 · Luna Cenizal | 1 | Cráter de Amerizaje | Tutorial de salto/energía |
 | | 2 | Grietas de Hielo | Plataformas móviles, primeros huecos que exigen doble salto |
 | | 3 | Nido de la Reina Larva | Jefe: Reina Larva |
 | 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores, plataformas más separadas |
 | | 5 | Tormenta de Iones | Huecos largos, uso obligatorio del doble salto |
-| | 6 | Núcleo del Centinela | Jefe final: Centinela de Núcleo |
+| | 6 | Núcleo del Centinela | Jefe: Centinela de Núcleo |
+| 3 · Estación Colapsada | 7 | Muelle de Carga | Introduce la zona 3, enemigos mixtos |
+| | 8 | Túnel de Escape | **Scroll forzado** — ver §2.6 |
+| | 9 | Núcleo del Reactor | Jefe final: Overlord (IA del núcleo) |
 
-### 2.5 Lecciones aplicadas desde el primer día (no como parche después)
+La zona 3 tiene su propio gancho narrativo: al recuperar la pieza que falta para reparar la nave en el Muelle de Carga, el núcleo de la estación despierta y empieza a autodestruirse — de ahí que el nivel 8 sea distinto a todos los anteriores.
+
+### 2.6 El nivel de scroll forzado (Túnel de Escape)
+
+Hasta este punto la cámara siempre sigue al jugador — nunca hay prisa. El Túnel de Escape rompe esa regla a propósito, tomando prestado el recurso de *Super Mario World* donde ciertos niveles avanzan solos y el jugador debe mantener el ritmo del mapa en vez de explorarlo a placer:
+
+- Al entrar, una cuenta atrás (`forcedScroll.startDelay`, en frames) da un respiro antes de que empiece el movimiento.
+- Pasada la cuenta atrás, la cámara avanza sola a velocidad constante (`forcedScroll.speed`), **sin esperar al jugador** e ignorando su posición — es la variable, no el resultado, de la ecuación de cámara.
+- El borde izquierdo de la pantalla es un muro real: si el jugador queda detrás de él, se le empuja hacia delante y recibe daño, con un pequeño margen de invulnerabilidad entre golpes para que no sea una muerte instantánea si te despistas un frame.
+- La velocidad del muro (1.1) es deliberadamente menor que la velocidad de carrera del jugador (1.55): un jugador que no se detenga puede sacarle ventaja y permitirse fallar un salto sin ser alcanzado de inmediato, pero no puede permitirse pararse.
+- Los huecos del nivel se diseñaron para ser cruzables con un único salto simple bien cronometrado (no exigen doble salto) — la dificultad añadida es la presión de tiempo, no la precisión de plataformas, para no acumular dos picos de dificultad distintos en el mismo tramo.
+
+### 2.7 Lecciones aplicadas desde el primer día (no como parche después)
 
 Todo el feedback que surgió iterando sobre Monster Jump se incorpora aquí desde el diseño inicial, no como añadido tardío:
 - Controles táctiles + ratón + teclado desde el arranque, canvas responsive.

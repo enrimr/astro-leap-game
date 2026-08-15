@@ -73,7 +73,7 @@ ctx.fillText('Plataformas + duelos por turnos', 84, 220);
 
 ctx.font = '500 26px Arial, sans-serif';
 ctx.fillStyle = PALETTE.dim;
-ctx.fillText('2 lunas · 6 sectores · el doble salto cuesta energía', 84, 258);
+ctx.fillText('3 zonas · 9 sectores · el doble salto cuesta energía', 84, 258);
 
 // Tag inferior
 ctx.font = '600 22px Arial, sans-serif';
