@@ -77,7 +77,7 @@ const LEVELS = [
         name: 'Túnel de Escape', world: 3, variant: 'metal',
         // Nivel de scroll forzado: la pared de energía del núcleo avanza sola.
         // Quedarte atrás del borde izquierdo de la cámara duele — hay que mantener el ritmo.
-        forcedScroll: { speed: 1.1, startDelay: 90 },
+        forcedScroll: { speed: 0.75, startDelay: 90 },
         platforms: [
             [0, 150, 60, 15], [90, 150, 50, 15], [170, 140, 45, 6],
             [240, 150, 55, 15], [325, 135, 45, 6], [400, 150, 60, 15],
