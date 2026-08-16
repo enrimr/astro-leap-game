@@ -128,7 +128,8 @@ Hasta este punto la cámara siempre sigue al jugador — nunca hay prisa. El Tú
 - Al entrar, una cuenta atrás (`forcedScroll.startDelay`, en frames) da un respiro antes de que empiece el movimiento.
 - Pasada la cuenta atrás, la cámara avanza sola a velocidad constante (`forcedScroll.speed`), **sin esperar al jugador** e ignorando su posición — es la variable, no el resultado, de la ecuación de cámara.
 - El borde izquierdo de la pantalla es un muro real: si el jugador queda detrás de él, se le empuja hacia delante y recibe daño, con un pequeño margen de invulnerabilidad entre golpes para que no sea una muerte instantánea si te despistas un frame.
-- La velocidad del muro (0.75) es deliberadamente bastante menor que la velocidad de carrera del jugador (1.55): un jugador que no se detenga saca ventaja de sobra y puede permitirse fallar algún salto sin ser alcanzado de inmediato, pero no puede quedarse parado mucho rato.
+- La velocidad del muro (0.55) es deliberadamente bastante menor que la velocidad de carrera del jugador (1.55): un jugador que no se detenga saca ventaja de sobra y puede permitirse fallar algún salto sin ser alcanzado de inmediato, pero no puede quedarse parado mucho rato.
+- La cuenta atrás inicial dura 5 segundos (`startDelay: 300` frames a 60fps) para dar tiempo de leer el aviso antes de que el muro empiece a moverse.
 - Los huecos del nivel se diseñaron para ser cruzables con un único salto simple bien cronometrado (no exigen doble salto) — la dificultad añadida es la presión de tiempo, no la precisión de plataformas, para no acumular dos picos de dificultad distintos en el mismo tramo.
 
 ### 2.7 Lecciones aplicadas desde el primer día (no como parche después)
