@@ -129,6 +129,12 @@ class Game {
             if (!this.gameStarted && e.code === 'Space') { this.startGame(); this.keys[e.code] = false; return; }
             if (this.combat && this.combat.active) this.combat.handleInput(e.code);
             if (e.code === 'Escape' && this.inLevel && !this.combat) this.exitLevel();
+            // Atajo de depuración: reiniciar el nivel actual al instante (útil ajustando niveles)
+            if (e.code === 'KeyR' && this.inLevel && !this.combat) {
+                this.levelCompleting = false;
+                this.loadLevel(this.currentLevel);
+                this.player.hp = this.player.maxHp;
+            }
         });
         document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
     }
@@ -375,5 +381,31 @@ class Game {
 }
 
 const game = new Game();
+
+// ---- Modo depuración vía URL, sin tocar la consola ----
+// ?level=N        -> entra directo al nivel N (1-9), con vida/energía llenas, saltándose el mapa.
+// ?unlock=all     -> desbloquea todos los nodos del mapa para poder elegir cualquiera a mano.
+// Combinables: ?level=8&unlock=all dejará además el mapa entero abierto si sales del nivel con ESC.
+(function setupDebugMode() {
+    const params = new URLSearchParams(location.search);
+    if (params.get('unlock') === 'all') {
+        game.worldMap.nodes.forEach(n => { n.unlocked = true; });
+    }
+    const debugLevel = params.get('level');
+    if (debugLevel !== null) {
+        const idx = parseInt(debugLevel, 10) - 1;
+        if (idx >= 0 && idx < LEVELS.length) {
+            game.worldMap.nodes[idx].unlocked = true;
+            game.gameStarted = true;
+            startScreen.style.display = 'none';
+            game.loadLevel(idx);
+            game.inWorldMap = false;
+            game.inLevel = true;
+            game.player.hp = game.player.maxHp;
+            game.player.energy = game.player.maxEnergy;
+        }
+    }
+})();
+
 function gameLoop() { game.update(); game.draw(); requestAnimationFrame(gameLoop); }
 gameLoop();

@@ -29,6 +29,17 @@ La Energía es un recurso **compartido** entre el doble salto en plataformas y l
 
 El sector 8 ("Túnel de Escape") es distinto al resto: al entrar, el núcleo de la estación empieza una cuenta atrás y luego una pared de energía avanza sola desde el borde izquierdo de la pantalla — no puedes detenerla ni ir más despacio que ella. Si te alcanza, empuja al jugador y hace daño (con un breve respiro entre golpes, no es instantáneo). Es el mismo tipo de tramo que en *Super Mario World* obliga a mantener el ritmo del mapa en vez de explorar a tu aire. Ver `DESIGN.md` §2.6.
 
+## Probar/depurar un nivel concreto
+
+No hace falta jugar desde el principio ni tocar la consola:
+
+- `?level=N` (1-9) — entra directo a ese nivel, con vida y energía al máximo, saltándose el mapa.
+  Ej: `http://localhost:8000/?level=8` te deja directamente en el Túnel de Escape.
+- `?unlock=all` — desbloquea todos los nodos del mapa estelar para poder elegir cualquiera a mano
+  con las flechas y `ESPACIO`, en vez de tener que completarlos en orden.
+- Combinables: `?level=8&unlock=all`.
+- Ya dentro de un nivel, la tecla `R` lo reinicia al instante (posición, vida y energía), para iterar rápido sin salir al mapa.
+
 ## Estructura del proyecto
 
 ```
