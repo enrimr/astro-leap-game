@@ -13,7 +13,8 @@ class Player {
             speed: 1.55, jumpPower: -4.3, doubleJumpPower: -3.5, gravity: GRAVITY,
             onGround: false, jumping: false, usedDoubleJump: false, prevJumpKey: false,
             level: 1, maxHp: 22, hp: 22, maxEnergy: 10, energy: 10,
-            xp: 0, xpToNextLevel: 10, attack: 5, defense: 2
+            xp: 0, xpToNextLevel: 10, attack: 5, defense: 2,
+            lives: 3, maxLives: 3
         });
     }
     collides(e) { return this.x < e.x + e.w && this.x + this.w > e.x && this.y < e.y + e.h && this.y + this.h > e.y; }
@@ -195,5 +196,42 @@ describe('Integración: combate y progresión', () => {
         enemies.forEach(e => { while (e.alive) e.takeDamage(p.attack); p.gainXP(e.xpReward); });
         expect(p.level).toBeGreaterThan(1);
         enemies.forEach(e => expect(e.defeated).toBe(true));
+    });
+});
+
+// Réplica de la decisión que toma Game.loseLife(): con vidas restantes, respawn;
+// sin vidas, game over completo.
+function loseLife(player) {
+    player.lives--;
+    return player.lives <= 0 ? 'gameOver' : 'respawn';
+}
+
+describe('Vidas', () => {
+    test('el jugador empieza con el máximo de vidas', () => {
+        const p = new Player(0, 0);
+        expect(p.lives).toBe(p.maxLives);
+    });
+
+    test('perder una vida con vidas de sobra respawnea en el nivel', () => {
+        const p = new Player(0, 0);
+        const outcome = loseLife(p);
+        expect(outcome).toBe('respawn');
+        expect(p.lives).toBe(2);
+    });
+
+    test('perder la última vida dispara game over', () => {
+        const p = new Player(0, 0); p.lives = 1;
+        const outcome = loseLife(p);
+        expect(outcome).toBe('gameOver');
+        expect(p.lives).toBe(0);
+    });
+
+    test('cualquier fuente de muerte (caída, muro, combate) cuenta igual como pérdida de vida', () => {
+        const p = new Player(0, 0);
+        loseLife(p); // caída por un precipicio
+        loseLife(p); // alcanzado por el muro del scroll forzado
+        expect(p.lives).toBe(1);
+        const outcome = loseLife(p); // pierde un combate
+        expect(outcome).toBe('gameOver');
     });
 });

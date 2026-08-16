@@ -36,6 +36,8 @@ class ParticleSystem {
     draw(ctx, cx) { this.particles.forEach(p => p.draw(ctx, cx)); }
 }
 
+const MAX_LIVES = 3;
+
 class Player {
     constructor(x, y) {
         Object.assign(this, {
@@ -44,7 +46,8 @@ class Player {
             onGround: false, jumping: false, usedDoubleJump: false,
             prevJumpKey: false, squash: 1,
             level: 1, maxHp: 22, hp: 22, maxEnergy: 10, energy: 10,
-            xp: 0, xpToNextLevel: 10, attack: 5, defense: 2
+            xp: 0, xpToNextLevel: 10, attack: 5, defense: 2,
+            lives: MAX_LIVES, maxLives: MAX_LIVES
         });
     }
     update(keys, platforms, particles) {
@@ -86,7 +89,7 @@ class Player {
         }
         this.squash += (1 - this.squash) * 0.25;
         if (this.x < 0) this.x = 0;
-        if (this.y > GAME_HEIGHT) { this.y = 0; this.vy = 0; this.takeDamage(4); }
+        if (this.y > GAME_HEIGHT) return 'fell';
     }
     collides(e) { return this.x < e.x + e.w && this.x + this.w > e.x && this.y < e.y + e.h && this.y + this.h > e.y; }
     collidesFromAbove(e) { return this.vy > 0 && this.y + this.h <= e.y + e.h / 2 && this.collides(e); }
@@ -420,7 +423,7 @@ class CombatSystem {
         ctx.fillRect(15, 20, 16, 20);
         ctx.restore();
         ctx.fillStyle = PALETTE.ink; ctx.font = '10px "Rajdhani", sans-serif';
-        ctx.fillText(`TÚ Lv${this.player.level}`, 40, 30);
+        ctx.fillText(`TÚ Lv${this.player.level}  ♥${this.player.lives}`, 40, 30);
         ctx.fillText(`HP: ${this.player.hp}/${this.player.maxHp}`, 40, 42);
         const php = Math.max(0, this.player.hp / this.player.maxHp);
         ctx.fillStyle = PALETTE.panel; ctx.fillRect(40, 46, 60, 5);

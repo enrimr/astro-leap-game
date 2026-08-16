@@ -132,7 +132,17 @@ Hasta este punto la cámara siempre sigue al jugador — nunca hay prisa. El Tú
 - La cuenta atrás inicial dura 5 segundos (`startDelay: 300` frames a 60fps) para dar tiempo de leer el aviso antes de que el muro empiece a moverse.
 - Los huecos del nivel se diseñaron para ser cruzables con un único salto simple bien cronometrado (no exigen doble salto) — la dificultad añadida es la presión de tiempo, no la precisión de plataformas, para no acumular dos picos de dificultad distintos en el mismo tramo.
 
-### 2.7 Lecciones aplicadas desde el primer día (no como parche después)
+### 2.7 Vidas
+
+Feedback de testers humanos: caer por un precipicio se sentía gratis (un poco de HP y a seguir), así que se añadió un sistema de vidas clásico, separado del HP:
+
+- El jugador tiene `lives` (por defecto 3, `MAX_LIVES` en `entities.js`), visibles como `♥N` en el HUD del nivel, en el mapa estelar y en combate.
+- **Cualquier muerte consume una vida**, no solo caer al vacío: perder un combate, o que el muro del Túnel de Escape te termine alcanzando (HP a 0). Antes cada una de estas fuentes tenía su propio final distinto (una reiniciaba el nivel, otra reiniciaba todo) — ahora todas pasan por el mismo sitio (`Game.loseLife()`), así que "vidas" significa lo mismo pase lo que pase.
+- **Con vidas restantes**: reapareces al inicio del *nivel actual* (no del mundo) con HP y Energía llenos — perder una vida cuesta progreso dentro del nivel, no el nivel entero.
+- **Con 0 vidas**: Game Over de verdad — stats del jugador, mapa estelar y progreso guardado se reinician por completo, vuelves al nivel 1 con vidas al máximo.
+- El daño repetido del muro en el Túnel de Escape (§2.6) sigue siendo solo HP, no vidas directamente — sería demasiado punitivo perder una vida cada vez que el muro te toca dado que golpea varias veces si te quedas atrás. Solo cuenta como muerte si esa acumulación de HP llega a 0.
+
+### 2.8 Lecciones aplicadas desde el primer día (no como parche después)
 
 Todo el feedback que surgió iterando sobre Monster Jump se incorpora aquí desde el diseño inicial, no como añadido tardío:
 - Controles táctiles + ratón + teclado desde el arranque, canvas responsive.

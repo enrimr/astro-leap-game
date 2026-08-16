@@ -63,6 +63,7 @@ const SFX = (() => {
             [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, { volume: 0.16, delay: i * 0.14 }));
         },
         gameOver() { tone(300, 0.3, { type: 'sawtooth', freqEnd: 80, volume: 0.16 }); },
+        loseLife() { tone(380, 0.14, { type: 'square', freqEnd: 150, volume: 0.15 }); tone(280, 0.16, { type: 'square', freqEnd: 100, volume: 0.13, delay: 0.1 }); },
         boot() { tone(220, 0.08, { volume: 0.1 }); tone(330, 0.08, { volume: 0.1, delay: 0.08 }); }
     };
 })();

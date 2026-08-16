@@ -25,6 +25,10 @@ O simplemente abre `index.html` directamente en el navegador.
 
 La Energía es un recurso **compartido** entre el doble salto en plataformas y la Habilidad en combate. No se regenera con el tiempo — solo derrotando enemigos o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo. Ver `DESIGN.md` §2.2 para el detalle.
 
+## Vidas
+
+3 vidas (`♥` en el HUD). Cualquier muerte —caer por un precipicio, perder un combate, o que te alcance el muro del Túnel de Escape— consume una vida y te devuelve al inicio del nivel actual con vida/energía llenas. Al quedarte sin vidas, Game Over: se reinicia todo (stats, progreso guardado, mapa) y vuelves al nivel 1. Ver `DESIGN.md` §2.7.
+
 ## El nivel de scroll forzado
 
 El sector 8 ("Túnel de Escape") es distinto al resto: al entrar, el núcleo de la estación empieza una cuenta atrás y luego una pared de energía avanza sola desde el borde izquierdo de la pantalla — no puedes detenerla ni ir más despacio que ella. Si te alcanza, empuja al jugador y hace daño (con un breve respiro entre golpes, no es instantáneo). Es el mismo tipo de tramo que en *Super Mario World* obliga a mantener el ritmo del mapa en vez de explorar a tu aire. Ver `DESIGN.md` §2.6.

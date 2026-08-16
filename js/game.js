@@ -43,7 +43,7 @@ class Game {
         this.player = new Player(20, 100);
         this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null;
         this.combat = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
-        this.levelUpMessage = 0; this.levelCompleteMessage = 0;
+        this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0;
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
         this.levelCompleting = false; this.playerInvulnerable = 0;
         this.autoScrollX = 0; this.forcedScrollDelay = 0;
@@ -112,15 +112,35 @@ class Game {
         this.player.hp = this.player.maxHp; this.player.energy = this.player.maxEnergy;
     }
 
-    triggerGameOver(message) {
+    // Se pierde una vida al morir (caer a un precipicio, que te alcance el muro, o perder un combate).
+    // Con vidas restantes: reaparece al inicio del nivel actual, con vida y energía llenas.
+    // Sin vidas restantes: Game Over completo, se reinicia todo desde el principio.
+    loseLife() {
+        this.player.lives--;
+        this.combat = null;
+        this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.hpLow, 16, { speed: 2.2, life: 30, size: 3 });
+        if (this.player.lives <= 0) {
+            this.fullGameOver();
+        } else {
+            if (window.SFX) SFX.loseLife();
+            this.livesLostMessage = 110;
+            this.levelCompleting = false;
+            this.loadLevel(this.currentLevel);
+            this.player.hp = this.player.maxHp;
+            this.player.energy = this.player.maxEnergy;
+        }
+    }
+
+    fullGameOver() {
         if (window.SFX) SFX.gameOver();
         this.gameStarted = false;
-        startScreen.innerHTML = `<h1>${message}</h1><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
+        startScreen.innerHTML = `<h1>GAME OVER</h1><p class="subtitle">Sin vidas restantes — vuelves a empezar.</p><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
         startScreen.style.display = 'flex';
         this.player = new Player(20, 100);
-        this.loadProgress();
+        this.worldMap = new WorldMap();
+        this.clearProgress();
         this.loadLevel(0);
-        this.combat = null;
+        this.inLevel = false; this.inWorldMap = false; this.combat = null;
     }
 
     setupInput() {
@@ -231,7 +251,7 @@ class Game {
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     this.saveProgress();
                 } else if (this.combat.result === 'lose') {
-                    this.triggerGameOver('MISIÓN FALLIDA');
+                    this.loseLife();
                     return;
                 } else if (this.combat.result === 'flee') {
                     this.playerInvulnerable = 180;
@@ -240,8 +260,10 @@ class Game {
             }
         } else {
             const level = LEVELS[this.currentLevel];
-            if (!this.levelCompleting) this.player.update(this.keys, this.platforms, this.particles);
-            if (this.player.hp <= 0) { this.triggerGameOver('MISIÓN FALLIDA'); return; }
+            let outcome = null;
+            if (!this.levelCompleting) outcome = this.player.update(this.keys, this.platforms, this.particles);
+            if (outcome === 'fell') { this.loseLife(); return; }
+            if (this.player.hp <= 0) { this.loseLife(); return; }
             this.particles.update();
             const CAMERA_END_MARGIN = 40; // deja la meta con aire a la derecha en vez de pegada al borde
             const maxScroll = level.goal + CAMERA_END_MARGIN - GAME_WIDTH;
@@ -258,7 +280,7 @@ class Game {
                         this.playerInvulnerable = 40;
                         this.shake = Math.max(this.shake, 4);
                         if (window.SFX) SFX.hitPlayer();
-                        if (this.player.hp <= 0) { this.triggerGameOver('MISIÓN FALLIDA'); return; }
+                        if (this.player.hp <= 0) { this.loseLife(); return; }
                     }
                 }
             } else {
@@ -313,6 +335,7 @@ class Game {
             if (this.goalFlag) this.goalFlag.update();
             if (this.levelUpMessage > 0) this.levelUpMessage--;
             if (this.levelCompleteMessage > 0) this.levelCompleteMessage--;
+            if (this.livesLostMessage > 0) this.livesLostMessage--;
         }
     }
 
@@ -339,6 +362,9 @@ class Game {
         if (this.inWorldMap) {
             this.drawStars(this.mapStars, 0);
             this.worldMap.draw(ctx);
+            ctx.fillStyle = PALETTE.accent2; ctx.font = '10px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText(`♥×${this.player.lives}`, 308, 16);
+            ctx.textAlign = 'left';
             ctx.restore();
             return;
         }
@@ -388,6 +414,7 @@ class Game {
             ctx.fillText(`Lv${this.player.level}`, 4, 14);
             ctx.fillStyle = PALETTE.hp; ctx.fillText(`HP:${this.player.hp}/${this.player.maxHp}`, 30, 14);
             ctx.fillStyle = PALETTE.en; ctx.fillText(`EN:${this.player.energy}/${this.player.maxEnergy}`, 108, 14);
+            ctx.fillStyle = PALETTE.accent2; ctx.fillText(`♥${this.player.lives}`, 178, 14);
             ctx.fillStyle = PALETTE.panel; ctx.fillRect(256, 7, 56, 7);
             ctx.fillStyle = PALETTE.xp; ctx.fillRect(256, 7, 56 * Math.min(1, this.player.xp / this.player.xpToNextLevel), 7);
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif'; ctx.fillText('XP', 236, 13);
@@ -401,6 +428,14 @@ class Game {
             if (this.levelCompleteMessage > 0) {
                 ctx.fillStyle = PALETTE.accent; ctx.font = 'bold 14px "Orbitron", sans-serif';
                 ctx.fillText('SECTOR COMPLETADO', 55, 70);
+            }
+            if (this.livesLostMessage > 0) {
+                ctx.textAlign = 'center';
+                ctx.fillStyle = PALETTE.hpLow; ctx.font = 'bold 14px "Orbitron", sans-serif';
+                ctx.fillText('¡PERDISTE UNA VIDA!', GAME_WIDTH / 2, 70);
+                ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
+                ctx.fillText(`Quedan ${this.player.lives}`, GAME_WIDTH / 2, 86);
+                ctx.textAlign = 'left';
             }
         }
         ctx.restore();
@@ -430,6 +465,7 @@ const game = new Game();
             game.inLevel = true;
             game.player.hp = game.player.maxHp;
             game.player.energy = game.player.maxEnergy;
+            game.player.lives = game.player.maxLives;
         }
     }
 })();
