@@ -235,3 +235,56 @@ describe('Vidas', () => {
         expect(outcome).toBe('gameOver');
     });
 });
+
+// Réplica de la lógica de colisión/recogida de Game.update() para las cápsulas de vida extra.
+function collectCapsule(player, capsule, collectedSet, levelKey) {
+    if (capsule.collected) return false;
+    const overlap = player.x < capsule.x + capsule.w && player.x + player.w > capsule.x &&
+                     player.y < capsule.y + capsule.h && player.y + player.h > capsule.y;
+    if (!overlap) return false;
+    capsule.collected = true;
+    collectedSet.add(levelKey);
+    player.lives++;
+    return true;
+}
+
+describe('Cápsulas de vida extra', () => {
+    test('recoger una cápsula suma una vida', () => {
+        const p = new Player(10, 10);
+        const cap = { x: 12, y: 10, w: 8, h: 9, collected: false };
+        const collected = collectCapsule(p, cap, new Set(), '1');
+        expect(collected).toBe(true);
+        expect(p.lives).toBe(4);
+        expect(cap.collected).toBe(true);
+    });
+
+    test('no se puede recoger dos veces la misma cápsula', () => {
+        const p = new Player(10, 10);
+        const cap = { x: 12, y: 10, w: 8, h: 9, collected: false };
+        const collectedSet = new Set();
+        collectCapsule(p, cap, collectedSet, '1');
+        const secondTry = collectCapsule(p, cap, collectedSet, '1');
+        expect(secondTry).toBe(false);
+        expect(p.lives).toBe(4);
+    });
+
+    test('una cápsula ya recogida no se puede volver a farmear reentrando al nivel', () => {
+        const p = new Player(10, 10);
+        const collectedSet = new Set();
+        collectCapsule(p, { x: 12, y: 10, w: 8, h: 9, collected: false }, collectedSet, '2');
+        // al recargar el nivel se recrea la cápsula, pero collectedSet ya recuerda que se recogió
+        const respawnedCapsule = { x: 12, y: 10, w: 8, h: 9, collected: collectedSet.has('2') };
+        expect(respawnedCapsule.collected).toBe(true);
+        const collected = collectCapsule(p, respawnedCapsule, collectedSet, '2');
+        expect(collected).toBe(false);
+        expect(p.lives).toBe(4);
+    });
+
+    test('sin solape con el jugador, no se recoge', () => {
+        const p = new Player(0, 0);
+        const cap = { x: 200, y: 200, w: 8, h: 9, collected: false };
+        const collected = collectCapsule(p, cap, new Set(), '3');
+        expect(collected).toBe(false);
+        expect(p.lives).toBe(3);
+    });
+});

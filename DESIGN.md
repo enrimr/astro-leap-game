@@ -142,7 +142,20 @@ Feedback de testers humanos: caer por un precipicio se sentía gratis (un poco d
 - **Con 0 vidas**: Game Over de verdad — stats del jugador, mapa estelar y progreso guardado se reinician por completo, vuelves al nivel 1 con vidas al máximo.
 - El daño repetido del muro en el Túnel de Escape (§2.6) sigue siendo solo HP, no vidas directamente — sería demasiado punitivo perder una vida cada vez que el muro te toca dado que golpea varias veces si te quedas atrás. Solo cuenta como muerte si esa acumulación de HP llega a 0.
 
-### 2.8 Lecciones aplicadas desde el primer día (no como parche después)
+### 2.8 Cápsulas de soporte vital (conseguir vidas extra)
+
+El sistema de vidas necesitaba una vía para *ganar* vidas, no solo perderlas — si no, cada muerte es puramente una cuenta atrás. La solución elegida es de **exploración**, no de progresión automática: una cápsula de vida extra escondida en un punto opcional de un nivel por cada mundo, no en el camino directo a la meta.
+
+- `LevelNode`/nivel define un array `capsules: [[x, y], ...]` en `levels.js`; casi siempre uno por nivel elegido, no en todos.
+- Colocación por mundo:
+  - **Grietas de Hielo** (mundo 1): sobre una plataforma flotante que ya existía en el nivel pero nunca hacía falta pisar — solo exige un salto simple fuera de la ruta obvia.
+  - **Tormenta de Iones** (mundo 2): sobre una plataforma nueva, añadida específicamente como secreto, a una altura que un salto simple no alcanza (el salto simple sube como mucho ~29 unidades; esta plataforma exige el doble salto que ya se entrena en este nivel).
+  - **Muelle de Carga** (mundo 3): igual, plataforma secreta nueva, alcanzable con un salto simple bien cronometrado.
+- No hace falta *aterrizar* en la plataforma secreta para recoger la cápsula — sólo tocarla en pleno arco del salto ya cuenta, así que fallar el aterrizaje perfecto no te deja con las manos vacías si pasaste cerca.
+- **Anti-farmeo**: una vez recogida, la cápsula de ese nivel queda marcada en `Game.collectedCapsules` (un `Set` por índice de nivel) y no vuelve a aparecer aunque salgas y reentres al nivel — si no, entrar y salir del mismo nivel una y otra vez daría vidas infinitas. Ese set se reinicia solo en un Game Over completo o al terminar el juego (mismo ciclo de vida que las propias vidas: no se guarda en `localStorage`, dura lo que dura la sesión).
+- El mensaje en pantalla de "¡VIDA EXTRA!" y el de "¡PERDISTE UNA VIDA!" son mutuamente excluyentes (activar uno apaga el contador del otro) — si coincidieran en el mismo instante se dibujarían superpuestos e ilegibles.
+
+### 2.9 Lecciones aplicadas desde el primer día (no como parche después)
 
 Todo el feedback que surgió iterando sobre Monster Jump se incorpora aquí desde el diseño inicial, no como añadido tardío:
 - Controles táctiles + ratón + teclado desde el arranque, canvas responsive.

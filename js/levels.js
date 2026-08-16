@@ -17,6 +17,8 @@ const LEVELS = [
             [430, 105, 40, 6], [510, 130, 60, 15], [610, 150, 80, 15]
         ],
         enemies: [[80, 106, 'drone'], [260, 128, 'spiker'], [440, 93, 'crawler'], [530, 118, 'spiker']],
+        // Cápsula escondida sobre la plataforma flotante [70,118,30,6], que no hace falta pisar para avanzar
+        capsules: [[82, 108]],
         goal: 640
     },
     {
@@ -44,9 +46,11 @@ const LEVELS = [
         name: 'Tormenta de Iones', world: 2, variant: 'metal',
         platforms: [
             [0, 150, 70, 15], [200, 145, 45, 6], [340, 125, 45, 6],
-            [480, 105, 45, 6], [620, 125, 45, 6], [760, 145, 45, 6], [900, 150, 100, 15]
+            [480, 105, 45, 6], [620, 125, 45, 6], [760, 145, 45, 6], [900, 150, 100, 15],
+            [635, 88, 28, 6] // plataforma secreta: solo se alcanza con doble salto desde [620,125,45,6]
         ],
         enemies: [[210, 133, 'ionwisp', 65], [350, 113, 'spiker'], [490, 93, 'ionwisp', 70], [630, 113, 'hoverbot', 60], [770, 133, 'ionwisp', 65]],
+        capsules: [[645, 78]],
         goal: 940
     },
     {
@@ -68,9 +72,11 @@ const LEVELS = [
         platforms: [
             [0, 150, 80, 15], [140, 150, 55, 15], [230, 130, 45, 6],
             [320, 150, 55, 15], [410, 115, 45, 6], [500, 150, 55, 15],
-            [590, 130, 45, 6], [680, 150, 150, 15]
+            [590, 130, 45, 6], [680, 150, 150, 15],
+            [245, 104, 25, 6] // plataforma secreta: un salto simple por encima de [230,130,45,6]
         ],
         enemies: [[150, 138, 'crawler'], [240, 118, 'hoverbot', 50], [330, 138, 'spiker'], [420, 103, 'ionwisp', 55], [600, 118, 'magnetite']],
+        capsules: [[254, 94]],
         goal: 780
     },
     {

@@ -41,9 +41,10 @@ function makeStars(count, maxX) {
 class Game {
     constructor() {
         this.player = new Player(20, 100);
-        this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null;
+        this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null; this.capsules = [];
         this.combat = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
-        this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0;
+        this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0;
+        this.collectedCapsules = new Set(); // por nivel, para no poder re-recoger saliendo y entrando
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
         this.levelCompleting = false; this.playerInvulnerable = 0;
         this.autoScrollX = 0; this.forcedScrollDelay = 0;
@@ -101,6 +102,12 @@ class Game {
             return enemy;
         });
         this.goalFlag = new GoalFlag(level.goal, 128);
+        const capsuleKey = `${lvl}`;
+        this.capsules = (level.capsules || []).map(([cx, cy]) => {
+            const cap = new LifeCapsule(cx, cy);
+            if (this.collectedCapsules.has(capsuleKey)) cap.collected = true;
+            return cap;
+        });
         this.player.x = 20; this.player.y = 100; this.player.vx = 0; this.player.vy = 0;
         this.player.energy = this.player.maxEnergy; this.cameraX = 0;
         this.autoScrollX = 0;
@@ -123,7 +130,7 @@ class Game {
             this.fullGameOver();
         } else {
             if (window.SFX) SFX.loseLife();
-            this.livesLostMessage = 110;
+            this.livesLostMessage = 110; this.extraLifeMessage = 0;
             this.levelCompleting = false;
             this.loadLevel(this.currentLevel);
             this.player.hp = this.player.maxHp;
@@ -138,6 +145,7 @@ class Game {
         startScreen.style.display = 'flex';
         this.player = new Player(20, 100);
         this.worldMap = new WorldMap();
+        this.collectedCapsules = new Set();
         this.clearProgress();
         this.loadLevel(0);
         this.inLevel = false; this.inWorldMap = false; this.combat = null;
@@ -304,6 +312,19 @@ class Game {
                 }
             }
 
+            for (const cap of this.capsules) {
+                if (cap.collected) continue;
+                cap.update();
+                if (this.player.collides(cap)) {
+                    cap.collected = true;
+                    this.collectedCapsules.add(`${this.currentLevel}`);
+                    this.player.lives++;
+                    this.extraLifeMessage = 110; this.livesLostMessage = 0;
+                    if (window.SFX) SFX.levelUp();
+                    this.particles.burst(cap.x + cap.w / 2, cap.y, PALETTE.accent2, 16, { speed: 2, life: 32, size: 3 });
+                }
+            }
+
             if (this.player.x >= level.goal && !this.levelCompleting) {
                 if (level.boss) {
                     const boss = this.enemies.find(e => e.isBoss);
@@ -322,6 +343,7 @@ class Game {
                     startScreen.style.display = 'flex';
                     this.player = new Player(20, 100);
                     this.worldMap = new WorldMap();
+                    this.collectedCapsules = new Set();
                     this.clearProgress();
                     this.inLevel = false; this.inWorldMap = false;
                 } else {
@@ -336,6 +358,7 @@ class Game {
             if (this.levelUpMessage > 0) this.levelUpMessage--;
             if (this.levelCompleteMessage > 0) this.levelCompleteMessage--;
             if (this.livesLostMessage > 0) this.livesLostMessage--;
+            if (this.extraLifeMessage > 0) this.extraLifeMessage--;
         }
     }
 
@@ -379,6 +402,7 @@ class Game {
         } else {
             for (const p of this.platforms) p.draw(ctx, this.cameraX);
             if (this.goalFlag) this.goalFlag.draw(ctx, this.cameraX);
+            for (const cap of this.capsules) cap.draw(ctx, this.cameraX);
             for (const e of this.enemies) e.draw(ctx, this.cameraX);
             this.particles.draw(ctx, this.cameraX);
             if (this.playerInvulnerable === 0 || Math.floor(this.playerInvulnerable / 8) % 2 === 0) {
@@ -435,6 +459,14 @@ class Game {
                 ctx.fillText('¡PERDISTE UNA VIDA!', GAME_WIDTH / 2, 70);
                 ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
                 ctx.fillText(`Quedan ${this.player.lives}`, GAME_WIDTH / 2, 86);
+                ctx.textAlign = 'left';
+            }
+            if (this.extraLifeMessage > 0) {
+                ctx.textAlign = 'center';
+                ctx.fillStyle = PALETTE.accent2; ctx.font = 'bold 14px "Orbitron", sans-serif';
+                ctx.fillText('¡VIDA EXTRA!', GAME_WIDTH / 2, 70);
+                ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
+                ctx.fillText(`Ahora tienes ${this.player.lives}`, GAME_WIDTH / 2, 86);
                 ctx.textAlign = 'left';
             }
         }
