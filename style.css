@@ -8,7 +8,7 @@
 
 body {
     background: radial-gradient(ellipse at 50% -10%, #241249 0%, var(--bg1) 60%);
-    display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
     min-height: 100vh; font-family: 'Rajdhani', sans-serif; color: var(--ink);
     padding: 16px; gap: 12px; overflow-y: auto;
 }
