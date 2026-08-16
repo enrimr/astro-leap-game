@@ -171,12 +171,39 @@ class Game {
         const startTap = (e) => { e.preventDefault(); this.startGame(); };
         startScreen.addEventListener('touchstart', startTap, { passive: false });
         startScreen.addEventListener('click', startTap);
+
+        // Tocar/clicar directamente un nodo del mapa estelar entra a ese nivel (si está desbloqueado)
+        const mapTap = (e) => {
+            if (!this.inWorldMap) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const point = e.changedTouches ? e.changedTouches[0] : e;
+            const gx = (point.clientX - rect.left) / rect.width * GAME_WIDTH;
+            const gy = (point.clientY - rect.top) / rect.height * GAME_HEIGHT;
+            let closest = null, closestDist = Infinity;
+            for (const node of this.worldMap.nodes) {
+                const dist = Math.hypot(node.x - gx, node.y - gy);
+                if (dist < closestDist) { closest = node; closestDist = dist; }
+            }
+            if (closest && closestDist <= closest.w) {
+                if (!closest.unlocked) { if (window.SFX) SFX.select(); return; }
+                this.worldMap.currentNodeIndex = closest.levelIndex;
+                if (window.SFX) SFX.confirm();
+                this.currentLevel = closest.levelIndex;
+                this.loadLevel(closest.levelIndex);
+                this.inWorldMap = false;
+                this.inLevel = true;
+            }
+        };
+        canvas.addEventListener('touchstart', mapTap, { passive: false });
+        canvas.addEventListener('click', mapTap);
     }
 
     updateTouchUI() {
         const inCombat = !!(this.combat && this.combat.active);
         if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat);
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat);
+        if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
         if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat);
     }
 
