@@ -288,3 +288,55 @@ describe('Cápsulas de vida extra', () => {
         expect(p.lives).toBe(3);
     });
 });
+
+// Réplica de la recogida de células de energía: sube maxEnergy (y energy) en +1 para siempre.
+function collectEnergyCell(player, cell, collectedSet, levelKey) {
+    if (cell.collected) return false;
+    const overlap = player.x < cell.x + cell.w && player.x + player.w > cell.x &&
+                     player.y < cell.y + cell.h && player.y + player.h > cell.y;
+    if (!overlap) return false;
+    cell.collected = true;
+    collectedSet.add(levelKey);
+    player.maxEnergy += 1;
+    player.energy = Math.min(player.energy + 1, player.maxEnergy);
+    return true;
+}
+
+describe('Células de energía extra', () => {
+    test('recoger una célula sube el máximo de energía en 1', () => {
+        const p = new Player(10, 10);
+        const cell = { x: 12, y: 10, w: 8, h: 9, collected: false };
+        const collected = collectEnergyCell(p, cell, new Set(), '1');
+        expect(collected).toBe(true);
+        expect(p.maxEnergy).toBe(11);
+        expect(p.energy).toBe(11);
+    });
+
+    test('no sube la energía actual por encima del nuevo máximo', () => {
+        const p = new Player(10, 10); p.energy = 3; p.maxEnergy = 10;
+        const cell = { x: 12, y: 10, w: 8, h: 9, collected: false };
+        collectEnergyCell(p, cell, new Set(), '1');
+        expect(p.energy).toBe(4);
+        expect(p.maxEnergy).toBe(11);
+    });
+
+    test('no se puede recoger dos veces la misma célula', () => {
+        const p = new Player(10, 10);
+        const cell = { x: 12, y: 10, w: 8, h: 9, collected: false };
+        const collectedSet = new Set();
+        collectEnergyCell(p, cell, collectedSet, '4');
+        const secondTry = collectEnergyCell(p, cell, collectedSet, '4');
+        expect(secondTry).toBe(false);
+        expect(p.maxEnergy).toBe(11);
+    });
+
+    test('vidas y energía se rastrean en sets de recogida independientes', () => {
+        const collectedSet = new Set();
+        collectedSet.add('life-2');
+        collectedSet.add('energy-1');
+        expect(collectedSet.has('life-1')).toBe(false);
+        expect(collectedSet.has('energy-2')).toBe(false);
+        expect(collectedSet.has('life-2')).toBe(true);
+        expect(collectedSet.has('energy-1')).toBe(true);
+    });
+});

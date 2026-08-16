@@ -264,6 +264,30 @@ class LifeCapsule {
     }
 }
 
+// Célula de energía: coleccionable opcional escondido, sube el máximo de Energía en +1 para siempre.
+class EnergyCell {
+    constructor(x, y) { this.x = x; this.y = y; this.w = 8; this.h = 9; this.collected = false; this.t = Math.random() * Math.PI * 2; }
+    update() { this.t += 0.07; }
+    collides(e) { return this.x < e.x + e.w && this.x + this.w > e.x && this.y < e.y + e.h && this.y + this.h > e.y; }
+    draw(ctx, cx) {
+        if (this.collected) return;
+        const bob = Math.sin(this.t) * 2.5;
+        const sx = this.x - cx, sy = this.y + bob;
+        const pulse = 0.6 + Math.sin(this.t * 1.4) * 0.4;
+        ctx.save();
+        ctx.shadowColor = PALETTE.en; ctx.shadowBlur = 7 + pulse * 4;
+        const grad = ctx.createLinearGradient(0, sy, 0, sy + this.h);
+        grad.addColorStop(0, '#d6fbff'); grad.addColorStop(1, PALETTE.en);
+        ctx.fillStyle = grad;
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(sx, sy, this.w, this.h, 3); ctx.fill(); }
+        else ctx.fillRect(sx, sy, this.w, this.h);
+        ctx.restore();
+        ctx.fillStyle = PALETTE.bg1; ctx.font = '7px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('⚡', sx + this.w / 2, sy + this.h - 2);
+        ctx.textAlign = 'left';
+    }
+}
+
 class LevelNode {
     constructor(x, y, levelIndex, name) {
         this.x = x; this.y = y; this.levelIndex = levelIndex; this.name = name;

@@ -64,6 +64,7 @@ const SFX = (() => {
         },
         gameOver() { tone(300, 0.3, { type: 'sawtooth', freqEnd: 80, volume: 0.16 }); },
         loseLife() { tone(380, 0.14, { type: 'square', freqEnd: 150, volume: 0.15 }); tone(280, 0.16, { type: 'square', freqEnd: 100, volume: 0.13, delay: 0.1 }); },
+        extraEnergy() { tone(700, 0.08, { type: 'sawtooth', freqEnd: 1100, volume: 0.13 }); tone(1100, 0.12, { type: 'sawtooth', freqEnd: 1400, volume: 0.14, delay: 0.07 }); },
         boot() { tone(220, 0.08, { volume: 0.1 }); tone(330, 0.08, { volume: 0.1, delay: 0.08 }); }
     };
 })();

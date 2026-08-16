@@ -31,6 +31,8 @@ La Energía es un recurso **compartido** entre el doble salto en plataformas y l
 
 **Conseguir vidas extra**: hay una cápsula escondida por mundo (3 en total), fuera del camino directo a la meta — una solo pide un salto simple, otra exige el doble salto. No hace falta aterrizar en la plataforma secreta, con tocar la cápsula en pleno salto vale. Cada cápsula solo se puede recoger una vez por sesión (no se puede farmear saliendo y reentrando al nivel). Ver `DESIGN.md` §2.8.
 
+**Conseguir más Energía máxima**: mismo patrón, otras 3 células escondidas (⚡) en otros niveles distintos a los de las cápsulas de vida. Suben `maxEnergy` en +1 para siempre, no son un recurso que se recupera solo al reiniciar nivel. Dos de ellas exigen doble salto cronometrado cerca del punto más alto del primer salto (saltar demasiado pronto da menos altura). Ver `DESIGN.md` §2.9.
+
 ## El nivel de scroll forzado
 
 El sector 8 ("Túnel de Escape") es distinto al resto: al entrar, el núcleo de la estación empieza una cuenta atrás y luego una pared de energía avanza sola desde el borde izquierdo de la pantalla — no puedes detenerla ni ir más despacio que ella. Si te alcanza, empuja al jugador y hace daño (con un breve respiro entre golpes, no es instantáneo). Es el mismo tipo de tramo que en *Super Mario World* obliga a mantener el ritmo del mapa en vez de explorar a tu aire. Ver `DESIGN.md` §2.6.

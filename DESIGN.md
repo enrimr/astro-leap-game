@@ -152,10 +152,19 @@ El sistema de vidas necesitaba una vía para *ganar* vidas, no solo perderlas �
   - **Tormenta de Iones** (mundo 2): sobre una plataforma nueva, añadida específicamente como secreto, a una altura que un salto simple no alcanza (el salto simple sube como mucho ~29 unidades; esta plataforma exige el doble salto que ya se entrena en este nivel).
   - **Muelle de Carga** (mundo 3): igual, plataforma secreta nueva, alcanzable con un salto simple bien cronometrado.
 - No hace falta *aterrizar* en la plataforma secreta para recoger la cápsula — sólo tocarla en pleno arco del salto ya cuenta, así que fallar el aterrizaje perfecto no te deja con las manos vacías si pasaste cerca.
-- **Anti-farmeo**: una vez recogida, la cápsula de ese nivel queda marcada en `Game.collectedCapsules` (un `Set` por índice de nivel) y no vuelve a aparecer aunque salgas y reentres al nivel — si no, entrar y salir del mismo nivel una y otra vez daría vidas infinitas. Ese set se reinicia solo en un Game Over completo o al terminar el juego (mismo ciclo de vida que las propias vidas: no se guarda en `localStorage`, dura lo que dura la sesión).
+- **Anti-farmeo**: una vez recogida, la cápsula de ese nivel queda marcada en `Game.collectedPickups` (un `Set` con claves tipo `"life-<nivel>"`) y no vuelve a aparecer aunque salgas y reentres al nivel — si no, entrar y salir del mismo nivel una y otra vez daría vidas infinitas. Ese set se reinicia solo en un Game Over completo o al terminar el juego (mismo ciclo de vida que las propias vidas: no se guarda en `localStorage`, dura lo que dura la sesión).
 - El mensaje en pantalla de "¡VIDA EXTRA!" y el de "¡PERDISTE UNA VIDA!" son mutuamente excluyentes (activar uno apaga el contador del otro) — si coincidieran en el mismo instante se dibujarían superpuestos e ilegibles.
 
-### 2.9 Lecciones aplicadas desde el primer día (no como parche después)
+### 2.9 Células de energía (conseguir más Energía máxima)
+
+Mismo patrón que las cápsulas de vida (§2.8), pero para Energía: una célula escondida por mundo, en niveles *distintos* a los de las cápsulas de vida para repartir el aliciente de explorar entre más niveles del juego (Cráter de Amerizaje, Chatarral Magnético y Núcleo del Reactor, en vez de Grietas de Hielo/Tormenta de Iones/Muelle de Carga).
+
+- A diferencia de las vidas, esto no es un recurso que se recupera al reiniciar nivel — sube `maxEnergy` (y `energy` actual) en +1 **para siempre**, un upgrade permanente de capacidad, no un recurso consumible.
+- Usa la misma clave `Game.collectedPickups` que las cápsulas de vida, con prefijo `"energy-<nivel>"` en vez de `"life-<nivel>"` — mismo Set, misma protección anti-farmeo, mismo reinicio en Game Over/victoria.
+- Colocación: Cráter de Amerizaje reutiliza una plataforma flotante ya existente (fácil, salto simple); Chatarral Magnético y Núcleo del Reactor usan plataformas secretas nuevas que exigen doble salto **bien cronometrado cerca del punto más alto del primer salto** — hacer el doble salto demasiado pronto (nada más despegar) da bastante menos altura que esperar al ápice del primer salto antes de encadenarlo, así que estas dos células premian entender bien el timing del doble salto, no solo saber que existe.
+- Los tres mensajes en pantalla ("¡VIDA EXTRA!", "¡PERDISTE UNA VIDA!", "¡ENERGÍA EXTRA!") son mutuamente excluyentes entre sí.
+
+### 2.10 Lecciones aplicadas desde el primer día (no como parche después)
 
 Todo el feedback que surgió iterando sobre Monster Jump se incorpora aquí desde el diseño inicial, no como añadido tardío:
 - Controles táctiles + ratón + teclado desde el arranque, canvas responsive.

@@ -7,6 +7,8 @@ const LEVELS = [
             [70, 120, 35, 6], [230, 110, 40, 6], [320, 95, 40, 6], [420, 115, 45, 6]
         ],
         enemies: [[100, 138, 'drone'], [260, 98, 'drone'], [360, 83, 'crawler']],
+        // Célula de energía sobre la plataforma flotante más alta [320,95,40,6], puramente decorativa/opcional
+        energyCells: [[335, 85]],
         goal: 520
     },
     {
@@ -37,9 +39,11 @@ const LEVELS = [
         platforms: [
             [0, 150, 80, 15], [140, 150, 55, 15], [235, 130, 45, 6],
             [325, 150, 55, 15], [420, 115, 45, 6], [510, 150, 55, 15],
-            [605, 130, 45, 6], [695, 150, 130, 15]
+            [605, 130, 45, 6], [695, 150, 130, 15],
+            [335, 110, 25, 6] // plataforma secreta: exige doble salto desde [325,150,55,15]
         ],
         enemies: [[150, 138, 'magnetite'], [250, 118, 'hoverbot', 55], [340, 138, 'crawler'], [435, 103, 'hoverbot', 60], [615, 118, 'magnetite']],
+        energyCells: [[345, 100]],
         goal: 760
     },
     {
@@ -98,9 +102,11 @@ const LEVELS = [
         platforms: [
             [0, 150, 70, 15], [130, 150, 55, 15], [235, 130, 45, 6],
             [330, 150, 55, 15], [420, 110, 45, 6], [510, 150, 55, 15],
-            [600, 125, 45, 6], [690, 150, 55, 15], [780, 150, 320, 15]
+            [600, 125, 45, 6], [690, 150, 55, 15], [780, 150, 320, 15],
+            [140, 115, 25, 6] // plataforma secreta: exige doble salto desde [130,150,55,15], antes del jefe
         ],
         enemies: [[145, 138, 'magnetite'], [250, 118, 'ionwisp', 40], [340, 138, 'spiker'], [430, 98, 'hoverbot', 45], [520, 138, 'crawler'], [615, 113, 'ionwisp', 50], [900, 138, 'overlord']],
+        energyCells: [[149, 105]],
         goal: 1050, boss: 'overlord'
     }
 ];
