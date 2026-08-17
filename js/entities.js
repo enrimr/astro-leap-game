@@ -120,6 +120,22 @@ class Player {
         ctx.fillRect(sx - 2 + eyeOffset, sy - h + 3, 2, 2);
         ctx.fillRect(sx + 1 + eyeOffset, sy - h + 3, 2, 2);
     }
+    // Mismo aspecto que draw(), pero a una posición/tamaño fijos en pantalla (para el retrato de combate).
+    drawPortrait(ctx, x, y, w, h) {
+        const grad = ctx.createLinearGradient(0, y, 0, y + h);
+        grad.addColorStop(0, PALETTE.accent);
+        grad.addColorStop(1, '#3fa9c9');
+        ctx.save();
+        ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 8;
+        ctx.fillStyle = grad;
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 3); ctx.fill(); }
+        else ctx.fillRect(x, y, w, h);
+        ctx.restore();
+        ctx.fillStyle = PALETTE.bg1;
+        const es = Math.max(2, Math.round(w * 0.16)), eo = Math.round(w * 0.2);
+        ctx.fillRect(x + eo, y + h * 0.2, es, es);
+        ctx.fillRect(x + w - eo - es, y + h * 0.2, es, es);
+    }
 }
 
 const ENEMY_STATS = {
@@ -201,6 +217,20 @@ class Enemy {
         ctx.fillStyle = PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif';
         ctx.fillText(`Lv${this.level}`, sx, sy - 2);
         if (this.isBoss) { ctx.fillStyle = PALETTE.accent3; ctx.fillText('JEFE', sx, sy - 10); }
+    }
+    // Mismo aspecto que draw(), pero a una posición/tamaño fijos en pantalla (para el retrato de combate).
+    drawPortrait(ctx, x, y, w, h) {
+        ctx.save();
+        ctx.shadowColor = this.color; ctx.shadowBlur = 10;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(x, y, w, h, 4); } else ctx.rect(x, y, w, h);
+        ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = PALETTE.bg1;
+        const es = Math.max(2, Math.round(w * 0.16)), eo = Math.round(w * 0.16);
+        ctx.fillRect(x + eo, y + h * 0.22, es, es);
+        ctx.fillRect(x + w - eo - es, y + h * 0.22, es, es);
     }
 }
 
@@ -452,11 +482,8 @@ class CombatSystem {
         ctx.fillText('DUELO DE ENERGÍA', 90, 16);
 
         // Columna del enemigo (retrato a la derecha, stats a la izquierda del retrato)
-        ctx.save();
-        ctx.shadowColor = this.enemy.color; ctx.shadowBlur = 10;
-        ctx.fillStyle = this.enemy.color;
-        ctx.fillRect(272, 20, this.enemy.w, this.enemy.h);
-        ctx.restore();
+        const enemyPortraitSize = this.enemy.isBoss ? 32 : 24;
+        this.enemy.drawPortrait(ctx, 280 - enemyPortraitSize / 2, 24, enemyPortraitSize, enemyPortraitSize);
         ctx.fillStyle = PALETTE.ink; ctx.font = '10px "Rajdhani", sans-serif';
         ctx.fillText(`${this.enemy.type} Lv${this.enemy.level}`, 185, 34);
         ctx.fillText(`HP: ${this.enemy.hp}/${this.enemy.maxHp}`, 185, 46);
@@ -465,11 +492,7 @@ class CombatSystem {
         ctx.fillStyle = ehp < 0.3 ? PALETTE.hpLow : PALETTE.hp; ctx.fillRect(185, 50, 78 * ehp, 6);
 
         // Columna del jugador (retrato a la izquierda, stats a la derecha del retrato)
-        ctx.save();
-        ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 8;
-        ctx.fillStyle = PALETTE.accent;
-        ctx.fillRect(15, 20, 16, 20);
-        ctx.restore();
+        this.player.drawPortrait(ctx, 14, 20, 20, 26);
         ctx.fillStyle = PALETTE.ink; ctx.font = '10px "Rajdhani", sans-serif';
         ctx.fillText(`TÚ Lv${this.player.level}  ♥${this.player.lives}`, 40, 30);
         ctx.fillText(`HP: ${this.player.hp}/${this.player.maxHp}`, 40, 42);
