@@ -17,6 +17,8 @@ O simplemente abre `index.html` directamente en el navegador.
 
 Efectos y música de fondo (loop de exploración + loop de combate, con secuenciador propio) sintetizados con Web Audio, sin archivos externos. Ver `DESIGN.md` §2.10.
 
+Dos botones (🎵/🔊) en la esquina superior izquierda silencian música y efectos por separado, visibles en cualquier pantalla. La preferencia se recuerda entre sesiones.
+
 ## Controles
 
 - `←` `→` — mover

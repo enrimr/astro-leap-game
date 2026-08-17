@@ -11,7 +11,12 @@ const SFX = (() => {
         return ctx;
     }
 
+    let sfxEnabled = true;
+    let musicEnabled = true;
+    let lastRequestedMusic = null; // {name, pattern} — lo último pedido, para reanudar al reactivar
+
     function tone(freq, duration, { type = 'square', volume = 0.15, freqEnd = null, delay = 0 } = {}) {
+        if (!sfxEnabled) return;
         const c = ensureCtx();
         const osc = c.createOscillator();
         const gain = c.createGain();
@@ -27,6 +32,7 @@ const SFX = (() => {
     }
 
     function noise(duration, { volume = 0.12 } = {}) {
+        if (!sfxEnabled) return;
         const c = ensureCtx();
         const bufferSize = c.sampleRate * duration;
         const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
@@ -83,6 +89,8 @@ const SFX = (() => {
     }
 
     function playMusic(name, pattern) {
+        lastRequestedMusic = { name, pattern }; // recordar siempre lo pedido, aunque esté silenciada
+        if (!musicEnabled) return;
         if (currentMusicName === name) return; // ya sonando, no reiniciar el loop
         stopMusic();
         currentMusicName = name;
@@ -96,6 +104,13 @@ const SFX = (() => {
     function stopMusic() {
         if (musicTimerID) { clearInterval(musicTimerID); musicTimerID = null; }
         currentMusicName = null;
+    }
+
+    function applySfxEnabled(on) { sfxEnabled = on; }
+    function applyMusicEnabled(on) {
+        musicEnabled = on;
+        if (!on) stopMusic();
+        else if (lastRequestedMusic) playMusic(lastRequestedMusic.name, lastRequestedMusic.pattern);
     }
 
     // Escala espaciosa/ambiental (La menor) para explorar, arpegio disperso y lento.
@@ -175,10 +190,14 @@ const SFX = (() => {
             tone(220, 0.3, { type: 'sawtooth', freqEnd: 440, volume: 0.15 });
             tone(330, 0.3, { type: 'sawtooth', freqEnd: 660, volume: 0.12, delay: 0.05 });
         },
+        setSfxEnabled(on) { applySfxEnabled(on); },
+        isSfxEnabled() { return sfxEnabled; },
         music: {
             playExplore() { playMusic('explore', EXPLORE_PATTERN); },
             playCombat() { playMusic('combat', COMBAT_PATTERN); },
             stop() { stopMusic(); },
+            setEnabled(on) { applyMusicEnabled(on); },
+            isEnabled() { return musicEnabled; },
             setVolume(v) { musicGain().gain.value = Math.max(0, Math.min(1, v)); }
         }
     };

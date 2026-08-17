@@ -8,6 +8,8 @@ const btnLeft = document.getElementById('btnLeft');
 const btnRight = document.getElementById('btnRight');
 const btnJump = document.getElementById('btnJump');
 const btnExit = document.getElementById('btnExit');
+const btnMusicToggle = document.getElementById('btnMusicToggle');
+const btnSfxToggle = document.getElementById('btnSfxToggle');
 
 const IS_TOUCH_DEVICE = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 const START_HINT_TEXT = IS_TOUCH_DEVICE ? 'TOCA PARA DESPEGAR' : 'PULSA ESPACIO PARA DESPEGAR';
@@ -52,9 +54,21 @@ class Game {
         this.shake = 0;
         this.mapStars = makeStars(70, GAME_WIDTH);
         this.levelStars = makeStars(140, 1200);
+        this.musicOn = this.loadAudioPref('astroLeapMusicOn');
+        this.sfxOn = this.loadAudioPref('astroLeapSfxOn');
         this.loadProgress();
         this.setupInput();
         this.setupTouchControls();
+        this.applyAudioPrefs();
+    }
+
+    loadAudioPref(key) {
+        try { return localStorage.getItem(key) !== '0'; } catch (e) { return true; }
+    }
+    applyAudioPrefs() {
+        if (window.SFX) { SFX.setSfxEnabled(this.sfxOn); SFX.music.setEnabled(this.musicOn); }
+        if (btnMusicToggle) { btnMusicToggle.classList.toggle('off', !this.musicOn); btnMusicToggle.textContent = this.musicOn ? '🎵' : '🔇'; }
+        if (btnSfxToggle) { btnSfxToggle.classList.toggle('off', !this.sfxOn); btnSfxToggle.textContent = this.sfxOn ? '🔊' : '🔈'; }
     }
 
     saveProgress() {
@@ -191,6 +205,29 @@ class Game {
             const exitTap = (e) => { e.preventDefault(); if (this.inLevel && !this.combat) this.exitLevel(); };
             btnExit.addEventListener('touchstart', exitTap, { passive: false });
             btnExit.addEventListener('click', exitTap);
+        }
+        if (btnMusicToggle) {
+            const toggleMusic = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (window.SFX) SFX.unlock();
+                this.musicOn = !this.musicOn;
+                try { localStorage.setItem('astroLeapMusicOn', this.musicOn ? '1' : '0'); } catch (err) { /* noop */ }
+                this.applyAudioPrefs();
+            };
+            btnMusicToggle.addEventListener('touchstart', toggleMusic, { passive: false });
+            btnMusicToggle.addEventListener('click', toggleMusic);
+        }
+        if (btnSfxToggle) {
+            const toggleSfx = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (window.SFX) SFX.unlock();
+                this.sfxOn = !this.sfxOn;
+                try { localStorage.setItem('astroLeapSfxOn', this.sfxOn ? '1' : '0'); } catch (err) { /* noop */ }
+                this.applyAudioPrefs();
+                if (this.sfxOn && window.SFX) SFX.select();
+            };
+            btnSfxToggle.addEventListener('touchstart', toggleSfx, { passive: false });
+            btnSfxToggle.addEventListener('click', toggleSfx);
         }
         if (combatButtonsEl) {
             combatButtonsEl.querySelectorAll('button[data-code]').forEach((btn) => {
