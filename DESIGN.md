@@ -102,7 +102,7 @@ Esto crea una decisión constante que no existía en el original: *¿gasto energ
 
 - Vectorial plano con gradientes y *glow*, no pixel-art — paleta violeta/cian/magenta sobre negro espacial, estrellas en parallax.
 - Partículas: rastro de propulsor al saltar, chispas al golpear, ráfaga de estrellas al subir de nivel.
-- Sonido: sintetizado por código (Web Audio, sin archivos externos) — bleeps y pulsos tipo sci-fi retro.
+- Sonido: sintetizado por código (Web Audio, sin archivos externos) — bleeps y pulsos tipo sci-fi retro, más dos loops de música de fondo (exploración/combate) generados igual, con un secuenciador de "lookahead" propio. Ver §2.10.
 - Animación *squash & stretch* en el jugador al saltar/aterrizar, y *screen shake* leve en golpes fuertes.
 
 ### 2.4 Contenido (3 zonas × 3 niveles)
@@ -164,7 +164,15 @@ Mismo patrón que las cápsulas de vida (§2.8), pero para Energía: una célula
 - Colocación: Cráter de Amerizaje reutiliza una plataforma flotante ya existente (fácil, salto simple); Chatarral Magnético y Núcleo del Reactor usan plataformas secretas nuevas que exigen doble salto **bien cronometrado cerca del punto más alto del primer salto** — hacer el doble salto demasiado pronto (nada más despegar) da bastante menos altura que esperar al ápice del primer salto antes de encadenarlo, así que estas dos células premian entender bien el timing del doble salto, no solo saber que existe.
 - Los tres mensajes en pantalla ("¡VIDA EXTRA!", "¡PERDISTE UNA VIDA!", "¡ENERGÍA EXTRA!") son mutuamente excluyentes entre sí.
 
-### 2.10 Lecciones aplicadas desde el primer día (no como parche después)
+### 2.10 Sonido: efectos y música de fondo
+
+Todo sale del mismo motor sintetizado (`js/audio.js`, osciladores + ruido vía Web Audio, sin archivos externos ni librerías):
+
+- **Efectos**: uno por acción relevante — saltar, doble salto, aterrizar, golpear/recibir golpe, pisotón, subir de nivel, completar sector, Game Over, perder/ganar una vida, recoger una célula de energía, entrar en combate (normal y de jefe, con un sonido distinto y más grave/dramático), ganar un combate (`battleWin`, suena *siempre* al ganar — antes solo sonaba si además subías de nivel, así que la mayoría de combates ganados no hacían ningún ruido), y la cuenta atrás/arranque del muro en el Túnel de Escape.
+- **Música de fondo**: dos loops cortos generados con un secuenciador propio de "lookahead" (agenda las notas ~150ms por delante usando el reloj del `AudioContext`, no `setTimeout` a pelo, para no desincronizarse) — un pad ambiental disperso en La menor para explorar/mapa, y un bajo en pulso más rápido y en onda cuadrada para el combate. Cambia de uno a otro al entrar/salir de un combate.
+- **Bug real encontrado al añadir todo esto**: `audio.js` exporta el motor como `const SFX = ...`, y absolutamente todas las llamadas por el resto del código usan el guard `if (window.SFX) SFX.xxx()`. En un script clásico, un `const` de nivel superior no cuelga de `window` — así que `window.SFX` era `undefined` **siempre**, y ese guard nunca fue verdadero. Resultado: ningún sonido sonó jamás durante todo el desarrollo previo del juego, a pesar de que el código de cada efecto ya existía y parecía correcto con solo mirarlo. Arreglado con una línea al final de `audio.js` (`window.SFX = SFX;`) — confirmado con espías sobre las funciones reales durante una partida simulada, no solo llamando a los sonidos sueltos desde la consola (que sí funcionaba, porque accedía a `SFX` como identificador de scope, no a `window.SFX`, y por eso el problema pasó desapercibido en pruebas anteriores).
+
+### 2.11 Lecciones aplicadas desde el primer día (no como parche después)
 
 Todo el feedback que surgió iterando sobre Monster Jump se incorpora aquí desde el diseño inicial, no como añadido tardío:
 - Controles táctiles + ratón + teclado desde el arranque, canvas responsive.

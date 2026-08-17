@@ -13,6 +13,10 @@ python3 -m http.server 8000
 
 O simplemente abre `index.html` directamente en el navegador.
 
+## Sonido
+
+Efectos y música de fondo (loop de exploración + loop de combate, con secuenciador propio) sintetizados con Web Audio, sin archivos externos. Ver `DESIGN.md` §2.10.
+
 ## Controles
 
 - `←` `→` — mover

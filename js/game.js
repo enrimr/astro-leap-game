@@ -85,7 +85,7 @@ class Game {
 
     startGame() {
         if (this.gameStarted) return;
-        if (window.SFX) { SFX.unlock(); SFX.boot(); }
+        if (window.SFX) { SFX.unlock(); SFX.boot(); SFX.music.playExplore(); }
         this.gameStarted = true;
         startScreen.style.display = 'none';
         this.inWorldMap = true;
@@ -133,7 +133,7 @@ class Game {
         if (this.player.lives <= 0) {
             this.fullGameOver();
         } else {
-            if (window.SFX) SFX.loseLife();
+            if (window.SFX) { SFX.loseLife(); SFX.music.playExplore(); }
             this.livesLostMessage = 110; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
             this.levelCompleting = false;
             this.loadLevel(this.currentLevel);
@@ -143,7 +143,7 @@ class Game {
     }
 
     fullGameOver() {
-        if (window.SFX) SFX.gameOver();
+        if (window.SFX) { SFX.music.stop(); SFX.gameOver(); }
         this.gameStarted = false;
         startScreen.innerHTML = `<h1>GAME OVER</h1><p class="subtitle">Sin vidas restantes — vuelves a empezar.</p><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
         startScreen.style.display = 'flex';
@@ -259,13 +259,14 @@ class Game {
                 if (this.combat.result === 'win') {
                     const leveled = this.player.gainXP(this.combat.enemy.xpReward);
                     this.levelUpMessage = leveled ? 100 : 0;
-                    if (leveled && window.SFX) SFX.levelUp();
+                    if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     this.saveProgress();
                 } else if (this.combat.result === 'lose') {
                     this.loseLife();
                     return;
                 } else if (this.combat.result === 'flee') {
+                    if (window.SFX) SFX.music.playExplore();
                     this.playerInvulnerable = 180;
                 }
                 this.combat = null;
@@ -281,8 +282,12 @@ class Game {
             const maxScroll = level.goal + CAMERA_END_MARGIN - GAME_WIDTH;
 
             if (level.forcedScroll) {
-                if (this.forcedScrollDelay > 0) this.forcedScrollDelay--;
-                else this.autoScrollX = Math.min(this.autoScrollX + level.forcedScroll.speed, maxScroll);
+                if (this.forcedScrollDelay > 0) {
+                    this.forcedScrollDelay--;
+                    if (this.forcedScrollDelay % 60 === 0 && window.SFX) {
+                        this.forcedScrollDelay === 0 ? SFX.scrollStart() : SFX.countdownTick();
+                    }
+                } else this.autoScrollX = Math.min(this.autoScrollX + level.forcedScroll.speed, maxScroll);
                 this.cameraX = Math.max(0, this.autoScrollX);
                 const leftEdge = this.cameraX + 2;
                 if (this.player.x < leftEdge) {
@@ -312,6 +317,7 @@ class Game {
                         this.particles.burst(enemy.x + enemy.w / 2, enemy.y, enemy.color, 10, { speed: 1.8, life: 20, size: 2.5 });
                     } else {
                         this.combat = new CombatSystem(this.player, enemy);
+                        if (window.SFX) { enemy.isBoss ? SFX.bossEncounter() : SFX.encounter(); SFX.music.playCombat(); }
                     }
                 }
             }
@@ -356,7 +362,7 @@ class Game {
 
                 if (this.currentLevel === LEVELS.length - 1) {
                     this.levelCompleting = false; this.gameStarted = false;
-                    if (window.SFX) SFX.victory();
+                    if (window.SFX) { SFX.music.stop(); SFX.victory(); }
                     startScreen.innerHTML = `<h1>¡MISIÓN CUMPLIDA!</h1><p class="subtitle">Reparaste la nave y escapaste del sistema.</p><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
                     startScreen.style.display = 'flex';
                     this.player = new Player(20, 100);
