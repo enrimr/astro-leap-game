@@ -90,11 +90,10 @@ button {
 #btnExit.active { display: inline-block; }
 #btnExit:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
 
-/* Silenciar música/sonido: siempre visibles (mapa, nivel, combate, pantalla de inicio),
-   por eso van por encima de #startScreen (z-index 10) en vez de por debajo como #btnExit. */
+/* Silenciar música/sonido: fila propia POR ENCIMA del cuadro de juego (no superpuesta sobre
+   el canvas como #btnExit) — así nunca tapa el HUD dibujado dentro, se vea lo que se vea. */
 #audioControls {
-    position: absolute; top: 11%; left: 3%; z-index: 15;
-    display: flex; gap: 4px;
+    display: flex; gap: 4px; width: 100%; max-width: 720px; justify-content: flex-start;
 }
 .audio-btn {
     background: rgba(28, 17, 64, 0.85);
