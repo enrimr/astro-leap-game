@@ -24,8 +24,14 @@
 </head>
 <body>
     <div id="audioControls">
-        <button id="btnMusicToggle" class="audio-btn" aria-label="Música">🎵</button>
-        <button id="btnSfxToggle" class="audio-btn" aria-label="Sonido">🔊</button>
+        <button id="btnMusicToggle" class="audio-btn" aria-label="Música">
+            <svg class="icon-on" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V4.5L20 3v12.5"/><circle cx="6.5" cy="17" r="2.8"/><circle cx="17.5" cy="15.5" r="2.8"/></svg>
+            <svg class="icon-off" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V4.5L20 3v12.5"/><circle cx="6.5" cy="17" r="2.8"/><circle cx="17.5" cy="15.5" r="2.8"/><line x1="3" y1="3" x2="21" y2="21" stroke-width="2.4"/></svg>
+        </button>
+        <button id="btnSfxToggle" class="audio-btn" aria-label="Sonido">
+            <svg class="icon-on" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5h4L12.5 5v14L7 14.5H3z" fill="currentColor" stroke="none"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.7 6a9 9 0 0 1 0 12"/></svg>
+            <svg class="icon-off" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5h4L12.5 5v14L7 14.5H3z" fill="currentColor" stroke="none"/><line x1="16" y1="9" x2="21.5" y2="14.5"/><line x1="21.5" y1="9" x2="16" y2="14.5"/></svg>
+        </button>
     </div>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="320" height="180"></canvas>

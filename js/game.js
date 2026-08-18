@@ -67,8 +67,8 @@ class Game {
     }
     applyAudioPrefs() {
         if (window.SFX) { SFX.setSfxEnabled(this.sfxOn); SFX.music.setEnabled(this.musicOn); }
-        if (btnMusicToggle) { btnMusicToggle.classList.toggle('off', !this.musicOn); btnMusicToggle.textContent = this.musicOn ? '🎵' : '🔇'; }
-        if (btnSfxToggle) { btnSfxToggle.classList.toggle('off', !this.sfxOn); btnSfxToggle.textContent = this.sfxOn ? '🔊' : '🔈'; }
+        if (btnMusicToggle) btnMusicToggle.classList.toggle('off', !this.musicOn);
+        if (btnSfxToggle) btnSfxToggle.classList.toggle('off', !this.sfxOn);
     }
 
     saveProgress() {
