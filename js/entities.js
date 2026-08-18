@@ -276,10 +276,11 @@ class Enemy {
         }
 
         ctx.fillStyle = PALETTE.bg1;
-        const es = 2, eo = 2.5;
+        // Proporcionales a w/h, no en píxeles fijos — así el bicho se ve igual en el mapa (11px) que en el retrato de combate (24px)
+        const es = Math.max(2, Math.round(w * 0.18)), eo = Math.round(w * 0.22), ey = sy + h * 0.27;
         const blink = this.blinkTimer < 5 ? 0.25 : 1;
-        ctx.fillRect(x + eo, sy + 3, es, es * blink);
-        ctx.fillRect(x + w - eo - es, sy + 3, es, es * blink);
+        ctx.fillRect(x + eo, ey, es, es * blink);
+        ctx.fillRect(x + w - eo - es, ey, es, es * blink);
     }
     // Jefes: silueta y animación propias por tipo, coherentes con lore/character-bible.html
     drawBoss(ctx, x, y, w, h) {
