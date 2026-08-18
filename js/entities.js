@@ -44,7 +44,7 @@ class Player {
             x, y, w: 9, h: 13, vx: 0, vy: 0, facing: 1,
             speed: 1.55, jumpPower: -4.3, doubleJumpPower: -3.5, gravity: 0.32,
             onGround: false, jumping: false, usedDoubleJump: false,
-            prevJumpKey: false, squash: 1,
+            prevJumpKey: false, squash: 1, animT: 0, blinkTimer: 90 + Math.random() * 120,
             level: 1, maxHp: 22, hp: 22, maxEnergy: 10, energy: 10,
             xp: 0, xpToNextLevel: 10, attack: 5, defense: 2,
             lives: MAX_LIVES, maxLives: MAX_LIVES
@@ -88,6 +88,9 @@ class Player {
             particles.burst(this.x + this.w / 2, this.y + this.h, PALETTE.dim, 5, { speed: 0.8, life: 12, size: 2 });
         }
         this.squash += (1 - this.squash) * 0.25;
+        this.animT += this.onGround && this.vx !== 0 ? 0.35 : 0.06;
+        this.blinkTimer--;
+        if (this.blinkTimer <= 0) this.blinkTimer = 90 + Math.random() * 140;
         if (this.x < 0) this.x = 0;
         if (this.y > GAME_HEIGHT) return 'fell';
     }
@@ -106,8 +109,11 @@ class Player {
     }
     takeDamage(amt) { const dmg = Math.max(1, amt - this.defense); this.hp -= dmg; return dmg; }
     draw(ctx, cx) {
-        const sx = this.x - cx + this.w / 2, sy = this.y + this.h;
-        const w = this.w * (2 - this.squash), h = this.h * this.squash;
+        const walking = this.onGround && this.vx !== 0;
+        const idleBreathe = this.onGround && !walking ? Math.sin(this.animT) * 0.4 : 0;
+        const walkBounce = walking ? Math.abs(Math.sin(this.animT)) * 1.1 : 0;
+        const sx = this.x - cx + this.w / 2, sy = this.y + this.h - walkBounce;
+        const w = this.w * (2 - this.squash), h = this.h * this.squash + idleBreathe;
         const grad = ctx.createLinearGradient(0, sy - h, 0, sy);
         grad.addColorStop(0, PALETTE.accent);
         grad.addColorStop(1, '#3fa9c9');
@@ -115,10 +121,17 @@ class Player {
         ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 6;
         ctx.fillRect(sx - w / 2, sy - h, w, h);
         ctx.shadowBlur = 0;
+        // pie adelantado: marca el paso mientras camina
+        if (walking) {
+            ctx.fillStyle = '#3fa9c9';
+            const lead = Math.sin(this.animT) > 0 ? sx - w / 2 : sx + w / 2 - 2;
+            ctx.fillRect(lead, sy, 2, 1.5);
+        }
         ctx.fillStyle = PALETTE.bg1;
+        const blink = this.blinkTimer < 6 ? 0.3 : 1;
         const eyeOffset = this.facing > 0 ? 1 : -1;
-        ctx.fillRect(sx - 2 + eyeOffset, sy - h + 3, 2, 2);
-        ctx.fillRect(sx + 1 + eyeOffset, sy - h + 3, 2, 2);
+        ctx.fillRect(sx - 2 + eyeOffset, sy - h + 3, 2, 2 * blink);
+        ctx.fillRect(sx + 1 + eyeOffset, sy - h + 3, 2, 2 * blink);
     }
     // Mismo aspecto que draw(), pero a una posición/tamaño fijos en pantalla (para el retrato de combate).
     drawPortrait(ctx, x, y, w, h) {
@@ -133,8 +146,9 @@ class Player {
         ctx.restore();
         ctx.fillStyle = PALETTE.bg1;
         const es = Math.max(2, Math.round(w * 0.16)), eo = Math.round(w * 0.2);
-        ctx.fillRect(x + eo, y + h * 0.2, es, es);
-        ctx.fillRect(x + w - eo - es, y + h * 0.2, es, es);
+        const blink = this.blinkTimer < 6 ? 0.3 : 1;
+        ctx.fillRect(x + eo, y + h * 0.2, es, es * blink);
+        ctx.fillRect(x + w - eo - es, y + h * 0.2, es, es * blink);
     }
 }
 
@@ -146,8 +160,8 @@ const ENEMY_STATS = {
     magnetite:  { level: 5, hp: 22, atk: 8, def: 5, xp: 18, color: '#ffd23f', speed: 0.4, canJump: false, range: 35, boss: false, flying: false },
     ionwisp:    { level: 6, hp: 20, atk: 9, def: 3, xp: 22, color: '#b58bff', speed: 0.9, canJump: false, range: 45, boss: false, flying: true },
     queen_larva:{ level: 8, hp: 55, atk: 12, def: 6, xp: 60, color: '#ff5ecb', speed: 0, canJump: false, range: 0, boss: true, flying: false },
-    sentinel:   { level: 12, hp: 90, atk: 17, def: 9, xp: 120, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false },
-    overlord:   { level: 16, hp: 140, atk: 23, def: 12, xp: 220, color: '#ff3b3b', speed: 0, canJump: false, range: 0, boss: true, flying: false }
+    sentinel:   { level: 12, hp: 90, atk: 17, def: 9, xp: 120, color: '#8b83c2', speed: 0, canJump: false, range: 0, boss: true, flying: false },
+    overlord:   { level: 16, hp: 140, atk: 23, def: 12, xp: 220, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false }
 };
 
 class Enemy {
@@ -160,11 +174,16 @@ class Enemy {
             isBoss: s.boss, isFlying: s.flying,
             w: s.boss ? 20 : 11, h: s.boss ? 20 : 11,
             vx: s.speed, vy: 0, gravity: s.flying ? 0 : 0.3, onGround: false,
-            jumpTimer: 0, jumpCooldown: 120 + Math.random() * 60, flyTimer: Math.random() * 100, flyAmplitude: 14
+            jumpTimer: 0, jumpCooldown: 120 + Math.random() * 60, flyTimer: Math.random() * 100, flyAmplitude: 14,
+            animT: Math.random() * Math.PI * 2, blinkTimer: 60 + Math.random() * 150
         });
     }
     update(platforms) {
-        if (!this.alive || this.isBoss) return;
+        if (!this.alive) return;
+        this.animT += 0.07;
+        this.blinkTimer--;
+        if (this.blinkTimer <= 0) this.blinkTimer = 60 + Math.random() * 150;
+        if (this.isBoss) return;
         if (this.isFlying) {
             this.flyTimer++;
             this.x += this.vx;
@@ -204,33 +223,168 @@ class Enemy {
     draw(ctx, cx) {
         if (!this.alive) return;
         const sx = this.x - cx, sy = this.y;
-        ctx.save();
-        ctx.shadowColor = this.color; ctx.shadowBlur = 8;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(sx, sy, this.w, this.h, 3) : ctx.rect(sx, sy, this.w, this.h);
-        ctx.fill();
-        ctx.restore();
-        ctx.fillStyle = PALETTE.bg1;
-        const es = this.isBoss ? 3 : 2, eo = this.isBoss ? 5 : 2.5;
-        ctx.fillRect(sx + eo, sy + 3, es, es); ctx.fillRect(sx + this.w - eo - es, sy + 3, es, es);
+        if (this.isBoss) this.drawBoss(ctx, sx, sy, this.w, this.h);
+        else this.drawRegular(ctx, sx, sy, this.w, this.h);
         ctx.fillStyle = PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif';
         ctx.fillText(`Lv${this.level}`, sx, sy - 2);
         if (this.isBoss) { ctx.fillStyle = PALETTE.accent3; ctx.fillText('JEFE', sx, sy - 10); }
     }
     // Mismo aspecto que draw(), pero a una posición/tamaño fijos en pantalla (para el retrato de combate).
     drawPortrait(ctx, x, y, w, h) {
+        if (this.isBoss) this.drawBoss(ctx, x, y, w, h);
+        else this.drawRegular(ctx, x, y, w, h);
+    }
+    // Enemigos comunes: caja redondeada con ojos, más flourish según tipo. Reutilizado por draw()/drawPortrait().
+    drawRegular(ctx, x, y, w, h) {
+        const bob = this.isFlying ? 0 : Math.sin(this.animT) * (h * 0.05);
+        const sy = y + bob;
         ctx.save();
-        ctx.shadowColor = this.color; ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color; ctx.shadowBlur = 8;
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        if (ctx.roundRect) { ctx.roundRect(x, y, w, h, 4); } else ctx.rect(x, y, w, h);
+        ctx.roundRect ? ctx.roundRect(x, sy, w, h, 3) : ctx.rect(x, sy, w, h);
         ctx.fill();
         ctx.restore();
+
+        if (this.type === 'spiker') {
+            // Púa superior — distingue al erizo del dron base del que evoluciona
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.5, sy - h * 0.35); ctx.lineTo(x + w * 0.72, sy + 1); ctx.lineTo(x + w * 0.28, sy + 1);
+            ctx.closePath(); ctx.fill();
+        } else if (this.type === 'crawler') {
+            // Patitas alternas mientras avanza
+            ctx.fillStyle = '#ff8a3f';
+            const stride = Math.sin(this.animT) * h * 0.18;
+            ctx.fillRect(x + 1, sy + h - 1 + Math.max(0, stride), 2, 2);
+            ctx.fillRect(x + w - 3, sy + h - 1 + Math.max(0, -stride), 2, 2);
+        } else if (this.type === 'magnetite') {
+            // Anillo magnético pulsante
+            const pulse = 0.4 + Math.sin(this.animT * 1.3) * 0.3;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, pulse);
+            ctx.strokeStyle = this.color; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(x + w / 2, sy + h / 2, w * 0.75, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        } else if (this.isFlying) {
+            // Brillo de propulsión bajo el chasis
+            const glow = 0.4 + Math.sin(this.animT * 2) * 0.25;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, glow); ctx.fillStyle = this.color;
+            ctx.beginPath(); ctx.ellipse(x + w / 2, sy + h + 1, w * 0.3, h * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+
         ctx.fillStyle = PALETTE.bg1;
-        const es = Math.max(2, Math.round(w * 0.16)), eo = Math.round(w * 0.16);
-        ctx.fillRect(x + eo, y + h * 0.22, es, es);
-        ctx.fillRect(x + w - eo - es, y + h * 0.22, es, es);
+        const es = 2, eo = 2.5;
+        const blink = this.blinkTimer < 5 ? 0.25 : 1;
+        ctx.fillRect(x + eo, sy + 3, es, es * blink);
+        ctx.fillRect(x + w - eo - es, sy + 3, es, es * blink);
+    }
+    // Jefes: silueta y animación propias por tipo, coherentes con lore/character-bible.html
+    drawBoss(ctx, x, y, w, h) {
+        if (this.type === 'queen_larva') this.drawQueenLarva(ctx, x, y, w, h);
+        else if (this.type === 'sentinel') this.drawSentinel(ctx, x, y, w, h);
+        else if (this.type === 'overlord') this.drawOverlord(ctx, x, y, w, h);
+        else { // fallback genérico por si se añade un jefe sin diseño propio todavía
+            ctx.save();
+            ctx.shadowColor = this.color; ctx.shadowBlur = 10; ctx.fillStyle = this.color;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(x, y, w, h, 4); else ctx.rect(x, y, w, h);
+            ctx.fill(); ctx.restore();
+        }
+    }
+    // Reina Larva: masa orgánica que respira, con crías/bultos alrededor y mirada triste.
+    drawQueenLarva(ctx, x, y, w, h) {
+        const t = this.animT;
+        const cx = x + w / 2, cy = y + h / 2;
+        const pulse = 1 + Math.sin(t) * 0.045;
+        ctx.save();
+        ctx.translate(cx, cy); ctx.scale(pulse, pulse);
+        ctx.shadowColor = '#ff5ecb'; ctx.shadowBlur = w * 0.4;
+        const grad = ctx.createRadialGradient(-w * 0.12, -h * 0.18, w * 0.05, 0, 0, w * 0.62);
+        grad.addColorStop(0, '#ffb3e6'); grad.addColorStop(1, '#c93f96');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.ellipse(0, 0, w * 0.5, h * 0.48, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#c93f96';
+        [[-0.54, -0.05], [0.54, -0.1], [-0.36, 0.5], [0.34, 0.52]].forEach(([bx, by]) => {
+            ctx.beginPath(); ctx.arc(bx * w, by * h, w * 0.1, 0, Math.PI * 2); ctx.fill();
+        });
+        const blink = this.blinkTimer < 5 ? 0.15 : 1;
+        ctx.fillStyle = '#0b0620';
+        ctx.beginPath(); ctx.ellipse(-w * 0.1, -h * 0.06, w * 0.1, h * 0.12 * blink, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(w * 0.12, -h * 0.02, w * 0.08, h * 0.1 * blink, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        // boca triste — ni villana ni feliz, una víctima
+        ctx.strokeStyle = '#0b0620'; ctx.globalAlpha = 0.4; ctx.lineWidth = Math.max(1, w * 0.045);
+        ctx.beginPath(); ctx.moveTo(cx - w * 0.16, cy + h * 0.22); ctx.quadraticCurveTo(cx, cy + h * 0.19, cx + w * 0.17, cy + h * 0.21); ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+    // Centinela: bloque simétrico y ordenado con grietas rosas de la Red superpuestas — dos arquitecturas en conflicto.
+    drawSentinel(ctx, x, y, w, h) {
+        const t = this.animT;
+        const shake = Math.sin(t * 3.1) * (w * 0.012);
+        ctx.save();
+        ctx.translate(shake, 0);
+        ctx.shadowColor = '#8b83c2'; ctx.shadowBlur = w * 0.3;
+        const bw = w * 0.72, bh = h * 0.86, bx = x + (w - bw) / 2, by = y + h * 0.08;
+        const grad = ctx.createLinearGradient(0, by, 0, by + bh);
+        grad.addColorStop(0, '#c9c4e8'); grad.addColorStop(1, '#6c63a8');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, w * 0.08) : ctx.rect(bx, by, bw, bh);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#453d80'; ctx.lineWidth = Math.max(1, w * 0.05); ctx.strokeRect(bx, by, bw, bh);
+        ctx.fillStyle = '#8b83c2';
+        ctx.fillRect(x, y + h * 0.35, w * 0.12, h * 0.4);
+        ctx.fillRect(x + w - w * 0.12, y + h * 0.35, w * 0.12, h * 0.4);
+        ctx.strokeStyle = '#ff5ecb'; ctx.globalAlpha = 0.6 + Math.sin(t * 2) * 0.3; ctx.lineWidth = Math.max(1, w * 0.045);
+        ctx.beginPath();
+        ctx.moveTo(bx + bw * 0.12, by + bh * 0.25); ctx.lineTo(bx + bw * 0.5, by + bh * 0.25);
+        ctx.lineTo(bx + bw * 0.35, by + bh * 0.55); ctx.lineTo(bx + bw * 0.68, by + bh * 0.55);
+        ctx.lineTo(bx + bw * 0.55, by + bh * 0.92);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#0b0620';
+        ctx.fillRect(bx + bw * 0.14, by + bh * 0.22, bw * 0.72, bh * 0.2);
+        const glow = 0.6 + Math.sin(t * 1.6) * 0.4;
+        const blink = this.blinkTimer < 5 ? 0.2 : 1;
+        ctx.fillStyle = '#7cf5ff'; ctx.shadowColor = '#7cf5ff'; ctx.shadowBlur = w * 0.15 * glow;
+        ctx.fillRect(bx + bw * 0.2, by + bh * 0.26, bw * 0.18, bh * 0.12 * blink);
+        ctx.fillRect(bx + bw * 0.6, by + bh * 0.26, bw * 0.18, bh * 0.12 * blink);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+    // Overlord: fragmento facetado e inestable de la Red — sin cara fija, girando ligeramente, núcleo pulsante.
+    drawOverlord(ctx, x, y, w, h) {
+        const t = this.animT;
+        const cx = x + w / 2, cy = y + h / 2;
+        const rot = Math.sin(t * 0.6) * 0.09;
+        ctx.save();
+        ctx.translate(cx, cy); ctx.rotate(rot);
+        ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = w * 0.35;
+        const grad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+        grad.addColorStop(0, '#fff3c4'); grad.addColorStop(1, '#ff5c6c');
+        ctx.fillStyle = grad;
+        const pts = [[0, -0.38], [0.25, -0.2], [0.325, 0.1], [0.1, 0.375], [-0.1, 0.375], [-0.325, 0.1], [-0.25, -0.2]];
+        ctx.beginPath();
+        pts.forEach(([px, py], i) => { const X = px * w, Y = py * h; i === 0 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y); });
+        ctx.closePath(); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,243,196,0.5)';
+        ctx.beginPath();
+        ctx.moveTo(0, -0.38 * h); ctx.lineTo(0.25 * w, -0.2 * h); ctx.lineTo(0.1 * w, -0.15 * h); ctx.lineTo(-0.075 * w, -0.25 * h);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+        const pulse = 0.7 + Math.sin(t * 2.3) * 0.3;
+        const blink = this.blinkTimer < 5 ? 0.3 : 1;
+        ctx.fillStyle = '#0b0620';
+        ctx.beginPath(); ctx.arc(cx, cy, w * 0.19, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffd23f'; ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = w * 0.25 * pulse;
+        ctx.beginPath(); ctx.arc(cx, cy, w * 0.08 * pulse * blink, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
     }
 }
 
@@ -455,6 +609,14 @@ class CombatSystem {
         this.turn = 'enemy';
     }
     update() {
+        // El jugador y el enemigo no pasan por su update() normal durante el combate,
+        // así que sus retratos animan aquí (parpadeo, respiración, pulso de los jefes).
+        this.player.animT += 0.06;
+        this.player.blinkTimer--;
+        if (this.player.blinkTimer <= 0) this.player.blinkTimer = 90 + Math.random() * 140;
+        this.enemy.animT += 0.07;
+        this.enemy.blinkTimer--;
+        if (this.enemy.blinkTimer <= 0) this.enemy.blinkTimer = 60 + Math.random() * 150;
         if (this.shake > 0) this.shake *= 0.85;
         if (this.messageTimer > 0) {
             this.messageTimer--;

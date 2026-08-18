@@ -181,3 +181,18 @@ Todo el feedback que surgió iterando sobre Monster Jump se incorpora aquí desd
 - Sonido incluido.
 - Progreso guardado en `localStorage`.
 - Meta tags Open Graph + imagen de banner para que el link se vea bien al compartirlo.
+
+### 2.12 Identidad de los jefes y animación (coherencia con LORE.md)
+
+Tras escribir `LORE.md` y la hoja de personajes (`lore/character-bible.html`), los tres jefes se rediseñaron en `js/entities.js` para dejar de ser "el mismo bicho con otro color" y coincidir exactamente con su diseño de la biblia — misma paleta, misma silueta, mismo carácter:
+- **Reina Larva** (`drawQueenLarva`): masa orgánica rosa/magenta (gradiente `#ffb3e6`→`#c93f96`) con bultos alrededor, ojos oscuros y una boca triste y neutra — no es la villana, es una víctima, y así debe leerse incluso en un sprite de 20px.
+- **Centinela** (`drawSentinel`): bloque simétrico lavanda (`#c9c4e8`→`#6c63a8`) con visor cian y grietas de energía rosa superpuestas — dos arquitecturas (la suya original y la de la Red) en conflicto en el mismo cuerpo.
+- **Overlord** (`drawOverlord`): fragmento facetado ámbar/rojo (`#fff3c4`→`#ff5c6c`) sin cara fija, con un núcleo pulsante en vez de ojos — literalmente la Red hablando por primera vez.
+
+Cada jefe tiene su propia rutina de dibujo reutilizada tanto en el nivel (`Enemy.draw`, 20×20) como en el retrato de combate (`Enemy.drawPortrait`, 32×32) — mismo código, distinta escala, para que el jefe se vea igual en ambos sitios.
+
+**Animación** (antes todo era completamente estático salvo el squash del salto del jugador):
+- El jugador tiene ciclo de caminar (rebote vertical + pie adelantado marcando el paso), respiración en reposo y parpadeo — en `Player.update()`/`Player.draw()`, controlado por `animT`/`blinkTimer`.
+- Los enemigos normales laten/parpadean en reposo (`animT`/`blinkTimer` en `Enemy`), y además tienen un detalle propio por tipo: el Erizo de Púas muestra su púa superior (lo que lo distingue del Dron del que evoluciona en el bestiario), el Reptante mueve las patas al andar, la Magnetita pulsa un anillo magnético, y los voladores (Hoverbot/Espectro Iónico) llevan un brillo de propulsión bajo el chasis.
+- Los tres jefes respiran/pulsan/tiemblan de forma continua (blob que respira, visor que parpadea con grieta rosa intermitente, núcleo del Overlord latiendo y facetas rotando levemente).
+- Como el combate por turnos no llama a `Player.update()`/`Enemy.update()` (el bucle normal de físicas se salta mientras `this.combat` está activo), `CombatSystem.update()` avanza `animT`/`blinkTimer` de ambos combatientes cada frame para que los retratos seguidos sigan vivos durante el duelo.
