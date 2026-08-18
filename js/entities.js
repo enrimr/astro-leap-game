@@ -253,11 +253,12 @@ class Enemy {
             ctx.moveTo(x + w * 0.5, sy - h * 0.35); ctx.lineTo(x + w * 0.72, sy + 1); ctx.lineTo(x + w * 0.28, sy + 1);
             ctx.closePath(); ctx.fill();
         } else if (this.type === 'crawler') {
-            // Patitas alternas mientras avanza
+            // Patitas alternas mientras avanza — proporcionales a w/h, igual que los ojos
             ctx.fillStyle = '#ff8a3f';
+            const legSize = Math.max(2, Math.round(w * 0.18));
             const stride = Math.sin(this.animT) * h * 0.18;
-            ctx.fillRect(x + 1, sy + h - 1 + Math.max(0, stride), 2, 2);
-            ctx.fillRect(x + w - 3, sy + h - 1 + Math.max(0, -stride), 2, 2);
+            ctx.fillRect(x + w * 0.09, sy + h - legSize * 0.5 + Math.max(0, stride), legSize, legSize);
+            ctx.fillRect(x + w - w * 0.09 - legSize, sy + h - legSize * 0.5 + Math.max(0, -stride), legSize, legSize);
         } else if (this.type === 'magnetite') {
             // Anillo magnético pulsante
             const pulse = 0.4 + Math.sin(this.animT * 1.3) * 0.3;
