@@ -42,11 +42,13 @@ function makeStars(count, maxX) {
 
 class Game {
     constructor() {
-        this.player = new Player(20, 100);
+        this.unlockedCharacters = new Set(['kes']);
+        this.player = new Player(20, 100, 'kes');
         this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null; this.capsules = []; this.energyCells = [];
         this.combat = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
-        this.collectedPickups = new Set(); // "life-N" / "energy-N" por nivel, para no poder re-recoger saliendo y entrando
+        this.unlockCharMessage = 0; this.unlockedCharName = '';
+        this.collectedPickups = new Set(); // "life-N" / "energy-N" / "reinforced-N-N" por nivel, para no poder re-recoger/re-romper saliendo y entrando
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
         this.levelCompleting = false; this.playerInvulnerable = 0;
         this.autoScrollX = 0; this.forcedScrollDelay = 0;
@@ -79,7 +81,9 @@ class Game {
                     level: this.player.level, xp: this.player.xp, xpToNextLevel: this.player.xpToNextLevel,
                     maxHp: this.player.maxHp, maxEnergy: this.player.maxEnergy,
                     attack: this.player.attack, defense: this.player.defense
-                }
+                },
+                unlockedCharacters: Array.from(this.unlockedCharacters),
+                selectedCharacter: this.player.character
             };
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         } catch (e) { /* almacenamiento no disponible: seguimos sin guardar */ }
@@ -91,6 +95,8 @@ class Game {
             const data = JSON.parse(raw);
             if (data.nodes) data.nodes.forEach((n, i) => { if (this.worldMap.nodes[i]) Object.assign(this.worldMap.nodes[i], n); });
             if (data.player) Object.assign(this.player, data.player, { hp: data.player.maxHp, energy: data.player.maxEnergy });
+            if (Array.isArray(data.unlockedCharacters)) this.unlockedCharacters = new Set(data.unlockedCharacters);
+            if (data.selectedCharacter && this.unlockedCharacters.has(data.selectedCharacter)) this.player.character = data.selectedCharacter;
         } catch (e) { /* save corrupto: ignorar */ }
     }
     clearProgress() {
@@ -109,6 +115,12 @@ class Game {
         this.currentLevel = lvl;
         const level = LEVELS[lvl];
         this.platforms = level.platforms.map(p => new Platform(...p, level.variant));
+        (level.reinforcedBlocks || []).forEach(([bx, by, bw, bh], i) => {
+            const block = new Platform(bx, by, bw, bh, 'reinforced');
+            block.reinforcedKey = `reinforced-${lvl}-${i}`;
+            if (this.collectedPickups.has(block.reinforcedKey)) block.broken = true;
+            this.platforms.push(block);
+        });
         const levelCompleted = this.worldMap.nodes[lvl].completed;
         this.enemies = level.enemies.map(e => {
             const enemy = new Enemy(...e);
@@ -130,6 +142,68 @@ class Game {
         this.player.energy = this.player.maxEnergy; this.cameraX = 0;
         this.autoScrollX = 0;
         this.forcedScrollDelay = level.forcedScroll ? level.forcedScroll.startDelay : 0;
+    }
+
+    // Selector de personaje en el mapa: Q/E (o el táctil sobre los iconos) cambia de
+    // piloto entre los ya desbloqueados. El elegido se lleva al siguiente nivel que entres.
+    updateCharacterSelect(keys) {
+        const unlockedList = HERO_ORDER.filter(id => this.unlockedCharacters.has(id));
+        if (unlockedList.length <= 1) return;
+        if (keys.KeyQ || keys.KeyE) {
+            const dir = keys.KeyE ? 1 : -1;
+            const idx = unlockedList.indexOf(this.player.character);
+            this.player.character = unlockedList[(idx + dir + unlockedList.length) % unlockedList.length];
+            if (window.SFX) SFX.select();
+            keys.KeyQ = false; keys.KeyE = false;
+        }
+    }
+    selectCharacter(id) {
+        if (!this.unlockedCharacters.has(id) || this.player.character === id) return;
+        this.player.character = id;
+        if (window.SFX) SFX.select();
+    }
+    drawCharacterSelect(ctx) {
+        const startX = 8, y = 44, size = 14, gap = 5;
+        this.charIconRects = [];
+        HERO_ORDER.forEach((id, i) => {
+            const x = startX + i * (size + gap);
+            const unlocked = this.unlockedCharacters.has(id);
+            const selected = this.player.character === id;
+            this.charIconRects.push({ id, x, y, w: size, h: size, unlocked });
+            ctx.save();
+            ctx.fillStyle = 'rgba(11,6,32,0.7)';
+            ctx.fillRect(x - 1, y - 1, size + 2, size + 2);
+            if (selected) { ctx.strokeStyle = PALETTE.accent; ctx.lineWidth = 1.5; ctx.strokeRect(x - 1.5, y - 1.5, size + 3, size + 3); }
+            ctx.globalAlpha = unlocked ? (selected ? 1 : 0.6) : 0.3;
+            drawHeroPortrait(ctx, id, x, y, size, size);
+            ctx.globalAlpha = 1;
+            if (!unlocked) {
+                ctx.fillStyle = PALETTE.dim; ctx.font = 'bold 9px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('?', x + size / 2, y + size / 2 + 3);
+                ctx.textAlign = 'left';
+            }
+            ctx.restore();
+        });
+        const cur = HEROES[this.player.character];
+        ctx.fillStyle = PALETTE.dim; ctx.font = '8.5px "Rajdhani", sans-serif';
+        ctx.fillText(`${cur.name} · ${cur.ability}${HERO_ORDER.length > 1 ? ' · Q/E cambia' : ''}`, startX + 4 * (size + gap), y + 10);
+
+        if (this.unlockCharMessage > 0) {
+            ctx.textAlign = 'center';
+            ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 12px "Orbitron", sans-serif';
+            ctx.fillText(`¡NUEVO PILOTO: ${this.unlockedCharName.toUpperCase()}!`, GAME_WIDTH / 2, 60);
+            ctx.textAlign = 'left';
+        }
+    }
+
+    // Cada jefe desbloquea al héroe asociado a su mundo (ver HEROES en entities.js).
+    // Kes ya empieza desbloqueada, así que esto solo dispara para Bolt/Shade/Scrap.
+    unlockCharacterForBoss(bossType) {
+        const hero = HERO_ORDER.map(id => HEROES[id]).find(h => h.requiresBoss === bossType);
+        if (!hero || this.unlockedCharacters.has(hero.id)) return;
+        this.unlockedCharacters.add(hero.id);
+        this.unlockCharMessage = 180; this.unlockedCharName = hero.name;
+        if (window.SFX) SFX.levelUp();
     }
 
     exitLevel() {
@@ -161,7 +235,8 @@ class Game {
         this.gameStarted = false;
         startScreen.innerHTML = `<h1>GAME OVER</h1><p class="subtitle">Sin vidas restantes — vuelves a empezar.</p><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
         startScreen.style.display = 'flex';
-        this.player = new Player(20, 100);
+        this.unlockedCharacters = new Set(['kes']);
+        this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
         this.collectedPickups = new Set();
         this.clearProgress();
@@ -249,6 +324,11 @@ class Game {
             const point = e.changedTouches ? e.changedTouches[0] : e;
             const gx = (point.clientX - rect.left) / rect.width * GAME_WIDTH;
             const gy = (point.clientY - rect.top) / rect.height * GAME_HEIGHT;
+            const iconHit = (this.charIconRects || []).find(r => gx >= r.x - 2 && gx <= r.x + r.w + 2 && gy >= r.y - 2 && gy <= r.y + r.h + 2);
+            if (iconHit) {
+                if (iconHit.unlocked) this.selectCharacter(iconHit.id); else if (window.SFX) SFX.select();
+                return;
+            }
             let closest = null, closestDist = Infinity;
             for (const node of this.worldMap.nodes) {
                 const dist = Math.hypot(node.x - gx, node.y - gy);
@@ -281,6 +361,7 @@ class Game {
         if (this.shake > 0) this.shake *= 0.85;
 
         if (this.inWorldMap) {
+            this.updateCharacterSelect(this.keys);
             const selected = this.worldMap.update(this.keys);
             if (selected !== null) {
                 this.currentLevel = selected; this.loadLevel(selected);
@@ -298,6 +379,7 @@ class Game {
                     this.levelUpMessage = leveled ? 100 : 0;
                     if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
+                    if (this.combat.enemy.isBoss) this.unlockCharacterForBoss(this.combat.enemy.type);
                     this.saveProgress();
                 } else if (this.combat.result === 'lose') {
                     this.loseLife();
@@ -359,6 +441,23 @@ class Game {
                 }
             }
 
+            // Habilidad de Scrap: al PISAR un bloque reforzado lo rompe (una sola vez por partida).
+            // No se puede reutilizar player.collides() tal cual: al aterrizar encima, el jugador
+            // queda pegado exactamente al borde superior (sin solape real), así que aquí basta con
+            // estar de pie sobre él, sin exigir profundidad de solape.
+            if (this.player.character === 'scrap') {
+                for (const p of this.platforms) {
+                    const standingOn = this.player.onGround && this.player.x < p.x + p.w && this.player.x + this.player.w > p.x
+                        && Math.abs((this.player.y + this.player.h) - p.y) < 2;
+                    if (p.variant === 'reinforced' && !p.broken && standingOn) {
+                        p.broken = true;
+                        this.collectedPickups.add(p.reinforcedKey);
+                        if (window.SFX) SFX.stomp();
+                        this.particles.burst(p.x + p.w / 2, p.y + p.h / 2, PALETTE.accent3, 14, { speed: 2, life: 24, size: 3 });
+                    }
+                }
+            }
+
             for (const cap of this.capsules) {
                 if (cap.collected) continue;
                 cap.update();
@@ -402,7 +501,8 @@ class Game {
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
                     startScreen.innerHTML = `<h1>¡MISIÓN CUMPLIDA!</h1><p class="subtitle">Reparaste la nave y escapaste del sistema.</p><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
                     startScreen.style.display = 'flex';
-                    this.player = new Player(20, 100);
+                    this.unlockedCharacters = new Set(['kes']);
+                    this.player = new Player(20, 100, 'kes');
                     this.worldMap = new WorldMap();
                     this.collectedPickups = new Set();
                     this.clearProgress();
@@ -421,6 +521,7 @@ class Game {
             if (this.livesLostMessage > 0) this.livesLostMessage--;
             if (this.extraLifeMessage > 0) this.extraLifeMessage--;
             if (this.extraEnergyMessage > 0) this.extraEnergyMessage--;
+            if (this.unlockCharMessage > 0) this.unlockCharMessage--;
         }
     }
 
@@ -447,6 +548,7 @@ class Game {
         if (this.inWorldMap) {
             this.drawStars(this.mapStars, 0);
             this.worldMap.draw(ctx);
+            this.drawCharacterSelect(ctx);
             ctx.fillStyle = PALETTE.accent2; ctx.font = '10px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
             ctx.fillText(`♥×${this.player.lives}`, 308, 16);
             ctx.textAlign = 'left';
@@ -550,11 +652,18 @@ const game = new Game();
 // ---- Modo depuración vía URL, sin tocar la consola ----
 // ?level=N        -> entra directo al nivel N (1-9), con vida/energía llenas, saltándose el mapa.
 // ?unlock=all     -> desbloquea todos los nodos del mapa para poder elegir cualquiera a mano.
-// Combinables: ?level=8&unlock=all dejará además el mapa entero abierto si sales del nivel con ESC.
+// ?char=bolt|shade|scrap -> pilota ese héroe directamente (se da por desbloqueado).
+// Combinables: ?level=1&char=scrap&unlock=all para entrar al nivel 1 pilotando a Scrap, por ejemplo.
 (function setupDebugMode() {
     const params = new URLSearchParams(location.search);
     if (params.get('unlock') === 'all') {
         game.worldMap.nodes.forEach(n => { n.unlocked = true; });
+    }
+    // ?char=bolt|shade|scrap -> entra pilotando ese héroe directamente (se da por desbloqueado)
+    const debugChar = params.get('char');
+    if (debugChar && HEROES[debugChar]) {
+        game.unlockedCharacters.add(debugChar);
+        game.player.character = debugChar;
     }
     const debugLevel = params.get('level');
     if (debugLevel !== null) {

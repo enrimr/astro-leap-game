@@ -7,6 +7,83 @@ const PALETTE = {
     hp: '#4ee08a', hpLow: '#ff5c6c', en: '#7cf5ff', xp: '#ffd23f'
 };
 
+// Escuadrón Chatarra: los 4 héroes jugables. Cada uno se desbloquea al derrotar
+// al jefe de un mundo (salvo Kes, que empieza desbloqueada) y usa el MISMO botón
+// de salto que ya existe para una habilidad de traversal propia — ver Player.update().
+const HERO_ORDER = ['kes', 'bolt', 'shade', 'scrap'];
+const HEROES = {
+    kes:   { id: 'kes',   name: 'Kes',   ability: 'Doble salto',     color: PALETTE.accent,  requiresBoss: null },
+    bolt:  { id: 'bolt',  name: 'Bolt',  ability: 'Vuelo breve',     color: '#ffd23f',        requiresBoss: 'queen_larva' },
+    shade: { id: 'shade', name: 'Shade', ability: 'Impulso lateral', color: PALETTE.accent2,  requiresBoss: 'sentinel' },
+    scrap: { id: 'scrap', name: 'Scrap', ability: 'Rompe refuerzos', color: '#c98a2b',        requiresBoss: 'overlord' }
+};
+
+// Retratos de los héroes reutilizables por id, sin depender de una instancia de
+// Player — así el selector de personaje del mapa puede dibujar los 4 sin tener
+// que crear jugadores de mentira. Player.drawPortrait() delega aquí con this.character.
+function drawHeroPortrait(ctx, heroId, x, y, w, h, facing = 1) {
+    if (heroId === 'bolt') return drawBoltPortrait(ctx, x, y, w, h);
+    if (heroId === 'shade') return drawShadePortrait(ctx, x, y, w, h);
+    if (heroId === 'scrap') return drawScrapPortrait(ctx, x, y, w, h);
+    return drawKesPortrait(ctx, x, y, w, h, facing);
+}
+function drawKesPortrait(ctx, x, y, w, h) {
+    const grad = ctx.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, PALETTE.accent); grad.addColorStop(1, '#3fa9c9');
+    ctx.save();
+    ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 8;
+    ctx.fillStyle = grad;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 3); ctx.fill(); }
+    else ctx.fillRect(x, y, w, h);
+    ctx.restore();
+    ctx.fillStyle = PALETTE.bg1;
+    const es = Math.max(2, Math.round(w * 0.16)), eo = Math.round(w * 0.2);
+    ctx.fillRect(x + eo, y + h * 0.2, es, es);
+    ctx.fillRect(x + w - eo - es, y + h * 0.2, es, es);
+}
+function drawBoltPortrait(ctx, x, y, w, h) {
+    const cx = x + w / 2, cy = y + h / 2, r = Math.min(w, h) / 2;
+    const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.4, r * 0.1, cx, cy, r);
+    grad.addColorStop(0, '#ffe28a'); grad.addColorStop(1, '#ffd23f');
+    ctx.save();
+    ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 8;
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#0b0620';
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.32, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd23f';
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.13, 0, Math.PI * 2); ctx.fill();
+}
+function drawShadePortrait(ctx, x, y, w, h) {
+    const grad = ctx.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, '#ffb3e6'); grad.addColorStop(1, '#c93f96');
+    ctx.save();
+    ctx.shadowColor = PALETTE.accent2; ctx.shadowBlur = 8;
+    ctx.fillStyle = grad;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, [w * 0.35, w * 0.35, 4, 4]); ctx.fill(); }
+    else ctx.fillRect(x, y, w, h);
+    ctx.restore();
+    ctx.fillStyle = '#ffe3f5';
+    const es = Math.max(2, Math.round(w * 0.13)), eo = Math.round(w * 0.28);
+    ctx.fillRect(x + eo, y + h * 0.26, es, es);
+    ctx.fillRect(x + w - eo - es, y + h * 0.26, es, es);
+}
+function drawScrapPortrait(ctx, x, y, w, h) {
+    const grad = ctx.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, '#e0a94a'); grad.addColorStop(1, '#c98a2b');
+    ctx.save();
+    ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 8;
+    ctx.fillStyle = grad;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 3); ctx.fill(); }
+    else ctx.fillRect(x, y, w, h);
+    ctx.restore();
+    ctx.fillStyle = '#0b0620';
+    const es = Math.max(2, Math.round(w * 0.18)), eo = Math.round(w * 0.2);
+    ctx.fillRect(x + eo, y + h * 0.22, es, es);
+    ctx.fillRect(x + w - eo - es, y + h * 0.22, es, es);
+}
+
 class Particle {
     constructor(x, y, vx, vy, color, life, size) {
         Object.assign(this, { x, y, vx, vy, color, life, maxLife: life, size });
@@ -39,11 +116,12 @@ class ParticleSystem {
 const MAX_LIVES = 3;
 
 class Player {
-    constructor(x, y) {
+    constructor(x, y, character = 'kes') {
         Object.assign(this, {
-            x, y, w: 9, h: 13, vx: 0, vy: 0, facing: 1,
+            x, y, w: 9, h: 13, vx: 0, vy: 0, facing: 1, character,
             speed: 1.55, jumpPower: -4.3, doubleJumpPower: -3.5, gravity: 0.32,
-            onGround: false, jumping: false, usedDoubleJump: false,
+            onGround: false, jumping: false, usedAirAbility: false,
+            dashTimer: 0, dashSpeed: 3.2, flyDrainTimer: 0,
             prevJumpKey: false, squash: 1, animT: 0, blinkTimer: 90 + Math.random() * 120,
             level: 1, maxHp: 22, hp: 22, maxEnergy: 10, energy: 10,
             xp: 0, xpToNextLevel: 10, attack: 5, defense: 2,
@@ -53,32 +131,47 @@ class Player {
     update(keys, platforms, particles) {
         const left = keys.ArrowLeft || keys.KeyA;
         const right = keys.ArrowRight || keys.KeyD;
-        this.vx = left ? -this.speed : right ? this.speed : 0;
+        if (this.dashTimer <= 0) this.vx = left ? -this.speed : right ? this.speed : 0;
         if (left) this.facing = -1; else if (right) this.facing = 1;
 
         const jumpKey = !!(keys.Space || keys.ArrowUp || keys.KeyW);
         const jumpPressed = jumpKey && !this.prevJumpKey;
-        if (jumpPressed) {
-            if (this.onGround) {
-                this.vy = this.jumpPower; this.onGround = false; this.jumping = true;
-                this.usedDoubleJump = false; this.squash = 1.35;
-                if (window.SFX) SFX.jump();
-                particles.burst(this.x + this.w / 2, this.y + this.h, PALETTE.accent, 6, { speed: 1, life: 14, size: 2 });
-            } else if (!this.usedDoubleJump && this.energy >= 1) {
-                this.vy = this.doubleJumpPower; this.usedDoubleJump = true; this.energy -= 1;
-                this.squash = 1.5;
+        if (jumpPressed && this.onGround) {
+            this.vy = this.jumpPower; this.onGround = false; this.jumping = true;
+            this.usedAirAbility = false; this.squash = 1.35;
+            if (window.SFX) SFX.jump();
+            particles.burst(this.x + this.w / 2, this.y + this.h, PALETTE.accent, 6, { speed: 1, life: 14, size: 2 });
+        } else if (jumpPressed && !this.onGround && !this.usedAirAbility && this.character !== 'bolt' && this.character !== 'scrap') {
+            // Kes y Shade comparten el gatillo "un uso por salto", pero el efecto difiere:
+            // Kes gana altura (doble salto), Shade gana un impulso lateral (dash).
+            if (this.energy >= 1) {
+                this.usedAirAbility = true; this.energy -= 1; this.squash = 1.5;
+                if (this.character === 'shade') { this.dashTimer = 12; this.vy = Math.min(this.vy, -0.5); }
+                else this.vy = this.doubleJumpPower;
                 if (window.SFX) SFX.doubleJump();
                 particles.burst(this.x + this.w / 2, this.y + this.h / 2, PALETTE.accent2, 10, { speed: 1.6, life: 18, size: 2.5 });
             }
         }
+        // Bolt no gasta su habilidad en un solo toque: mientras se mantenga pulsado salto en
+        // el aire, asciende despacio consumiendo Energía por tiempo, no de golpe.
+        if (this.character === 'bolt' && !this.onGround && jumpKey && this.energy > 0) {
+            // Velocidad fija de ascenso: se fija cada frame (no se acumula), así que la gravedad
+            // de más abajo solo la frena un poco en vez de cancelarla — asciende de verdad.
+            this.vy = -1.1;
+            this.flyDrainTimer--;
+            if (this.flyDrainTimer <= 0) { this.energy -= 1; this.flyDrainTimer = 8; }
+            if (Math.random() < 0.4) particles.burst(this.x + this.w / 2, this.y + this.h, PALETTE.accent3, 1, { speed: 0.5, life: 10, size: 1.5 });
+        }
+        if (this.dashTimer > 0) { this.vx = this.facing * this.dashSpeed; this.dashTimer--; }
         this.prevJumpKey = jumpKey;
 
         const wasOnGround = this.onGround;
         this.vy += this.gravity; this.x += this.vx; this.y += this.vy; this.onGround = false;
         platforms.forEach(p => {
+            if (p.broken) return;
             if (this.x < p.x + p.w && this.x + this.w > p.x && this.y < p.y + p.h && this.y + this.h > p.y) {
                 if (this.vy > 0 && this.y + this.h <= p.y + 10) {
-                    this.y = p.y - this.h; this.vy = 0; this.onGround = true; this.jumping = false; this.usedDoubleJump = false;
+                    this.y = p.y - this.h; this.vy = 0; this.onGround = true; this.jumping = false; this.usedAirAbility = false;
                 }
             }
         });
@@ -109,6 +202,9 @@ class Player {
     }
     takeDamage(amt) { const dmg = Math.max(1, amt - this.defense); this.hp -= dmg; return dmg; }
     draw(ctx, cx) {
+        if (this.character === 'bolt') return this.drawBoltChar(ctx, cx);
+        if (this.character === 'shade') return this.drawShadeChar(ctx, cx);
+        if (this.character === 'scrap') return this.drawScrapChar(ctx, cx);
         const walking = this.onGround && this.vx !== 0;
         const idleBreathe = this.onGround && !walking ? Math.sin(this.animT) * 0.4 : 0;
         const walkBounce = walking ? Math.abs(Math.sin(this.animT)) * 1.1 : 0;
@@ -133,22 +229,72 @@ class Player {
         ctx.fillRect(sx - 2 + eyeOffset, sy - h + 3, 2, 2 * blink);
         ctx.fillRect(sx + 1 + eyeOffset, sy - h + 3, 2, 2 * blink);
     }
+    // Bolt: esfera pequeña con un único ojo-cámara, sin pies (flota).
+    drawBoltChar(ctx, cx) {
+        const bob = Math.sin(this.animT) * 0.6;
+        const sx = this.x - cx + this.w / 2, sy = this.y + this.h / 2 + bob;
+        const r = this.h / 2;
+        const grad = ctx.createRadialGradient(sx - r * 0.3, sy - r * 0.4, r * 0.1, sx, sy, r);
+        grad.addColorStop(0, '#ffe28a'); grad.addColorStop(1, '#ffd23f');
+        ctx.save();
+        ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 6;
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        const eyeOffset = this.facing > 0 ? 1 : -1;
+        const blink = this.blinkTimer < 6 ? 0.3 : 1;
+        ctx.fillStyle = '#0b0620';
+        ctx.beginPath(); ctx.ellipse(sx + eyeOffset, sy, 2.2, 2.2 * blink, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffd23f';
+        ctx.beginPath(); ctx.arc(sx + eyeOffset, sy, 0.9, 0, Math.PI * 2); ctx.fill();
+    }
+    // Shade: pastilla-capucha magenta, ojos en rombo sin visera.
+    drawShadeChar(ctx, cx) {
+        const walking = this.onGround && this.vx !== 0;
+        const walkBounce = walking ? Math.abs(Math.sin(this.animT)) * 1.1 : 0;
+        const sx = this.x - cx + this.w / 2, sy = this.y + this.h - walkBounce;
+        const w = this.w * (2 - this.squash), h = this.h * this.squash;
+        const grad = ctx.createLinearGradient(0, sy - h, 0, sy);
+        grad.addColorStop(0, '#ffb3e6'); grad.addColorStop(1, '#c93f96');
+        ctx.save();
+        ctx.shadowColor = PALETTE.accent2; ctx.shadowBlur = 6;
+        ctx.fillStyle = grad;
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(sx - w / 2, sy - h, w, h, [w * 0.4, w * 0.4, 2, 2]); ctx.fill(); }
+        else ctx.fillRect(sx - w / 2, sy - h, w, h);
+        ctx.restore();
+        const eyeOffset = this.facing > 0 ? 1 : -1;
+        const blink = this.blinkTimer < 6 ? 0.3 : 1;
+        ctx.fillStyle = '#ffe3f5';
+        ctx.fillRect(sx - 2 + eyeOffset, sy - h + 4, 1.8, 1.8 * blink);
+        ctx.fillRect(sx + 0.5 + eyeOffset, sy - h + 4, 1.8, 1.8 * blink);
+    }
+    // Scrap: bloque ámbar más ancho, ojos cuadrados. Sin habilidad aérea: pisa firme.
+    drawScrapChar(ctx, cx) {
+        const walking = this.onGround && this.vx !== 0;
+        const walkBounce = walking ? Math.abs(Math.sin(this.animT)) * 1 : 0;
+        const sx = this.x - cx + this.w / 2, sy = this.y + this.h - walkBounce;
+        const w = (this.w + 1.5) * (2 - this.squash), h = this.h * this.squash;
+        const grad = ctx.createLinearGradient(0, sy - h, 0, sy);
+        grad.addColorStop(0, '#e0a94a'); grad.addColorStop(1, '#c98a2b');
+        ctx.save();
+        ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 6;
+        ctx.fillStyle = grad;
+        ctx.fillRect(sx - w / 2, sy - h, w, h);
+        ctx.restore();
+        if (walking) {
+            ctx.fillStyle = '#c98a2b';
+            const lead = Math.sin(this.animT) > 0 ? sx - w / 2 : sx + w / 2 - 2.4;
+            ctx.fillRect(lead, sy, 2.4, 1.6);
+        }
+        const eyeOffset = this.facing > 0 ? 1 : -1;
+        const blink = this.blinkTimer < 6 ? 0.3 : 1;
+        ctx.fillStyle = '#0b0620';
+        ctx.fillRect(sx - 2.2 + eyeOffset, sy - h + 3, 2.2, 2.2 * blink);
+        ctx.fillRect(sx + 0.8 + eyeOffset, sy - h + 3, 2.2, 2.2 * blink);
+    }
     // Mismo aspecto que draw(), pero a una posición/tamaño fijos en pantalla (para el retrato de combate).
     drawPortrait(ctx, x, y, w, h) {
-        const grad = ctx.createLinearGradient(0, y, 0, y + h);
-        grad.addColorStop(0, PALETTE.accent);
-        grad.addColorStop(1, '#3fa9c9');
-        ctx.save();
-        ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 8;
-        ctx.fillStyle = grad;
-        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 3); ctx.fill(); }
-        else ctx.fillRect(x, y, w, h);
-        ctx.restore();
-        ctx.fillStyle = PALETTE.bg1;
-        const es = Math.max(2, Math.round(w * 0.16)), eo = Math.round(w * 0.2);
-        const blink = this.blinkTimer < 6 ? 0.3 : 1;
-        ctx.fillRect(x + eo, y + h * 0.2, es, es * blink);
-        ctx.fillRect(x + w - eo - es, y + h * 0.2, es, es * blink);
+        drawHeroPortrait(ctx, this.character, x, y, w, h, this.facing);
     }
 }
 
@@ -199,6 +345,7 @@ class Enemy {
         this.onGround = false;
         let platform = null;
         for (const p of platforms) {
+            if (p.broken) continue;
             if (this.x < p.x + p.w && this.x + this.w > p.x && this.y < p.y + p.h && this.y + this.h > p.y) {
                 if (this.vy > 0 && this.y + this.h <= p.y + 10) {
                     this.y = p.y - this.h; this.vy = 0; this.onGround = true; platform = p;
@@ -391,15 +538,30 @@ class Enemy {
 }
 
 class Platform {
-    constructor(x, y, w, h, variant = 'normal') { Object.assign(this, { x, y, w, h, variant }); }
+    constructor(x, y, w, h, variant = 'normal') { Object.assign(this, { x, y, w, h, variant, broken: false }); }
     draw(ctx, cx) {
+        if (this.broken) return;
         const sx = this.x - cx;
         const grad = ctx.createLinearGradient(0, this.y, 0, this.y + this.h);
         if (this.variant === 'ice') { grad.addColorStop(0, '#bfe9ff'); grad.addColorStop(1, '#5fb8d9'); }
         else if (this.variant === 'metal') { grad.addColorStop(0, '#8892b0'); grad.addColorStop(1, '#4a5170'); }
+        else if (this.variant === 'reinforced') { grad.addColorStop(0, '#5a4a2a'); grad.addColorStop(1, '#3a2a0f'); }
         else { grad.addColorStop(0, PALETTE.panelLight); grad.addColorStop(1, PALETTE.panel); }
         ctx.fillStyle = grad;
         ctx.fillRect(sx, this.y, this.w, this.h);
+        if (this.variant === 'reinforced') {
+            // franjas de peligro: solo Scrap puede romper esto
+            ctx.save();
+            ctx.beginPath(); ctx.rect(sx, this.y, this.w, this.h); ctx.clip();
+            ctx.fillStyle = PALETTE.accent3; ctx.globalAlpha = 0.55;
+            for (let sxx = -this.h; sxx < this.w; sxx += 7) {
+                ctx.beginPath();
+                ctx.moveTo(sx + sxx, this.y + this.h); ctx.lineTo(sx + sxx + this.h, this.y);
+                ctx.lineTo(sx + sxx + this.h + 3, this.y); ctx.lineTo(sx + sxx + 3, this.y + this.h);
+                ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
+        }
         ctx.fillStyle = PALETTE.accent; ctx.globalAlpha = 0.5;
         ctx.fillRect(sx, this.y, this.w, 1);
         ctx.globalAlpha = 1;
