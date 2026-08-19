@@ -63,6 +63,7 @@ class Game {
         this.combat = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
+        this.charSelectOpen = false; this.charSelectIndex = 0; // hangar de selección de personaje (pausa el juego)
         this.collectedPickups = new Set(); // "life-N" / "energy-N" / "reinforced-N-N" por nivel, para no poder re-recoger/re-romper saliendo y entrando
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
         this.levelCompleting = false; this.playerInvulnerable = 0;
@@ -159,58 +160,126 @@ class Game {
         this.forcedScrollDelay = level.forcedScroll ? level.forcedScroll.startDelay : 0;
     }
 
-    // Selector de personaje en el mapa: Q/E (o el táctil sobre los iconos) cambia de
-    // piloto entre los ya desbloqueados. El elegido se lleva al siguiente nivel que entres.
-    updateCharacterSelect(keys) {
-        const unlockedList = HERO_ORDER.filter(id => this.unlockedCharacters.has(id));
-        if (unlockedList.length <= 1) return;
-        if (keys.KeyQ || keys.KeyE) {
-            const dir = keys.KeyE ? 1 : -1;
-            const idx = unlockedList.indexOf(this.player.character);
-            this.player.character = unlockedList[(idx + dir + unlockedList.length) % unlockedList.length];
-            if (window.SFX) SFX.select();
-            keys.KeyQ = false; keys.KeyE = false;
-        }
+    // Piloto actual: una chapa pequeña y discreta en el mapa (no una fila de iconos permanente).
+    // Tocarla / pulsar C abre el hangar, la pantalla de selección de verdad.
+    drawPilotChip(ctx) {
+        const x = 8, y = 44, w = 90, h = 16;
+        this.pilotChipRect = { x, y, w, h };
+        const cur = HEROES[this.player.character];
+        ctx.save();
+        ctx.fillStyle = 'rgba(11,6,32,0.75)';
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 3); ctx.fill(); } else ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = PALETTE.dim; ctx.globalAlpha = 0.6; ctx.lineWidth = 1;
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, 3); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+        drawHeroPortrait(ctx, this.player.character, x + 2, y + 2, h - 4, h - 4, this.player.facing);
+        ctx.fillStyle = PALETTE.ink; ctx.font = '8px "Rajdhani", sans-serif';
+        ctx.fillText(cur.name.toUpperCase(), x + h, y + h / 2 + 3);
+        ctx.fillStyle = PALETTE.accent; ctx.font = '9px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText('▸', x + w - 5, y + h / 2 + 3);
+        ctx.textAlign = 'left';
+        ctx.restore();
     }
-    selectCharacter(id) {
-        if (!this.unlockedCharacters.has(id) || this.player.character === id) return;
-        this.player.character = id;
+    openCharSelect() {
+        if (HERO_ORDER.length <= 1) return;
+        this.charSelectOpen = true;
+        this.charSelectIndex = HERO_ORDER.indexOf(this.player.character);
+        if (window.SFX) SFX.confirm();
+    }
+    closeCharSelect() {
+        this.charSelectOpen = false;
         if (window.SFX) SFX.select();
     }
-    drawCharacterSelect(ctx) {
-        const startX = 8, y = 44, size = 14, gap = 5;
-        this.charIconRects = [];
+    confirmCharSelect() {
+        const id = HERO_ORDER[this.charSelectIndex];
+        if (!this.unlockedCharacters.has(id)) { if (window.SFX) SFX.select(); return; }
+        this.player.character = id;
+        this.charSelectOpen = false;
+        if (window.SFX) SFX.confirm();
+    }
+    // Input del hangar mientras está abierto: se llama desde update() antes de pausar el resto.
+    updateCharSelectScreen(keys) {
+        if (keys.ArrowRight || keys.KeyD) {
+            this.charSelectIndex = Math.min(HERO_ORDER.length - 1, this.charSelectIndex + 1);
+            if (window.SFX) SFX.select();
+            keys.ArrowRight = false; keys.KeyD = false;
+        } else if (keys.ArrowLeft || keys.KeyA) {
+            this.charSelectIndex = Math.max(0, this.charSelectIndex - 1);
+            if (window.SFX) SFX.select();
+            keys.ArrowLeft = false; keys.KeyA = false;
+        } else if (keys.Space || keys.Enter) {
+            this.confirmCharSelect(); keys.Space = false; keys.Enter = false;
+        } else if (keys.Escape) {
+            this.closeCharSelect(); keys.Escape = false;
+        }
+    }
+    // Pantalla de selección de personaje ("hangar"): un roster grande al estilo clásico de
+    // selección de personaje (una fila de retratos grandes + descripción del resaltado),
+    // en vez de la fila de iconos diminutos de antes.
+    drawHangarScreen(ctx) {
+        const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+        grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 13px "Orbitron", sans-serif';
+        ctx.fillText('HANGAR DE PILOTOS', GAME_WIDTH / 2, 16);
+        ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
+        ctx.fillText('Elige quién pilota', GAME_WIDTH / 2, 27);
+        ctx.textAlign = 'left';
+
+        const cardW = 62, cardH = 88, gap = 10;
+        const startX = (GAME_WIDTH - (cardW * HERO_ORDER.length + gap * (HERO_ORDER.length - 1))) / 2;
+        const cardY = 36;
+        this.hangarCardRects = [];
         HERO_ORDER.forEach((id, i) => {
-            const x = startX + i * (size + gap);
+            const cx = startX + i * (cardW + gap);
             const unlocked = this.unlockedCharacters.has(id);
-            const selected = this.player.character === id;
-            this.charIconRects.push({ id, x, y, w: size, h: size, unlocked });
+            const cursor = this.charSelectIndex === i;
+            const current = this.player.character === id;
+            this.hangarCardRects.push({ id, x: cx, y: cardY, w: cardW, h: cardH, unlocked });
+
             ctx.save();
-            ctx.fillStyle = 'rgba(11,6,32,0.7)';
-            ctx.fillRect(x - 1, y - 1, size + 2, size + 2);
-            if (selected) { ctx.strokeStyle = PALETTE.accent; ctx.lineWidth = 1.5; ctx.strokeRect(x - 1.5, y - 1.5, size + 3, size + 3); }
+            ctx.fillStyle = cursor ? 'rgba(124,245,255,0.1)' : 'rgba(28,17,64,0.6)';
+            ctx.fillRect(cx, cardY, cardW, cardH);
+            ctx.strokeStyle = cursor ? PALETTE.accent : (current ? PALETTE.dim : 'rgba(168,158,224,0.25)');
+            ctx.lineWidth = cursor ? 1.6 : 1;
+            ctx.strokeRect(cx + 0.5, cardY + 0.5, cardW - 1, cardH - 1);
+            if (cursor) { ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 8; ctx.strokeRect(cx + 0.5, cardY + 0.5, cardW - 1, cardH - 1); ctx.shadowBlur = 0; }
+
+            const portraitSize = 40, px = cx + (cardW - portraitSize) / 2, py = cardY + 8;
             if (unlocked) {
-                ctx.globalAlpha = selected ? 1 : 0.6;
-                drawHeroPortrait(ctx, id, x, y, size, size);
-                ctx.globalAlpha = 1;
+                drawHeroPortrait(ctx, id, px, py, portraitSize, portraitSize);
+                ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 9px "Orbitron", sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText(HEROES[id].name.toUpperCase(), cx + cardW / 2, cardY + 62);
+                ctx.fillStyle = HEROES[id].color; ctx.font = '7px "Rajdhani", sans-serif';
+                ctx.fillText(HEROES[id].ability, cx + cardW / 2, cardY + 73);
             } else {
-                // silueta genérica: nada de color/forma real del héroe, para no chafar la sorpresa de quién es
-                ctx.fillStyle = PALETTE.panelLight;
-                ctx.fillRect(x, y, size, size);
-                ctx.strokeStyle = PALETTE.dim; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-                ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
-                ctx.globalAlpha = 1;
-                const lockCx = x + size / 2, lockTop = y + size * 0.42, lockW = size * 0.4, lockH = size * 0.32;
-                ctx.strokeStyle = PALETTE.dim; ctx.lineWidth = 1.4;
+                ctx.fillStyle = PALETTE.panelLight; ctx.fillRect(px, py, portraitSize, portraitSize);
+                const lockCx = cx + cardW / 2, lockTop = cardY + 24, lockW = portraitSize * 0.4, lockH = portraitSize * 0.3;
+                ctx.strokeStyle = PALETTE.dim; ctx.lineWidth = 1.6;
                 ctx.beginPath(); ctx.arc(lockCx, lockTop, lockW * 0.42, Math.PI, 0); ctx.stroke();
-                ctx.fillStyle = PALETTE.dim;
-                ctx.fillRect(lockCx - lockW / 2, lockTop, lockW, lockH);
+                ctx.fillStyle = PALETTE.dim; ctx.fillRect(lockCx - lockW / 2, lockTop, lockW, lockH);
+                ctx.font = 'bold 9px "Orbitron", sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('???', cx + cardW / 2, cardY + 62);
             }
+            if (current) { ctx.fillStyle = PALETTE.accent; ctx.font = '7px "Rajdhani", sans-serif'; ctx.fillText('ACTUAL', cx + cardW / 2, cardY + cardH - 5); }
+            ctx.textAlign = 'left';
             ctx.restore();
         });
-        const cur = HEROES[this.player.character];
-        ctx.fillStyle = PALETTE.dim; ctx.font = '8.5px "Rajdhani", sans-serif';
-        ctx.fillText(`${cur.name} · ${cur.ability}${HERO_ORDER.length > 1 ? ' · Q/E cambia' : ''}`, startX + 4 * (size + gap), y + 10);
+
+        const focusedId = HERO_ORDER[this.charSelectIndex];
+        const focusedUnlocked = this.unlockedCharacters.has(focusedId);
+        ctx.textAlign = 'center';
+        if (focusedUnlocked) {
+            ctx.fillStyle = PALETTE.dim; ctx.font = '8.5px "Rajdhani", sans-serif';
+            wrapText(ctx, HEROES[focusedId].desc, GAME_WIDTH / 2, cardY + cardH + 16, 280, 11);
+        } else {
+            ctx.fillStyle = PALETTE.dim; ctx.font = 'italic 8.5px "Rajdhani", sans-serif';
+            ctx.fillText('Todavía no lo has desbloqueado.', GAME_WIDTH / 2, cardY + cardH + 16);
+        }
+        ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
+        ctx.fillText('← → elegir · ESPACIO confirmar · ESC salir', GAME_WIDTH / 2, GAME_HEIGHT - 8);
+        ctx.textAlign = 'left';
     }
 
     // Cada jefe desbloquea al héroe asociado a su mundo (ver HEROES en entities.js).
@@ -371,15 +440,26 @@ class Game {
         // Tocar/clicar directamente un nodo del mapa estelar entra a ese nivel (si está desbloqueado)
         const mapTap = (e) => {
             if (this.unlockScreen) { e.preventDefault(); this.dismissUnlockScreen(); return; }
-            if (!this.inWorldMap) return;
-            e.preventDefault();
             const rect = canvas.getBoundingClientRect();
             const point = e.changedTouches ? e.changedTouches[0] : e;
             const gx = (point.clientX - rect.left) / rect.width * GAME_WIDTH;
             const gy = (point.clientY - rect.top) / rect.height * GAME_HEIGHT;
-            const iconHit = (this.charIconRects || []).find(r => gx >= r.x - 2 && gx <= r.x + r.w + 2 && gy >= r.y - 2 && gy <= r.y + r.h + 2);
-            if (iconHit) {
-                if (iconHit.unlocked) this.selectCharacter(iconHit.id); else if (window.SFX) SFX.select();
+            if (this.charSelectOpen) {
+                e.preventDefault();
+                const cardHit = (this.hangarCardRects || []).find(r => gx >= r.x && gx <= r.x + r.w && gy >= r.y && gy <= r.y + r.h);
+                if (cardHit) {
+                    this.charSelectIndex = HERO_ORDER.indexOf(cardHit.id);
+                    this.confirmCharSelect();
+                } else {
+                    this.closeCharSelect();
+                }
+                return;
+            }
+            if (!this.inWorldMap) return;
+            e.preventDefault();
+            const chip = this.pilotChipRect;
+            if (chip && gx >= chip.x && gx <= chip.x + chip.w && gy >= chip.y && gy <= chip.y + chip.h) {
+                this.openCharSelect();
                 return;
             }
             let closest = null, closestDist = Infinity;
@@ -403,10 +483,11 @@ class Game {
 
     updateTouchUI() {
         const inCombat = !!(this.combat && this.combat.active);
-        if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !this.unlockScreen);
+        const paused = this.unlockScreen || this.charSelectOpen;
+        if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !paused);
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat);
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
-        if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat && !this.unlockScreen);
+        if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat && !paused);
     }
 
     update() {
@@ -416,10 +497,11 @@ class Game {
             if (this.keys.Space || this.keys.Enter) { this.dismissUnlockScreen(); this.keys.Space = false; this.keys.Enter = false; }
             return;
         }
+        if (this.charSelectOpen) { this.updateCharSelectScreen(this.keys); return; }
         if (this.shake > 0) this.shake *= 0.85;
 
         if (this.inWorldMap) {
-            this.updateCharacterSelect(this.keys);
+            if (this.keys.KeyC) { this.openCharSelect(); this.keys.KeyC = false; }
             const selected = this.worldMap.update(this.keys);
             if (selected !== null) {
                 this.currentLevel = selected; this.loadLevel(selected);
@@ -602,6 +684,10 @@ class Game {
             this.drawUnlockScreen(ctx);
             return;
         }
+        if (this.charSelectOpen) {
+            this.drawHangarScreen(ctx);
+            return;
+        }
 
         const shakeX = this.shake ? (Math.random() - 0.5) * this.shake : 0;
         const shakeY = this.shake ? (Math.random() - 0.5) * this.shake * 0.6 : 0;
@@ -611,7 +697,7 @@ class Game {
         if (this.inWorldMap) {
             this.drawStars(this.mapStars, 0);
             this.worldMap.draw(ctx);
-            this.drawCharacterSelect(ctx);
+            this.drawPilotChip(ctx);
             ctx.fillStyle = PALETTE.accent2; ctx.font = '10px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
             ctx.fillText(`♥×${this.player.lives}`, 308, 16);
             ctx.textAlign = 'left';
