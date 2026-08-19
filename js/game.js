@@ -16,6 +16,8 @@ const START_HINT_TEXT = IS_TOUCH_DEVICE ? 'TOCA PARA DESPEGAR' : 'PULSA ESPACIO 
 if (startHint) startHint.textContent = START_HINT_TEXT;
 
 const SAVE_KEY = 'astroLeapSave_v1';
+const BEST_TIMES_KEY = 'astroLeapBestTimes_v1';
+const MAX_BEST_TIMES = 5;
 
 // El canvas dibuja siempre en el sistema de coordenadas lógico GAME_WIDTH x GAME_HEIGHT,
 // pero el buffer interno se redimensiona a la resolución real de pantalla (con devicePixelRatio)
@@ -30,6 +32,15 @@ function fitCanvas() {
     fitCanvasW = targetW; fitCanvasH = targetH;
     canvas.width = targetW; canvas.height = targetH;
     ctx.setTransform(targetW / GAME_WIDTH, 0, 0, targetH / GAME_HEIGHT, 0, 0);
+}
+
+// m:ss.d — el cronómetro de la partida (tiempo real de reloj, no en frames: así no depende
+// de si el navegador va a 60fps o va renqueando, que es lo justo para comparar tiempos).
+function formatTime(ms) {
+    const totalMs = Math.max(0, Math.round(ms));
+    const m = Math.floor(totalMs / 60000);
+    const s = (totalMs % 60000) / 1000;
+    return `${m}:${s.toFixed(1).padStart(4, '0')}`;
 }
 
 // Texto centrado partido en líneas para que quepa en un ancho máximo (px). Usado por la
@@ -74,10 +85,41 @@ class Game {
         this.levelStars = makeStars(140, 1200);
         this.musicOn = this.loadAudioPref('astroLeapMusicOn');
         this.sfxOn = this.loadAudioPref('astroLeapSfxOn');
+        this.runStartTime = 0; this.runElapsed = 0; // cronómetro: tiempo real de reloj desde que arrancas hasta la victoria
+        this.bestTimes = this.loadBestTimes();
         this.loadProgress();
         this.setupInput();
         this.setupTouchControls();
         this.applyAudioPrefs();
+        this.renderBestTimesBox();
+    }
+
+    loadBestTimes() {
+        try {
+            const raw = localStorage.getItem(BEST_TIMES_KEY);
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list.filter(t => typeof t === 'number') : [];
+        } catch (e) { return []; }
+    }
+    // Guarda un tiempo de partida COMPLETA (Game Over no cuenta, solo terminar el juego entero).
+    // Devuelve true si ha quedado el nuevo mejor tiempo (el primero de la lista).
+    saveBestTime(ms) {
+        this.bestTimes.push(ms);
+        this.bestTimes.sort((a, b) => a - b);
+        this.bestTimes = this.bestTimes.slice(0, MAX_BEST_TIMES);
+        try { localStorage.setItem(BEST_TIMES_KEY, JSON.stringify(this.bestTimes)); } catch (e) { /* sin almacenamiento: no pasa nada, solo no se guarda */ }
+        return this.bestTimes[0] === ms;
+    }
+    renderBestTimesHTML() {
+        if (!this.bestTimes.length) return '';
+        const items = this.bestTimes.map((t, i) => `<li>${i + 1}. ${formatTime(t)}</li>`).join('');
+        return `<div class="best-times"><p class="best-times-title">MEJORES TIEMPOS</p><ol>${items}</ol></div>`;
+    }
+    // Solo hace falta para la pantalla de arranque de verdad (la que ya trae el HTML fijo);
+    // las de Game Over/Victoria se reescriben enteras y ya incluyen la lista directamente.
+    renderBestTimesBox() {
+        const box = document.getElementById('bestTimesBox');
+        if (box) box.innerHTML = this.renderBestTimesHTML();
     }
 
     loadAudioPref(key) {
@@ -123,6 +165,7 @@ class Game {
         if (this.gameStarted) return;
         if (window.SFX) { SFX.unlock(); SFX.boot(); SFX.music.playExplore(); }
         this.gameStarted = true;
+        this.runStartTime = performance.now(); this.runElapsed = 0;
         startScreen.style.display = 'none';
         this.inWorldMap = true;
     }
@@ -354,7 +397,7 @@ class Game {
     fullGameOver() {
         if (window.SFX) { SFX.music.stop(); SFX.gameOver(); }
         this.gameStarted = false;
-        startScreen.innerHTML = `<h1>GAME OVER</h1><p class="subtitle">Sin vidas restantes — vuelves a empezar.</p><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
+        startScreen.innerHTML = `<h1>GAME OVER</h1><p class="subtitle">Sin vidas restantes — vuelves a empezar.</p>${this.renderBestTimesHTML()}<p class="hint blink-anim">${START_HINT_TEXT}</p>`;
         startScreen.style.display = 'flex';
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
@@ -492,6 +535,7 @@ class Game {
 
     update() {
         if (!this.gameStarted) return;
+        this.runElapsed = performance.now() - this.runStartTime; // reloj real, corre incluso en menús/pantallas de pausa
         if (this.unlockScreen) {
             if (this.shake > 0) this.shake *= 0.85; // por si acaso, aunque no se dibuje con temblor aquí
             if (this.keys.Space || this.keys.Enter) { this.dismissUnlockScreen(); this.keys.Space = false; this.keys.Enter = false; }
@@ -638,8 +682,13 @@ class Game {
 
                 if (this.currentLevel === LEVELS.length - 1) {
                     this.levelCompleting = false; this.gameStarted = false;
+                    const finalTime = performance.now() - this.runStartTime;
+                    const isRecord = this.saveBestTime(finalTime);
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
-                    startScreen.innerHTML = `<h1>¡MISIÓN CUMPLIDA!</h1><p class="subtitle">Reparaste la nave y escapaste del sistema.</p><p class="hint blink-anim">${START_HINT_TEXT}</p>`;
+                    startScreen.innerHTML = `<h1>¡MISIÓN CUMPLIDA!</h1><p class="subtitle">Reparaste la nave y escapaste del sistema.</p>
+                        <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Tu tiempo: ${formatTime(finalTime)}</p>
+                        ${this.renderBestTimesHTML()}
+                        <p class="hint blink-anim">${START_HINT_TEXT}</p>`;
                     startScreen.style.display = 'flex';
                     this.unlockedCharacters = new Set(['kes']);
                     this.player = new Player(20, 100, 'kes');
@@ -700,6 +749,8 @@ class Game {
             this.drawPilotChip(ctx);
             ctx.fillStyle = PALETTE.accent2; ctx.font = '10px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
             ctx.fillText(`♥×${this.player.lives}`, 308, 16);
+            ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
+            ctx.fillText(formatTime(this.runElapsed), 308, 27);
             ctx.textAlign = 'left';
             ctx.restore();
             return;
@@ -758,6 +809,11 @@ class Game {
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif'; ctx.fillText('XP', 236, 13);
             ctx.fillStyle = PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
             ctx.fillText(`${LEVELS[this.currentLevel].name}`, 6, 32);
+            // Esquina inferior izquierda, lejos del botón "Salir" (arriba a la derecha) y de
+            // los mensajes centrales — para no repetir el solape de HUD que ya dio guerra antes.
+            ctx.fillStyle = 'rgba(11,6,32,0.7)'; ctx.fillRect(0, GAME_HEIGHT - 12, 38, 12);
+            ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
+            ctx.fillText(formatTime(this.runElapsed), 4, GAME_HEIGHT - 3);
 
             if (this.levelUpMessage > 0) {
                 ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 14px "Orbitron", sans-serif';

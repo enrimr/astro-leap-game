@@ -47,6 +47,11 @@ body {
 #startScreen .hint { font-size: clamp(13px, 3.4vw, 20px); color: var(--accent3); margin: 5px 0; }
 #startScreen .hint.small { font-size: clamp(10px, 2.4vw, 14px); color: var(--dim); max-width: 480px; margin-top: 4px; }
 .blink-anim { animation: blink 1.1s infinite; }
+
+#startScreen .run-time { font-size: clamp(13px, 2.8vw, 16px); color: var(--accent); margin: 10px 0 2px; font-weight: 600; }
+#startScreen .best-times { margin-top: 14px; }
+#startScreen .best-times-title { font-size: 11px; letter-spacing: 2px; color: var(--dim); opacity: 0.75; margin-bottom: 4px; }
+#startScreen .best-times ol { list-style: none; font-size: clamp(11px, 2.4vw, 13px); color: var(--ink); opacity: 0.9; display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
 @keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0.15; } }
 
 /* ---- Controles en pantalla: SIEMPRE visibles (ratón, táctil o teclado, da igual) ---- */
