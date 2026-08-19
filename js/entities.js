@@ -163,7 +163,7 @@ class Player {
             // de más abajo solo la frena un poco en vez de cancelarla — asciende de verdad.
             this.vy = -1.1;
             this.flyDrainTimer--;
-            if (this.flyDrainTimer <= 0) { this.energy -= 1; this.flyDrainTimer = 8; }
+            if (this.flyDrainTimer <= 0) { this.energy -= 1; this.flyDrainTimer = 22; }
             if (Math.random() < 0.4) particles.burst(this.x + this.w / 2, this.y + this.h, PALETTE.accent3, 1, { speed: 0.5, life: 10, size: 1.5 });
         }
         if (this.dashTimer > 0) { this.vx = this.facing * this.dashSpeed; this.dashTimer--; }
