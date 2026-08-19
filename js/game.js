@@ -189,13 +189,22 @@ class Game {
             ctx.fillStyle = 'rgba(11,6,32,0.7)';
             ctx.fillRect(x - 1, y - 1, size + 2, size + 2);
             if (selected) { ctx.strokeStyle = PALETTE.accent; ctx.lineWidth = 1.5; ctx.strokeRect(x - 1.5, y - 1.5, size + 3, size + 3); }
-            ctx.globalAlpha = unlocked ? (selected ? 1 : 0.6) : 0.3;
-            drawHeroPortrait(ctx, id, x, y, size, size);
-            ctx.globalAlpha = 1;
-            if (!unlocked) {
-                ctx.fillStyle = PALETTE.dim; ctx.font = 'bold 9px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
-                ctx.fillText('?', x + size / 2, y + size / 2 + 3);
-                ctx.textAlign = 'left';
+            if (unlocked) {
+                ctx.globalAlpha = selected ? 1 : 0.6;
+                drawHeroPortrait(ctx, id, x, y, size, size);
+                ctx.globalAlpha = 1;
+            } else {
+                // silueta genérica: nada de color/forma real del héroe, para no chafar la sorpresa de quién es
+                ctx.fillStyle = PALETTE.panelLight;
+                ctx.fillRect(x, y, size, size);
+                ctx.strokeStyle = PALETTE.dim; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
+                ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+                ctx.globalAlpha = 1;
+                const lockCx = x + size / 2, lockTop = y + size * 0.42, lockW = size * 0.4, lockH = size * 0.32;
+                ctx.strokeStyle = PALETTE.dim; ctx.lineWidth = 1.4;
+                ctx.beginPath(); ctx.arc(lockCx, lockTop, lockW * 0.42, Math.PI, 0); ctx.stroke();
+                ctx.fillStyle = PALETTE.dim;
+                ctx.fillRect(lockCx - lockW / 2, lockTop, lockW, lockH);
             }
             ctx.restore();
         });
