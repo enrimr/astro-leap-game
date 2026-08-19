@@ -12,10 +12,14 @@ const PALETTE = {
 // de salto que ya existe para una habilidad de traversal propia — ver Player.update().
 const HERO_ORDER = ['kes', 'bolt', 'shade', 'scrap'];
 const HEROES = {
-    kes:   { id: 'kes',   name: 'Kes',   ability: 'Doble salto',     color: PALETTE.accent,  requiresBoss: null },
-    bolt:  { id: 'bolt',  name: 'Bolt',  ability: 'Vuelo breve',     color: '#ffd23f',        requiresBoss: 'queen_larva' },
-    shade: { id: 'shade', name: 'Shade', ability: 'Impulso lateral', color: PALETTE.accent2,  requiresBoss: 'sentinel' },
-    scrap: { id: 'scrap', name: 'Scrap', ability: 'Rompe refuerzos', color: '#c98a2b',        requiresBoss: 'overlord' }
+    kes:   { id: 'kes',   name: 'Kes',   ability: 'Doble salto',     color: PALETTE.accent,  requiresBoss: null,
+             desc: 'Un segundo impulso en el aire para ganar altura extra. Cuesta 1 de Energía.' },
+    bolt:  { id: 'bolt',  name: 'Bolt',  ability: 'Vuelo breve',     color: '#ffd23f',        requiresBoss: 'queen_larva',
+             desc: 'Mantén pulsado el salto en el aire para ascender despacio mientras te dure la Energía.' },
+    shade: { id: 'shade', name: 'Shade', ability: 'Impulso lateral', color: PALETTE.accent2,  requiresBoss: 'sentinel',
+             desc: 'Pulsa salto una vez en el aire para lanzarte hacia delante y cruzar huecos anchos.' },
+    scrap: { id: 'scrap', name: 'Scrap', ability: 'Rompe refuerzos', color: '#c98a2b',        requiresBoss: 'overlord',
+             desc: 'Sin salto extra, pero camina sobre plataformas de franjas ámbar para romperlas y colarse.' }
 };
 
 // Retratos de los héroes reutilizables por id, sin depender de una instancia de

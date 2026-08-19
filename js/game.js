@@ -32,6 +32,21 @@ function fitCanvas() {
     ctx.setTransform(targetW / GAME_WIDTH, 0, 0, targetH / GAME_HEIGHT, 0, 0);
 }
 
+// Texto centrado partido en líneas para que quepa en un ancho máximo (px). Usado por la
+// pantalla de desbloqueo de personaje, la única con un párrafo en vez de una línea suelta.
+function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '', ly = y;
+    for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (ctx.measureText(test).width > maxWidth && line) {
+            ctx.fillText(line, cx, ly);
+            line = word; ly += lineHeight;
+        } else line = test;
+    }
+    if (line) ctx.fillText(line, cx, ly);
+}
+
 function makeStars(count, maxX) {
     const stars = [];
     for (let i = 0; i < count; i++) {
@@ -47,7 +62,7 @@ class Game {
         this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null; this.capsules = []; this.energyCells = [];
         this.combat = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
-        this.unlockCharMessage = 0; this.unlockedCharName = '';
+        this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
         this.collectedPickups = new Set(); // "life-N" / "energy-N" / "reinforced-N-N" por nivel, para no poder re-recoger/re-romper saliendo y entrando
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
         this.levelCompleting = false; this.playerInvulnerable = 0;
@@ -187,23 +202,50 @@ class Game {
         const cur = HEROES[this.player.character];
         ctx.fillStyle = PALETTE.dim; ctx.font = '8.5px "Rajdhani", sans-serif';
         ctx.fillText(`${cur.name} · ${cur.ability}${HERO_ORDER.length > 1 ? ' · Q/E cambia' : ''}`, startX + 4 * (size + gap), y + 10);
-
-        if (this.unlockCharMessage > 0) {
-            ctx.textAlign = 'center';
-            ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 12px "Orbitron", sans-serif';
-            ctx.fillText(`¡NUEVO PILOTO: ${this.unlockedCharName.toUpperCase()}!`, GAME_WIDTH / 2, 60);
-            ctx.textAlign = 'left';
-        }
     }
 
     // Cada jefe desbloquea al héroe asociado a su mundo (ver HEROES en entities.js).
     // Kes ya empieza desbloqueada, así que esto solo dispara para Bolt/Shade/Scrap.
+    // Abre una pantalla propia (ver drawUnlockScreen) que pausa el juego hasta que se cierra,
+    // en vez de un simple aviso de HUD — así da tiempo a leer para qué sirve la habilidad nueva.
     unlockCharacterForBoss(bossType) {
         const hero = HERO_ORDER.map(id => HEROES[id]).find(h => h.requiresBoss === bossType);
         if (!hero || this.unlockedCharacters.has(hero.id)) return;
         this.unlockedCharacters.add(hero.id);
-        this.unlockCharMessage = 180; this.unlockedCharName = hero.name;
+        this.unlockScreen = hero.id;
         if (window.SFX) SFX.levelUp();
+    }
+    dismissUnlockScreen() {
+        if (!this.unlockScreen) return;
+        this.unlockScreen = null;
+        if (window.SFX) SFX.confirm();
+    }
+    drawUnlockScreen(ctx) {
+        const hero = HEROES[this.unlockScreen];
+        const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+        grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 11px "Orbitron", sans-serif';
+        ctx.fillText('¡NUEVO PILOTO DESBLOQUEADO!', GAME_WIDTH / 2, 22);
+
+        const size = 46, px = GAME_WIDTH / 2 - size / 2, py = 32;
+        ctx.save();
+        ctx.shadowColor = hero.color; ctx.shadowBlur = 14;
+        drawHeroPortrait(ctx, hero.id, px, py, size, size);
+        ctx.restore();
+
+        ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 16px "Orbitron", sans-serif';
+        ctx.fillText(hero.name.toUpperCase(), GAME_WIDTH / 2, py + size + 18);
+        ctx.fillStyle = hero.color; ctx.font = 'bold 10px "Rajdhani", sans-serif';
+        ctx.fillText(hero.ability.toUpperCase(), GAME_WIDTH / 2, py + size + 32);
+
+        ctx.fillStyle = PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
+        wrapText(ctx, hero.desc, GAME_WIDTH / 2, py + size + 50, 260, 11);
+
+        ctx.fillStyle = PALETTE.accent; ctx.font = '9px "Rajdhani", sans-serif';
+        ctx.fillText(IS_TOUCH_DEVICE ? 'TOCA PARA CONTINUAR' : 'PULSA ESPACIO PARA CONTINUAR', GAME_WIDTH / 2, GAME_HEIGHT - 12);
+        ctx.textAlign = 'left';
     }
 
     exitLevel() {
@@ -318,6 +360,7 @@ class Game {
 
         // Tocar/clicar directamente un nodo del mapa estelar entra a ese nivel (si está desbloqueado)
         const mapTap = (e) => {
+            if (this.unlockScreen) { e.preventDefault(); this.dismissUnlockScreen(); return; }
             if (!this.inWorldMap) return;
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
@@ -350,14 +393,18 @@ class Game {
 
     updateTouchUI() {
         const inCombat = !!(this.combat && this.combat.active);
-        if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat);
+        if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !this.unlockScreen);
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat);
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
-        if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat);
+        if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat && !this.unlockScreen);
     }
 
     update() {
         if (!this.gameStarted) return;
+        if (this.unlockScreen) {
+            if (this.keys.Space || this.keys.Enter) { this.dismissUnlockScreen(); this.keys.Space = false; this.keys.Enter = false; }
+            return;
+        }
         if (this.shake > 0) this.shake *= 0.85;
 
         if (this.inWorldMap) {
@@ -521,7 +568,6 @@ class Game {
             if (this.livesLostMessage > 0) this.livesLostMessage--;
             if (this.extraLifeMessage > 0) this.extraLifeMessage--;
             if (this.extraEnergyMessage > 0) this.extraEnergyMessage--;
-            if (this.unlockCharMessage > 0) this.unlockCharMessage--;
         }
     }
 
@@ -544,6 +590,12 @@ class Game {
         const shakeY = this.shake ? (Math.random() - 0.5) * this.shake * 0.6 : 0;
         ctx.save();
         ctx.translate(shakeX, shakeY);
+
+        if (this.unlockScreen) {
+            this.drawUnlockScreen(ctx);
+            ctx.restore();
+            return;
+        }
 
         if (this.inWorldMap) {
             this.drawStars(this.mapStars, 0);
