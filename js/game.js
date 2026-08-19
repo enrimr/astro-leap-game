@@ -213,6 +213,7 @@ class Game {
         if (!hero || this.unlockedCharacters.has(hero.id)) return;
         this.unlockedCharacters.add(hero.id);
         this.unlockScreen = hero.id;
+        this.shake = 0; // si venías de golpear al jefe, no se queda temblando mientras se lee la pantalla
         if (window.SFX) SFX.levelUp();
     }
     dismissUnlockScreen() {
@@ -402,6 +403,7 @@ class Game {
     update() {
         if (!this.gameStarted) return;
         if (this.unlockScreen) {
+            if (this.shake > 0) this.shake *= 0.85; // por si acaso, aunque no se dibuje con temblor aquí
             if (this.keys.Space || this.keys.Enter) { this.dismissUnlockScreen(); this.keys.Space = false; this.keys.Enter = false; }
             return;
         }
@@ -586,16 +588,16 @@ class Game {
     draw() {
         fitCanvas();
         this.updateTouchUI();
+
+        if (this.unlockScreen) {
+            this.drawUnlockScreen(ctx);
+            return;
+        }
+
         const shakeX = this.shake ? (Math.random() - 0.5) * this.shake : 0;
         const shakeY = this.shake ? (Math.random() - 0.5) * this.shake * 0.6 : 0;
         ctx.save();
         ctx.translate(shakeX, shakeY);
-
-        if (this.unlockScreen) {
-            this.drawUnlockScreen(ctx);
-            ctx.restore();
-            return;
-        }
 
         if (this.inWorldMap) {
             this.drawStars(this.mapStars, 0);
