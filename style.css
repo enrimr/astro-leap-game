@@ -36,7 +36,7 @@ body {
     text-align: center; z-index: 10; padding: 12px;
     overflow-y: auto;
 }
-#startScreen .menu-art { width: 100%; max-width: 260px; margin-bottom: 2px; }
+#startScreen .menu-art { width: 100%; max-width: 340px; margin-bottom: 2px; }
 #startScreen .menu-art svg { width: 100%; height: auto; display: block; }
 #startScreen h1 {
     font-family: 'Orbitron', sans-serif; font-weight: 800;
@@ -69,6 +69,21 @@ body {
 #startScreen .help-text { font-size: clamp(11px, 2.6vw, 13px); color: var(--ink); opacity: 0.9; line-height: 1.7; text-align: left; max-width: 320px; margin-bottom: 4px; }
 #startScreen .help-text b { color: var(--accent3); }
 @keyframes menuPulse { 0%, 100% { box-shadow: 0 0 10px rgba(124,245,255,0.25); } 50% { box-shadow: 0 0 18px rgba(124,245,255,0.6); } }
+
+/* ---- Resumen de partida (Game Over / Victoria): compartir en X, Facebook, WhatsApp... ---- */
+#startScreen .share-btn { border-color: var(--accent2); margin-top: 4px; }
+#startScreen .share-btn:hover, #startScreen .share-btn:focus-visible { border-color: var(--accent2); box-shadow: 0 0 14px rgba(255,94,203,0.5); }
+#startScreen .share-btn:active { background: var(--accent2); }
+#startScreen .share-row { display: flex; gap: 10px; justify-content: center; margin: 6px 0 2px; }
+#startScreen .share-icon {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, var(--panel-light), var(--panel));
+    border: 2px solid var(--accent2); color: var(--ink); font-size: 15px; font-weight: 700;
+    text-decoration: none; transition: box-shadow 0.15s ease, transform 0.05s ease;
+}
+#startScreen .share-icon:hover, #startScreen .share-icon:focus-visible { box-shadow: 0 0 14px rgba(255,94,203,0.5); outline: none; }
+#startScreen .share-icon:active { transform: scale(0.94); background: var(--accent2); color: var(--bg1); }
 
 /* ---- Controles en pantalla: SIEMPRE visibles (ratón, táctil o teclado, da igual) ---- */
 #moveControls, #combatButtons {

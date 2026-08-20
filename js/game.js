@@ -34,7 +34,6 @@ const MENU_ART_SVG = `
     <circle cx="248" cy="14" r="15" fill="#ff5ecb" opacity="0.85"/>
     <circle cx="243" cy="9" r="2.4" fill="#c93ea0" opacity="0.5"/>
     <circle cx="252" cy="19" r="1.6" fill="#c93ea0" opacity="0.5"/>
-    <rect x="8" y="86" width="46" height="5" rx="2.5" fill="#7cf5ff"/>
     <rect x="86" y="66" width="42" height="5" rx="2.5" fill="#7cf5ff"/>
     <rect x="160" y="42" width="42" height="5" rx="2.5" fill="#7cf5ff"/>
     <circle cx="176" cy="30" r="3" fill="#7cf5ff" opacity="0.25"/>
@@ -150,7 +149,7 @@ class Game {
         const hasSave = this.hasSaveData();
         const timesHTML = this.renderBestTimesHTML() || '<p class="best-times-empty">Todavía no has completado ninguna partida.</p>';
         return `
-            <div class="menu-art">${MENU_ART_SVG}</div>
+            <div class="menu-art" id="menuArt">${MENU_ART_SVG}</div>
             <h1>${title}</h1>
             ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
             ${resultHTML}
@@ -181,16 +180,42 @@ class Game {
             const el = document.getElementById(pid);
             if (el) el.hidden = pid !== id;
         });
+        // La ilustración solo acompaña al panel principal: en Mejores tiempos/Ayuda no cabe con el contenido.
+        const art = document.getElementById('menuArt');
+        if (art) art.hidden = id !== 'menuMain';
         const first = document.querySelector(`#${id} .menu-btn`);
         if (first) first.focus();
     }
-    handleMenuAction(action) {
+    handleMenuAction(action, btn) {
         if (window.SFX) SFX.confirm();
         if (action === 'play') this.startGame();
         else if (action === 'newgame') this.startNewGame();
         else if (action === 'times') this.showMenuPanel('menuTimes');
         else if (action === 'help') this.showMenuPanel('menuHelp');
         else if (action === 'back') this.showMenuPanel('menuMain');
+        else if (action === 'share') this.shareRun(btn.dataset.shareText);
+    }
+    // Botón nativo de compartir (X, Facebook, WhatsApp, Instagram... lo que tenga instalado el
+    // sistema); solo se renderiza cuando existe soporte, ver buildShareHTML().
+    shareRun(text) {
+        if (!navigator.share) return;
+        navigator.share({ title: 'Astro Leap', text, url: location.href }).catch(() => { /* cancelado por el usuario: no pasa nada */ });
+    }
+    // navigator.share (móvil y navegadores modernos de escritorio) abre el selector nativo con
+    // TODAS las apps instaladas (X, Facebook, WhatsApp, Instagram...). Si no existe, alternativa
+    // de enlaces directos a X/Facebook/WhatsApp — Instagram no tiene intent web para texto/enlace.
+    buildShareHTML(text) {
+        if (navigator.share) {
+            return `<button class="menu-btn share-btn" data-action="share" data-share-text="${text.replace(/"/g, '&quot;')}">↗ Compartir</button>`;
+        }
+        const encodedText = encodeURIComponent(text);
+        const encodedUrl = encodeURIComponent(location.href);
+        return `
+            <div class="share-row">
+                <a class="share-icon" href="https://twitter.com/intent/tweet?text=${encodedText}%20${encodedUrl}" target="_blank" rel="noopener" aria-label="Compartir en X">𝕏</a>
+                <a class="share-icon" href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" target="_blank" rel="noopener" aria-label="Compartir en Facebook">f</a>
+                <a class="share-icon" href="https://wa.me/?text=${encodedText}%20${encodedUrl}" target="_blank" rel="noopener" aria-label="Compartir en WhatsApp">W</a>
+            </div>`;
     }
     // "Nueva partida" con un save existente: descarta el progreso guardado y empieza de cero,
     // en vez del "Continuar partida" por defecto que reanuda donde lo dejaste.
@@ -478,12 +503,24 @@ class Game {
     fullGameOver() {
         if (window.SFX) { SFX.music.stop(); SFX.gameOver(); }
         this.gameStarted = false;
+        // Captura el nivel/tiempo ANTES de resetear currentLevel (lo hace loadLevel(0) más abajo).
+        const levelReached = LEVELS[this.currentLevel];
+        const elapsed = performance.now() - this.runStartTime;
+        const shareText = `Llegué hasta el sector ${this.currentLevel + 1}/${LEVELS.length} ("${levelReached.name}") de Astro Leap en ${formatTime(elapsed)}. 🚀`;
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
         this.collectedPickups = new Set();
         this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
-        startScreen.innerHTML = this.buildMenuScreen({ title: 'GAME OVER', subtitle: 'Sin vidas restantes — vuelves a empezar.' });
+        startScreen.innerHTML = this.buildMenuScreen({
+            title: 'GAME OVER',
+            subtitle: 'Sin vidas restantes — vuelves a empezar.',
+            resultHTML: `
+                <p class="run-time">Llegaste hasta el sector ${this.currentLevel + 1}/${LEVELS.length} — ${levelReached.name}</p>
+                <p class="run-time">Tiempo: ${formatTime(elapsed)}</p>
+                ${this.buildShareHTML(shareText)}
+            `
+        });
         startScreen.style.display = 'flex';
         this.loadLevel(0);
         this.inLevel = false; this.inWorldMap = false; this.combat = null;
@@ -498,7 +535,9 @@ class Game {
                 const active = document.activeElement;
                 if (active && active.classList && active.classList.contains('menu-btn') && (e.code === 'ArrowDown' || e.code === 'ArrowUp')) {
                     e.preventDefault();
-                    const buttons = Array.from(active.parentElement.querySelectorAll('.menu-btn'));
+                    // Recorre TODOS los .menu-btn visibles de #startScreen (no solo los hermanos de
+                    // active): el botón de compartir vive fuera de #menuMain, junto al resumen de la partida.
+                    const buttons = Array.from(startScreen.querySelectorAll('.menu-btn')).filter(b => b.offsetParent !== null);
                     const idx = buttons.indexOf(active);
                     const dir = e.code === 'ArrowDown' ? 1 : -1;
                     buttons[(idx + dir + buttons.length) % buttons.length].focus();
@@ -574,7 +613,7 @@ class Game {
         // sueltos, porque su HTML se reconstruye entero cada vez (arranque/Game Over/Victoria).
         startScreen.addEventListener('click', (e) => {
             const btn = e.target.closest('.menu-btn');
-            if (btn) this.handleMenuAction(btn.dataset.action);
+            if (btn) this.handleMenuAction(btn.dataset.action, btn);
         });
 
         // Tocar/clicar directamente un nodo del mapa estelar entra a ese nivel (si está desbloqueado)
@@ -782,6 +821,7 @@ class Game {
                     const finalTime = performance.now() - this.runStartTime;
                     const isRecord = this.saveBestTime(finalTime);
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
+                    const shareText = `¡He completado Astro Leap (${LEVELS.length}/${LEVELS.length} sectores) en ${formatTime(finalTime)}! 🚀${isRecord ? ' Nuevo récord personal.' : ''}`;
                     this.unlockedCharacters = new Set(['kes']);
                     this.player = new Player(20, 100, 'kes');
                     this.worldMap = new WorldMap();
@@ -790,7 +830,10 @@ class Game {
                     startScreen.innerHTML = this.buildMenuScreen({
                         title: '¡MISIÓN CUMPLIDA!',
                         subtitle: 'Reparaste la nave y escapaste del sistema.',
-                        resultHTML: `<p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Tu tiempo: ${formatTime(finalTime)}</p>`
+                        resultHTML: `
+                            <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Completaste los ${LEVELS.length} sectores en ${formatTime(finalTime)}</p>
+                            ${this.buildShareHTML(shareText)}
+                        `
                     });
                     startScreen.style.display = 'flex';
                     this.inLevel = false; this.inWorldMap = false;
