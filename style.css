@@ -187,33 +187,19 @@ footer {
         z-index: 30; width: auto; max-width: none;
     }
 
-    /* El movimiento flota pegado al borde de la PANTALLA (no del contenedor), como el mando
+    /* Los controles flotan pegados al borde de la PANTALLA (no del contenedor), como el mando
        virtual de un juego nativo — el hueco central queda libre para ver el juego. */
-    #moveControls {
+    #moveControls, #combatButtons {
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
         max-width: none; width: auto;
         padding: 14px 14px max(14px, env(safe-area-inset-bottom));
         background: none;
     }
-    #moveControls button { background: rgba(15, 8, 36, 0.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+    #moveControls button, .combat-btn { background: rgba(15, 8, 36, 0.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
     /* El botón de salto/entrar pasa a redondo, como el botón de acción de un juego móvil nativo,
        en vez del botón ancho que se sigue usando en escritorio. */
     #moveControls button.wide {
         border-radius: 50%; width: 68px; height: 68px; min-width: 68px; min-height: 68px;
         padding: 0; font-size: 12px; letter-spacing: 0.5px;
     }
-
-    /* Los botones de combate NO van en su propia fila (duplicaba las 4 opciones que ya dibuja
-       CombatSystem.draw en el propio canvas y confundía). En vez de eso son zonas de toque
-       invisibles superpuestas exactamente encima de esa lista — positionCombatButtons() en
-       game.js las coloca en cada frame siguiendo las mismas coordenadas del canvas. */
-    #combatButtons { position: static; display: block; padding: 0; max-width: none; width: auto; }
-    #combatButtons.active { display: block; }
-    .combat-btn {
-        position: fixed; z-index: 20; margin: 0; padding: 0; min-width: 0; min-height: 0;
-        background: transparent; border: none; box-shadow: none; border-radius: 3px;
-        color: transparent; font-size: inherit;
-    }
-    .combat-btn:active { background: rgba(124, 245, 255, 0.25); }
-    .combat-btn span { display: none; }
 }

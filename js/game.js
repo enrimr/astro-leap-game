@@ -68,24 +68,6 @@ function fitCanvas() {
     ctx.setTransform(targetW / GAME_WIDTH, 0, 0, targetH / GAME_HEIGHT, 0, 0);
 }
 
-// Alinea los botones táctiles de combate exactamente sobre el menú de texto que dibuja
-// CombatSystem.draw() en el canvas (misma fórmula: fila i en y = 116 + i*15, caja de
-// 9,by-10,130,13 en coordenadas lógicas) — en vez de una fila de botones aparte debajo que
-// repetía las mismas 4 opciones y confundía. Si se toca el layout de esa lista, tocar también aquí.
-function positionCombatButtons() {
-    if (!IS_TOUCH_DEVICE || !combatButtonsEl) return;
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width) return;
-    const scale = rect.width / GAME_WIDTH;
-    combatButtonsEl.querySelectorAll('.combat-btn').forEach((btn, i) => {
-        const by = 116 + i * 15;
-        btn.style.left = `${rect.left + 9 * scale}px`;
-        btn.style.top = `${rect.top + (by - 10) * scale}px`;
-        btn.style.width = `${130 * scale}px`;
-        btn.style.height = `${13 * scale}px`;
-    });
-}
-
 // m:ss.d — el cronómetro de la partida (tiempo real de reloj, no en frames: así no depende
 // de si el navegador va a 60fps o va renqueando, que es lo justo para comparar tiempos).
 function formatTime(ms) {
@@ -693,7 +675,6 @@ class Game {
         const paused = this.unlockScreen || this.charSelectOpen;
         if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !paused);
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat);
-        if (inCombat) positionCombatButtons();
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
         if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat && !paused);
     }
