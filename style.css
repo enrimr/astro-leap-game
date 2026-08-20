@@ -92,9 +92,14 @@ body {
 
 /* ---- Controles en pantalla: SIEMPRE visibles (ratón, táctil o teclado, da igual) ---- */
 #moveControls, #combatButtons {
-    display: none; gap: 10px; width: 100%; max-width: 720px; justify-content: center; align-items: stretch;
+    display: none; gap: 10px; width: 100%; max-width: 720px; align-items: stretch;
 }
 #moveControls.active, #combatButtons.active { display: flex; }
+/* Movimiento pegado al borde izquierdo y salto al derecho: en el móvil cada uno queda
+   bajo el pulgar de una mano, sin tener que estirar los dedos hacia el centro. */
+#moveControls { justify-content: space-between; }
+#moveControls .dpad { display: flex; gap: 10px; flex: 0 0 auto; }
+#combatButtons { justify-content: center; }
 
 button {
     font-family: 'Rajdhani', sans-serif; font-weight: 700; border: none; cursor: pointer;
@@ -114,7 +119,7 @@ button {
 }
 #moveControls button:hover, .combat-btn:hover { box-shadow: 0 0 16px rgba(124,245,255,0.5); }
 #moveControls button:active, .combat-btn:active { transform: scale(0.94); background: var(--accent); color: var(--bg1); }
-#moveControls button.wide { flex: 1; max-width: 220px; font-size: 20px; letter-spacing: 1px; }
+#moveControls button.wide { flex: 0 0 auto; min-width: 120px; font-size: 20px; letter-spacing: 1px; }
 
 .combat-btn { flex: 1; font-size: 18px; border-color: var(--accent2); box-shadow: 0 0 10px rgba(255,94,203,0.15); }
 .combat-btn:hover { box-shadow: 0 0 16px rgba(255,94,203,0.5); }
