@@ -960,11 +960,13 @@ class Game {
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif'; ctx.fillText('XP', 236, 13);
             ctx.fillStyle = PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
             ctx.fillText(`${LEVELS[this.currentLevel].name}`, 6, 32);
-            // Esquina inferior izquierda, lejos del botón "Salir" (arriba a la derecha) y de
-            // los mensajes centrales — para no repetir el solape de HUD que ya dio guerra antes.
-            ctx.fillStyle = 'rgba(11,6,32,0.7)'; ctx.fillRect(0, GAME_HEIGHT - 12, 38, 12);
-            ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
-            ctx.fillText(formatTime(this.runElapsed), 4, GAME_HEIGHT - 3);
+            // Arriba a la derecha, justo debajo de la franja del HUD: en el móvil la fila de
+            // controles flotantes ahora tapa la esquina inferior, así que el cronómetro sube
+            // arriba (fuera de esa zona) en vez de compartir sitio con el botón "Salir".
+            ctx.fillStyle = 'rgba(11,6,32,0.7)'; ctx.fillRect(GAME_WIDTH - 42, 34, 42, 12);
+            ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText(formatTime(this.runElapsed), GAME_WIDTH - 4, 43);
+            ctx.textAlign = 'left';
 
             if (this.levelUpMessage > 0) {
                 ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 14px "Orbitron", sans-serif';
