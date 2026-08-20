@@ -1,7 +1,6 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const startScreen = document.getElementById('startScreen');
-const startHint = document.getElementById('startHint');
 const moveControls = document.getElementById('moveControls');
 const combatButtonsEl = document.getElementById('combatButtons');
 const btnLeft = document.getElementById('btnLeft');
@@ -12,8 +11,6 @@ const btnMusicToggle = document.getElementById('btnMusicToggle');
 const btnSfxToggle = document.getElementById('btnSfxToggle');
 
 const IS_TOUCH_DEVICE = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
-const START_HINT_TEXT = IS_TOUCH_DEVICE ? 'TOCA PARA DESPEGAR' : 'PULSA ESPACIO PARA DESPEGAR';
-if (startHint) startHint.textContent = START_HINT_TEXT;
 
 const SAVE_KEY = 'astroLeapSave_v1';
 const BEST_TIMES_KEY = 'astroLeapBestTimes_v1';
@@ -91,7 +88,7 @@ class Game {
         this.setupInput();
         this.setupTouchControls();
         this.applyAudioPrefs();
-        this.renderBestTimesBox();
+        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: '3 zonas · 9 sectores · duelos de energía' });
     }
 
     loadBestTimes() {
@@ -115,11 +112,65 @@ class Game {
         const items = this.bestTimes.map((t, i) => `<li>${i + 1}. ${formatTime(t)}</li>`).join('');
         return `<div class="best-times"><p class="best-times-title">MEJORES TIEMPOS</p><ol>${items}</ol></div>`;
     }
-    // Solo hace falta para la pantalla de arranque de verdad (la que ya trae el HTML fijo);
-    // las de Game Over/Victoria se reescriben enteras y ya incluyen la lista directamente.
-    renderBestTimesBox() {
-        const box = document.getElementById('bestTimesBox');
-        if (box) box.innerHTML = this.renderBestTimesHTML();
+    hasSaveData() {
+        try { return localStorage.getItem(SAVE_KEY) !== null; } catch (e) { return false; }
+    }
+    // Construye el HTML entero de la pantalla de menú (arranque / Game Over / Victoria son la
+    // misma estructura, solo cambia el título y si hay o no "Continuar partida" según haya save).
+    buildMenuScreen({ title, subtitle = '', resultHTML = '' }) {
+        const hasSave = this.hasSaveData();
+        const timesHTML = this.renderBestTimesHTML() || '<p class="best-times-empty">Todavía no has completado ninguna partida.</p>';
+        return `
+            <h1>${title}</h1>
+            ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
+            ${resultHTML}
+            <div class="menu-panel" id="menuMain">
+                <button class="menu-btn" data-action="play">${hasSave ? 'CONTINUAR PARTIDA' : 'JUGAR'}</button>
+                ${hasSave ? '<button class="menu-btn" data-action="newgame">NUEVA PARTIDA</button>' : ''}
+                <button class="menu-btn" data-action="times">MEJORES TIEMPOS</button>
+                <button class="menu-btn" data-action="help">AYUDA</button>
+            </div>
+            <div class="menu-panel" id="menuTimes" hidden>
+                ${timesHTML}
+                <button class="menu-btn" data-action="back">◂ VOLVER</button>
+            </div>
+            <div class="menu-panel" id="menuHelp" hidden>
+                <p class="help-text">
+                    <b>Mover</b> — ← →<br>
+                    <b>Saltar</b> — ESPACIO (segunda vez en el aire según el piloto: doble salto, vuelo, impulso...)<br>
+                    <b>Combate</b> — ↑↓ + ESPACIO, o las teclas 1-4<br>
+                    <b>Pilotos</b> — Kes dobla salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos.
+                    Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C.<br>
+                    <b>Salir de un nivel</b> — ESC o el botón ✕
+                </p>
+                <button class="menu-btn" data-action="back">◂ VOLVER</button>
+            </div>`;
+    }
+    showMenuPanel(id) {
+        ['menuMain', 'menuTimes', 'menuHelp'].forEach(pid => {
+            const el = document.getElementById(pid);
+            if (el) el.hidden = pid !== id;
+        });
+        const first = document.querySelector(`#${id} .menu-btn`);
+        if (first) first.focus();
+    }
+    handleMenuAction(action) {
+        if (window.SFX) SFX.confirm();
+        if (action === 'play') this.startGame();
+        else if (action === 'newgame') this.startNewGame();
+        else if (action === 'times') this.showMenuPanel('menuTimes');
+        else if (action === 'help') this.showMenuPanel('menuHelp');
+        else if (action === 'back') this.showMenuPanel('menuMain');
+    }
+    // "Nueva partida" con un save existente: descarta el progreso guardado y empieza de cero,
+    // en vez del "Continuar partida" por defecto que reanuda donde lo dejaste.
+    startNewGame() {
+        this.clearProgress();
+        this.unlockedCharacters = new Set(['kes']);
+        this.player = new Player(20, 100, 'kes');
+        this.worldMap = new WorldMap();
+        this.collectedPickups = new Set();
+        this.startGame();
     }
 
     loadAudioPref(key) {
@@ -397,13 +448,13 @@ class Game {
     fullGameOver() {
         if (window.SFX) { SFX.music.stop(); SFX.gameOver(); }
         this.gameStarted = false;
-        startScreen.innerHTML = `<h1>GAME OVER</h1><p class="subtitle">Sin vidas restantes — vuelves a empezar.</p>${this.renderBestTimesHTML()}<p class="hint blink-anim">${START_HINT_TEXT}</p>`;
-        startScreen.style.display = 'flex';
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
         this.collectedPickups = new Set();
-        this.clearProgress();
+        this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
+        startScreen.innerHTML = this.buildMenuScreen({ title: 'GAME OVER', subtitle: 'Sin vidas restantes — vuelves a empezar.' });
+        startScreen.style.display = 'flex';
         this.loadLevel(0);
         this.inLevel = false; this.inWorldMap = false; this.combat = null;
     }
@@ -411,7 +462,20 @@ class Game {
     setupInput() {
         document.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
-            if (!this.gameStarted && e.code === 'Space') { this.startGame(); this.keys[e.code] = false; return; }
+            // Menú principal: ↑↓ mueve el foco entre botones (Enter/Espacio los activa solos,
+            // es comportamiento nativo del <button> enfocado — no hace falta gestionarlo aquí).
+            if (!this.gameStarted) {
+                const active = document.activeElement;
+                if (active && active.classList && active.classList.contains('menu-btn') && (e.code === 'ArrowDown' || e.code === 'ArrowUp')) {
+                    e.preventDefault();
+                    const buttons = Array.from(active.parentElement.querySelectorAll('.menu-btn'));
+                    const idx = buttons.indexOf(active);
+                    const dir = e.code === 'ArrowDown' ? 1 : -1;
+                    buttons[(idx + dir + buttons.length) % buttons.length].focus();
+                    if (window.SFX) SFX.select();
+                }
+                return;
+            }
             if (this.combat && this.combat.active) this.combat.handleInput(e.code);
             if (e.code === 'Escape' && this.inLevel && !this.combat) this.exitLevel();
             // Atajo de depuración: reiniciar el nivel actual al instante (útil ajustando niveles)
@@ -476,9 +540,12 @@ class Game {
                 btn.addEventListener('click', tap);
             });
         }
-        const startTap = (e) => { e.preventDefault(); this.startGame(); };
-        startScreen.addEventListener('touchstart', startTap, { passive: false });
-        startScreen.addEventListener('click', startTap);
+        // Menú principal: delegado en startScreen (elemento estable) en vez de en los botones
+        // sueltos, porque su HTML se reconstruye entero cada vez (arranque/Game Over/Victoria).
+        startScreen.addEventListener('click', (e) => {
+            const btn = e.target.closest('.menu-btn');
+            if (btn) this.handleMenuAction(btn.dataset.action);
+        });
 
         // Tocar/clicar directamente un nodo del mapa estelar entra a ese nivel (si está desbloqueado)
         const mapTap = (e) => {
@@ -685,16 +752,17 @@ class Game {
                     const finalTime = performance.now() - this.runStartTime;
                     const isRecord = this.saveBestTime(finalTime);
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
-                    startScreen.innerHTML = `<h1>¡MISIÓN CUMPLIDA!</h1><p class="subtitle">Reparaste la nave y escapaste del sistema.</p>
-                        <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Tu tiempo: ${formatTime(finalTime)}</p>
-                        ${this.renderBestTimesHTML()}
-                        <p class="hint blink-anim">${START_HINT_TEXT}</p>`;
-                    startScreen.style.display = 'flex';
                     this.unlockedCharacters = new Set(['kes']);
                     this.player = new Player(20, 100, 'kes');
                     this.worldMap = new WorldMap();
                     this.collectedPickups = new Set();
-                    this.clearProgress();
+                    this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
+                    startScreen.innerHTML = this.buildMenuScreen({
+                        title: '¡MISIÓN CUMPLIDA!',
+                        subtitle: 'Reparaste la nave y escapaste del sistema.',
+                        resultHTML: `<p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Tu tiempo: ${formatTime(finalTime)}</p>`
+                    });
+                    startScreen.style.display = 'flex';
                     this.inLevel = false; this.inWorldMap = false;
                 } else {
                     setTimeout(() => {
