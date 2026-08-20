@@ -1,5 +1,6 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const gameContainer = document.getElementById('gameContainer');
 const startScreen = document.getElementById('startScreen');
 const moveControls = document.getElementById('moveControls');
 const combatButtonsEl = document.getElementById('combatButtons');
@@ -16,32 +17,25 @@ const SAVE_KEY = 'astroLeapSave_v1';
 const BEST_TIMES_KEY = 'astroLeapBestTimes_v1';
 const MAX_BEST_TIMES = 5;
 
-// Ilustración estática del menú: mismo lenguaje visual que las entidades del canvas
-// (rectángulo con degradado + ojos para Kes, ver Player.draw en entities.js) pero
-// dibujada como SVG porque el canvas del juego está oculto detrás de #startScreen.
-const MENU_ART_SVG = `
-<svg viewBox="0 0 320 108" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kes saltando entre plataformas junto a una luna">
-    <circle cx="18" cy="14" r="1" fill="#f5f3ff" opacity="0.7"/>
-    <circle cx="48" cy="8" r="0.8" fill="#f5f3ff" opacity="0.5"/>
-    <circle cx="80" cy="20" r="1.1" fill="#f5f3ff" opacity="0.8"/>
-    <circle cx="115" cy="10" r="0.7" fill="#f5f3ff" opacity="0.4"/>
-    <circle cx="150" cy="16" r="1" fill="#f5f3ff" opacity="0.6"/>
-    <circle cx="14" cy="55" r="0.8" fill="#f5f3ff" opacity="0.5"/>
-    <circle cx="60" cy="45" r="0.7" fill="#f5f3ff" opacity="0.4"/>
-    <circle cx="200" cy="12" r="0.9" fill="#f5f3ff" opacity="0.6"/>
-    <circle cx="270" cy="82" r="0.7" fill="#f5f3ff" opacity="0.5"/>
-    <circle cx="248" cy="14" r="24" fill="#ff5ecb" opacity="0.18"/>
-    <circle cx="248" cy="14" r="15" fill="#ff5ecb" opacity="0.85"/>
-    <circle cx="243" cy="9" r="2.4" fill="#c93ea0" opacity="0.5"/>
-    <circle cx="252" cy="19" r="1.6" fill="#c93ea0" opacity="0.5"/>
-    <rect x="86" y="66" width="42" height="5" rx="2.5" fill="#7cf5ff"/>
-    <rect x="160" y="42" width="42" height="5" rx="2.5" fill="#7cf5ff"/>
-    <circle cx="176" cy="30" r="3" fill="#7cf5ff" opacity="0.25"/>
-    <circle cx="184" cy="34" r="2" fill="#7cf5ff" opacity="0.2"/>
-    <circle cx="192" cy="20" r="10" fill="#7cf5ff" opacity="0.2"/>
-    <rect x="185" y="9" width="10" height="15" rx="2" fill="#7cf5ff"/>
-    <rect x="186" y="12" width="2" height="2" fill="#0b0620"/>
-    <rect x="191" y="12" width="2" height="2" fill="#0b0620"/>
+// El canvas mantiene su aspect-ratio 320:180 SIEMPRE (también en juego), así que en móviles
+// #gameContainer puede quedar más bajo que el propio menú (título+subtítulo+botones). Mientras
+// el menú está visible le damos una altura mínima con esta clase; startGame() la quita para que
+// el canvas recupere su alto normal en cuanto empieza a jugarse.
+function openMenuOverlay() { startScreen.style.display = 'flex'; gameContainer.classList.add('menu-open'); }
+function closeMenuOverlay() { startScreen.style.display = 'none'; gameContainer.classList.remove('menu-open'); }
+
+// Gráfico de cabecera: un único icono pequeño (luna + un par de cráteres + estrellas) que se
+// reutiliza a ambos lados del título. Al ser una sola constante compartida, cambiar el gráfico
+// de la cabecera es tocar un solo sitio en vez de mantener una escena grande a mano.
+const MENU_HEADER_ART_SVG = `
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="32" cy="34" r="26" fill="#ff5ecb" opacity="0.15"/>
+    <circle cx="32" cy="34" r="17" fill="#ff5ecb" opacity="0.85"/>
+    <circle cx="26" cy="27" r="3" fill="#c93ea0" opacity="0.5"/>
+    <circle cx="39" cy="40" r="2" fill="#c93ea0" opacity="0.5"/>
+    <circle cx="10" cy="10" r="1.4" fill="#f5f3ff" opacity="0.7"/>
+    <circle cx="55" cy="15" r="1" fill="#f5f3ff" opacity="0.5"/>
+    <circle cx="13" cy="53" r="1" fill="#f5f3ff" opacity="0.5"/>
 </svg>`;
 
 // El canvas dibuja siempre en el sistema de coordenadas lógico GAME_WIDTH x GAME_HEIGHT,
@@ -149,8 +143,11 @@ class Game {
         const hasSave = this.hasSaveData();
         const timesHTML = this.renderBestTimesHTML() || '<p class="best-times-empty">Todavía no has completado ninguna partida.</p>';
         return `
-            <div class="menu-art" id="menuArt">${MENU_ART_SVG}</div>
-            <h1>${title}</h1>
+            <div class="menu-header">
+                <div class="menu-header-art">${MENU_HEADER_ART_SVG}</div>
+                <h1>${title}</h1>
+                <div class="menu-header-art">${MENU_HEADER_ART_SVG}</div>
+            </div>
             ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
             ${resultHTML}
             <div class="menu-panel" id="menuMain">
@@ -180,9 +177,6 @@ class Game {
             const el = document.getElementById(pid);
             if (el) el.hidden = pid !== id;
         });
-        // La ilustración solo acompaña al panel principal: en Mejores tiempos/Ayuda no cabe con el contenido.
-        const art = document.getElementById('menuArt');
-        if (art) art.hidden = id !== 'menuMain';
         const first = document.querySelector(`#${id} .menu-btn`);
         if (first) first.focus();
     }
@@ -272,7 +266,7 @@ class Game {
         if (window.SFX) { SFX.unlock(); SFX.boot(); SFX.music.playExplore(); }
         this.gameStarted = true;
         this.runStartTime = performance.now(); this.runElapsed = 0;
-        startScreen.style.display = 'none';
+        closeMenuOverlay();
         this.inWorldMap = true;
     }
 
@@ -521,7 +515,7 @@ class Game {
                 ${this.buildShareHTML(shareText)}
             `
         });
-        startScreen.style.display = 'flex';
+        openMenuOverlay();
         this.loadLevel(0);
         this.inLevel = false; this.inWorldMap = false; this.combat = null;
     }
@@ -835,7 +829,7 @@ class Game {
                             ${this.buildShareHTML(shareText)}
                         `
                     });
-                    startScreen.style.display = 'flex';
+                    openMenuOverlay();
                     this.inLevel = false; this.inWorldMap = false;
                 } else {
                     setTimeout(() => {
@@ -1017,7 +1011,7 @@ const game = new Game();
         if (idx >= 0 && idx < LEVELS.length) {
             game.worldMap.nodes[idx].unlocked = true;
             game.gameStarted = true;
-            startScreen.style.display = 'none';
+            closeMenuOverlay();
             game.loadLevel(idx);
             game.inWorldMap = false;
             game.inLevel = true;
