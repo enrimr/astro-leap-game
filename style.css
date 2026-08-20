@@ -36,6 +36,8 @@ body {
     text-align: center; z-index: 10; padding: 12px;
     overflow-y: auto;
 }
+#startScreen .menu-art { width: 100%; max-width: 260px; margin-bottom: 2px; }
+#startScreen .menu-art svg { width: 100%; height: auto; display: block; }
 #startScreen h1 {
     font-family: 'Orbitron', sans-serif; font-weight: 800;
     font-size: clamp(24px, 7.5vw, 48px); letter-spacing: 3px;

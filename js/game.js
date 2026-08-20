@@ -16,6 +16,35 @@ const SAVE_KEY = 'astroLeapSave_v1';
 const BEST_TIMES_KEY = 'astroLeapBestTimes_v1';
 const MAX_BEST_TIMES = 5;
 
+// Ilustración estática del menú: mismo lenguaje visual que las entidades del canvas
+// (rectángulo con degradado + ojos para Kes, ver Player.draw en entities.js) pero
+// dibujada como SVG porque el canvas del juego está oculto detrás de #startScreen.
+const MENU_ART_SVG = `
+<svg viewBox="0 0 320 108" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kes saltando entre plataformas junto a una luna">
+    <circle cx="18" cy="14" r="1" fill="#f5f3ff" opacity="0.7"/>
+    <circle cx="48" cy="8" r="0.8" fill="#f5f3ff" opacity="0.5"/>
+    <circle cx="80" cy="20" r="1.1" fill="#f5f3ff" opacity="0.8"/>
+    <circle cx="115" cy="10" r="0.7" fill="#f5f3ff" opacity="0.4"/>
+    <circle cx="150" cy="16" r="1" fill="#f5f3ff" opacity="0.6"/>
+    <circle cx="14" cy="55" r="0.8" fill="#f5f3ff" opacity="0.5"/>
+    <circle cx="60" cy="45" r="0.7" fill="#f5f3ff" opacity="0.4"/>
+    <circle cx="200" cy="12" r="0.9" fill="#f5f3ff" opacity="0.6"/>
+    <circle cx="270" cy="82" r="0.7" fill="#f5f3ff" opacity="0.5"/>
+    <circle cx="248" cy="14" r="24" fill="#ff5ecb" opacity="0.18"/>
+    <circle cx="248" cy="14" r="15" fill="#ff5ecb" opacity="0.85"/>
+    <circle cx="243" cy="9" r="2.4" fill="#c93ea0" opacity="0.5"/>
+    <circle cx="252" cy="19" r="1.6" fill="#c93ea0" opacity="0.5"/>
+    <rect x="8" y="86" width="46" height="5" rx="2.5" fill="#7cf5ff"/>
+    <rect x="86" y="66" width="42" height="5" rx="2.5" fill="#7cf5ff"/>
+    <rect x="160" y="42" width="42" height="5" rx="2.5" fill="#7cf5ff"/>
+    <circle cx="176" cy="30" r="3" fill="#7cf5ff" opacity="0.25"/>
+    <circle cx="184" cy="34" r="2" fill="#7cf5ff" opacity="0.2"/>
+    <circle cx="192" cy="20" r="10" fill="#7cf5ff" opacity="0.2"/>
+    <rect x="185" y="9" width="10" height="15" rx="2" fill="#7cf5ff"/>
+    <rect x="186" y="12" width="2" height="2" fill="#0b0620"/>
+    <rect x="191" y="12" width="2" height="2" fill="#0b0620"/>
+</svg>`;
+
 // El canvas dibuja siempre en el sistema de coordenadas lógico GAME_WIDTH x GAME_HEIGHT,
 // pero el buffer interno se redimensiona a la resolución real de pantalla (con devicePixelRatio)
 // para que las formas, gradientes y texto salgan nítidos en vez de pixelados/borrosos al escalar por CSS.
@@ -121,6 +150,7 @@ class Game {
         const hasSave = this.hasSaveData();
         const timesHTML = this.renderBestTimesHTML() || '<p class="best-times-empty">Todavía no has completado ninguna partida.</p>';
         return `
+            <div class="menu-art">${MENU_ART_SVG}</div>
             <h1>${title}</h1>
             ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
             ${resultHTML}
