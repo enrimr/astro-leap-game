@@ -24,6 +24,21 @@ const MAX_BEST_TIMES = 5;
 function openMenuOverlay() { startScreen.style.display = 'flex'; gameContainer.classList.add('menu-open'); }
 function closeMenuOverlay() { startScreen.style.display = 'none'; gameContainer.classList.remove('menu-open'); }
 
+// Pide pantalla completa nativa al arrancar a jugar, para quitar de en medio la barra de
+// direcciones del navegador en Android/Chrome (Safari de iPhone no lo permite desde JS — ahí
+// la única forma real es "Añadir a pantalla de inicio", ver las meta apple-mobile-web-app-* del
+// <head>). Tiene que llamarse dentro del gesto de clic del usuario o el navegador lo rechaza.
+function requestMobileFullscreen() {
+    if (!IS_TOUCH_DEVICE || document.fullscreenElement) return;
+    const el = document.documentElement;
+    const request = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!request) return;
+    try {
+        const result = request.call(el);
+        if (result && result.catch) result.catch(() => { /* rechazado por el navegador: se sigue jugando igual, solo sin fullscreen nativo */ });
+    } catch (e) { /* algunos navegadores lanzan en vez de rechazar la promesa */ }
+}
+
 // Gráfico de cabecera: un único icono pequeño (luna + un par de cráteres + estrellas) que se
 // reutiliza a ambos lados del título. Al ser una sola constante compartida, cambiar el gráfico
 // de la cabecera es tocar un solo sitio en vez de mantener una escena grande a mano.
@@ -268,6 +283,7 @@ class Game {
         this.runStartTime = performance.now(); this.runElapsed = 0;
         closeMenuOverlay();
         this.inWorldMap = true;
+        requestMobileFullscreen();
     }
 
     loadLevel(lvl) {
@@ -988,6 +1004,11 @@ class Game {
 }
 
 const game = new Game();
+
+// Empuja la barra de direcciones fuera de la vista en los móviles cuyo navegador la contrae al
+// hacer scroll (no todos lo hacen ya, es "best effort" — el fullscreen nativo de requestMobileFullscreen()
+// al pulsar JUGAR es el que de verdad la quita en los que lo soportan).
+if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => window.scrollTo(0, 1), 50));
 
 // ---- Modo depuración vía URL, sin tocar la consola ----
 // ?level=N        -> entra directo al nivel N (1-9), con vida/energía llenas, saltándose el mapa.

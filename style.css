@@ -167,3 +167,39 @@ footer {
     body { padding: 6px; gap: 6px; }
     #gameContainer { max-width: min(720px, calc((100vh - 140px) * 320 / 180)); }
 }
+
+/* ---- Móvil (puntero táctil): la partida va a pantalla completa, con los controles flotando
+   sobre el canvas en vez de ocupar su propia fila debajo, como un juego nativo. El menú
+   (#gameContainer.menu-open) no se toca: sigue siendo la tarjeta centrada de siempre — esto solo
+   afecta a la vista de juego real, con .menu-open ya quitada por closeMenuOverlay(). ---- */
+@media (pointer: coarse) {
+    #gameContainer:not(.menu-open) {
+        position: fixed; inset: 0; z-index: 1;
+        width: 100vw; max-width: none;
+        height: 100vh; height: 100dvh;
+        border: none; border-radius: 0; box-shadow: none;
+        display: flex; align-items: center; justify-content: center;
+    }
+    #gameContainer:not(.menu-open) #gameCanvas { width: auto; height: auto; max-width: 100%; max-height: 100%; }
+
+    #audioControls {
+        position: fixed; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left));
+        z-index: 30; width: auto; max-width: none;
+    }
+
+    /* Los controles flotan pegados al borde de la PANTALLA (no del contenedor), como el mando
+       virtual de un juego nativo — el hueco central queda libre para ver el juego. */
+    #moveControls, #combatButtons {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+        max-width: none; width: auto;
+        padding: 14px 14px max(14px, env(safe-area-inset-bottom));
+        background: none;
+    }
+    #moveControls button, .combat-btn { background: rgba(15, 8, 36, 0.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+    /* El botón de salto/entrar pasa a redondo, como el botón de acción de un juego móvil nativo,
+       en vez del botón ancho que se sigue usando en escritorio. */
+    #moveControls button.wide {
+        border-radius: 50%; width: 68px; height: 68px; min-width: 68px; min-height: 68px;
+        padding: 0; font-size: 12px; letter-spacing: 0.5px;
+    }
+}
