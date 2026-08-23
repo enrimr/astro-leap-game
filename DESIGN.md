@@ -105,7 +105,7 @@ Esto crea una decisión constante que no existía en el original: *¿gasto energ
 - Sonido: sintetizado por código (Web Audio, sin archivos externos) — bleeps y pulsos tipo sci-fi retro, más dos loops de música de fondo (exploración/combate) generados igual, con un secuenciador de "lookahead" propio. Ver §2.10.
 - Animación *squash & stretch* en el jugador al saltar/aterrizar, y *screen shake* leve en golpes fuertes.
 
-### 2.4 Contenido (3 zonas × 3 niveles)
+### 2.4 Contenido (4 zonas × 3 niveles)
 
 | Zona | Nivel | Nombre | Enfoque |
 |---|---|---|---|
@@ -117,9 +117,14 @@ Esto crea una decisión constante que no existía en el original: *¿gasto energ
 | | 6 | Núcleo del Centinela | Jefe: Centinela de Núcleo |
 | 3 · Estación Colapsada | 7 | Muelle de Carga | Introduce la zona 3, enemigos mixtos |
 | | 8 | Túnel de Escape | **Scroll forzado** — ver §2.6 |
-| | 9 | Núcleo del Reactor | Jefe final: Overlord (IA del núcleo) |
+| | 9 | Núcleo del Reactor | Jefe: Overlord (IA del núcleo) |
+| 4 · Núcleo Expuesto | 10 | Bóveda Sellada | Solo accesible tras desbloquear a Scrap — ver más abajo |
+| | 11 | Galería de Ecos | Huecos largos + segundo secreto de Scrap |
+| | 12 | Nodo Cero | **Jefe final: Nodo Cero** (la Red misma) — ver §2.12 |
 
 La zona 3 tiene su propio gancho narrativo: al recuperar la pieza que falta para reparar la nave en el Muelle de Carga, el núcleo de la estación despierta y empieza a autodestruirse — de ahí que el nivel 8 sea distinto a todos los anteriores.
+
+La zona 4 existe por una razón mecánica, no solo narrativa: el Overlord no es la Red — es "un fragmento local, un nodo, un avatar" (`LORE.md` §2.2), y detrás del Núcleo del Reactor hay una bóveda sellada con refuerzos que ningún piloto anterior podía cruzar. Derrotar al Overlord desbloquea a Scrap (`Game.unlockCharacterForBoss()`, sin cambios — ya apuntaba a `overlord`), y es la habilidad de Scrap (romper refuerzos) la que abre físicamente el camino a la zona 4 en la ficción del juego. Por eso la zona 4 no se diseñó como "un mundo más": es, literalmente, el mundo que desbloquea tu último piloto — sin ella, Scrap se quedaba sin ningún nivel propio donde jugarlo tras la pantalla de desbloqueo, a diferencia de Bolt y Shade que sí tenían secretos dedicados en niveles ya existentes (§2.13).
 
 ### 2.6 El nivel de scroll forzado (Túnel de Escape)
 
@@ -184,17 +189,19 @@ Todo el feedback que surgió iterando sobre Monster Jump se incorpora aquí desd
 
 ### 2.12 Identidad de los jefes y animación (coherencia con LORE.md)
 
-Tras escribir `LORE.md` y la hoja de personajes (`lore/character-bible.html`), los tres jefes se rediseñaron en `js/entities.js` para dejar de ser "el mismo bicho con otro color" y coincidir exactamente con su diseño de la biblia — misma paleta, misma silueta, mismo carácter:
+Tras escribir `LORE.md` y la hoja de personajes (`lore/character-bible.html`), los jefes se rediseñaron en `js/entities.js` para dejar de ser "el mismo bicho con otro color" y coincidir exactamente con su diseño de la biblia — misma paleta, misma silueta, mismo carácter:
 - **Reina Larva** (`drawQueenLarva`): masa orgánica rosa/magenta (gradiente `#ffb3e6`→`#c93f96`) con bultos alrededor, ojos oscuros y una boca triste y neutra — no es la villana, es una víctima, y así debe leerse incluso en un sprite de 20px.
 - **Centinela** (`drawSentinel`): bloque simétrico lavanda (`#c9c4e8`→`#6c63a8`) con visor cian y grietas de energía rosa superpuestas — dos arquitecturas (la suya original y la de la Red) en conflicto en el mismo cuerpo.
 - **Overlord** (`drawOverlord`): fragmento facetado ámbar/rojo (`#fff3c4`→`#ff5c6c`) sin cara fija, con un núcleo pulsante en vez de ojos — literalmente la Red hablando por primera vez.
+- **Nodo Cero** (`drawNodoCero`), jefe final de la zona 4: no un cuerpo único como los otros tres, sino una red de 4 nodos orbitando un núcleo rojo (`#ff3366`) — tres de los nodos llevan el color exacto de un guardián anterior (magenta de la Reina Larva, lavanda del Centinela, ámbar del Overlord) y el cuarto es su propio color. Comunica visualmente, sin un solo texto, que esto absorbió a los tres jefes previos — coherente con que su patrón de combate (§1.D más abajo) literalmente combina los tres a la vez.
 
 Cada jefe tiene su propia rutina de dibujo reutilizada tanto en el nivel (`Enemy.draw`, 20×20) como en el retrato de combate (`Enemy.drawPortrait`, 32×32) — mismo código, distinta escala, para que el jefe se vea igual en ambos sitios.
 
 **Animación** (antes todo era completamente estático salvo el squash del salto del jugador):
 - El jugador tiene ciclo de caminar (rebote vertical + pie adelantado marcando el paso), respiración en reposo y parpadeo — en `Player.update()`/`Player.draw()`, controlado por `animT`/`blinkTimer`.
 - Los enemigos normales laten/parpadean en reposo (`animT`/`blinkTimer` en `Enemy`), y además tienen un detalle propio por tipo: el Erizo de Púas muestra su púa superior (lo que lo distingue del Dron del que evoluciona en el bestiario), el Reptante mueve las patas al andar, la Magnetita pulsa un anillo magnético, y los voladores (Hoverbot/Espectro Iónico) llevan un brillo de propulsión bajo el chasis.
-- Los tres jefes respiran/pulsan/tiemblan de forma continua (blob que respira, visor que parpadea con grieta rosa intermitente, núcleo del Overlord latiendo y facetas rotando levemente).
+- Los cuatro jefes respiran/pulsan/tiemblan de forma continua (blob que respira, visor que parpadea con grieta rosa intermitente, núcleo del Overlord latiendo y facetas rotando levemente, red de nodos de Nodo Cero orbitando sin silueta fija).
+- **Patrones de combate por jefe** (`CombatSystem.resolveEnemyTurn()`, no solo el sprite): la Reina Larva se regenera cada 3 turnos en vez de atacar (no es agresiva por naturaleza); el Centinela carga un turno sin dañar y golpea el doble al siguiente (aviso real, ventana para Defender); el Overlord ignora Defender cada 3 turnos; Nodo Cero usa los tres patrones a la vez en un ciclo de 6 turnos (turno 3 regenera, turno 4 carga, turno 5 golpe reforzado, turno 6 ignora Defender) — el único jefe sin patrón propio nuevo, porque ya se quedó con los de los otros tres.
 - Como el combate por turnos no llama a `Player.update()`/`Enemy.update()` (el bucle normal de físicas se salta mientras `this.combat` está activo), `CombatSystem.update()` avanza `animT`/`blinkTimer` de ambos combatientes cada frame para que los retratos seguidos sigan vivos durante el duelo.
 
 ### 2.13 Héroes jugables desbloqueables, cada uno con una habilidad de traversal propia
@@ -216,6 +223,8 @@ Se elige personaje **antes de entrar a un nivel** (no se cambia a mitad de parti
 
 **Gotcha de colisión al pisar para romper**: no se puede reutilizar `player.collides(plataforma)` para detectar "Scrap está de pie encima" — al aterrizar, el motor de físicas deja al jugador pegado exactamente al borde superior de la plataforma (`y + h === p.y`), sin solape real, así que un test de solape estricto (`>`) siempre da `false` ahí. Hace falta un chequeo aparte basado en `onGround` + cercanía vertical (`Math.abs((y+h) - p.y) < 2`) en vez de solape.
 
+**Identidad también en combate, no solo en plataformas**: la acción "Habilidad" del menú de duelo (`CombatSystem.actions[1]`) lleva el nombre propio de cada piloto en vez de un genérico "HABILIDAD" — mismo daño ×1.5 para los 4 (ver `HEROES.combatName` en `entities.js`), solo cambia cómo se llama y qué dice el mensaje al usarla: Kes → *Sobrecarga*, Bolt → *Pulso EMP* (encaja con ser un dron reprogramado), Shade → *Zarpazo* (es Vaelith, felino/insectoide — LORE.md §3.3), Scrap → *Puño Cibernético* (su brazo protésico — LORE.md §3.4). El botón táctil "2" se actualiza igual en `Game.updateTouchUI()`, para no decir una cosa en el canvas y otra en el botón de abajo.
+
 **Tres secretos de ejemplo, uno por habilidad**, para que la mecánica se pueda probar de verdad y no se quede solo en el papel:
 - *Cráter de Amerizaje*: un tramo de suelo reforzado (`reinforcedBlocks`) tapa una bóveda justo debajo con una cápsula de vida — cualquiera camina por encima sin notarlo, solo Scrap cae dentro.
 - *Grietas de Hielo*: una plataforma flotante muy por encima de cualquier salto/doble salto normal, con una célula de energía — solo el vuelo sostenido de Bolt llega.
@@ -223,8 +232,42 @@ Se elige personaje **antes de entrar a un nivel** (no se cambia a mitad de parti
 
 ### 2.14 Cronómetro y mejores tiempos (speedrun por defecto)
 
-El juego lleva cronómetro desde que arrancas hasta que terminas los 9 sectores, visible en una esquina durante la partida (nivel: abajo a la izquierda; mapa: bajo el contador de vidas — a propósito lejos del botón "Salir", que ya dio guerra de solape una vez). Se guardan los 5 mejores tiempos en `localStorage` (`astroLeapBestTimes_v1`), y se listan tanto en la pantalla de arranque normal como en la de "¡Misión cumplida!" (con "¡Nuevo récord!" si toca) — el Game Over normal también los enseña, a modo de recordatorio de la marca a batir, pero como no completas la partida ese intento no cuenta ni se guarda.
+El juego lleva cronómetro desde que arrancas hasta que terminas los 12 sectores, visible en una esquina durante la partida (nivel: abajo a la izquierda; mapa: bajo el contador de vidas — a propósito lejos del botón "Salir", que ya dio guerra de solape una vez). Se guardan los 5 mejores tiempos en `localStorage` (`astroLeapBestTimes_v1`), y se listan tanto en la pantalla de arranque normal como en la de "¡Misión cumplida!" (con "¡Nuevo récord!" si toca) — el Game Over normal también los enseña, a modo de recordatorio de la marca a batir, pero como no completas la partida ese intento no cuenta ni se guarda.
 
 **Reloj real, no en frames**: `performance.now()` en vez de contar fotogramas — así el tiempo no depende de si el navegador va fino a 60fps o va renqueando, que es lo justo para poder comparar tiempos entre partidas.
 
 **Por qué no se pausa en menús/combate**: es tiempo real de principio a fin (RTA), incluyendo mapa, hangar de pilotos y combates — igual que hacen la mayoría de speedruns caseros sin categorías separadas de IGT. Como ya se habló al plantear la idea: el combate por turnos tiene aleatoriedad real (daño variable, huir es 50/50) y los enemigos patrullan por temporizador, así que el tiempo nunca va a ser 100% reproducible solo con habilidad — es una función de "mejora tu marca personal", no un ranking competitivo entre jugadores (no hay servidor con el que comparar).
+
+### 2.15 Todos los niveles, completables con cualquier piloto (camino alto / camino bajo)
+
+Hasta este cambio, varios niveles (sobre todo a partir del Mundo 2) asumían el doble salto de Kes como línea base — Scrap, que no tiene ninguna habilidad aérea, se quedaba literalmente atascado en el primer hueco de niveles como Chatarral Magnético. Auditar esto a ojo en 12 niveles no es fiable, así que se midió: se simula la física real de `Player.update()` (salto simple, sin doble pulsación) para saber exactamente cuánta distancia horizontal se cubre según el desnivel del salto, y con eso se construye un grafo de alcanzabilidad (BFS) por nivel — misma técnica que ya se usaba para verificar los patrones de jefe, aplicada esta vez al *level design* en vez de al combate.
+
+**El principio, no el parche**: en vez de estrechar los huecos existentes (que habría borrado la recompensa de tener doble salto/vuelo/dash), cada hueco que un salto simple no cruza se resuelve añadiendo una **piedra de paso intermedia** a una altura MÁS BAJA que la ruta alta original — casi siempre cerca de y=150, formando un "camino bajo" continuo por debajo de las plataformas elevadas existentes. Las plataformas altas no se tocan. Resultado: cualquier piloto puede terminar cualquier nivel, pero:
+- **Kes/Bolt/Shade** pueden saltar directo por la ruta alta (más rápida, menos paradas) usando su habilidad.
+- **Scrap** (o cualquiera que prefiera ir sobre seguro) va escalón a escalón por el camino bajo — más lento, más paradas, sin necesitar nada especial.
+
+Esto convierte la elección de piloto en algo que de verdad cambia cómo se juega un nivel, no solo qué secreto opcional coges — más rápido con un piloto aéreo, más largo pero seguro con Scrap. Coherente con el cronómetro de speedrun (§2.14): la ruta alta ya no es solo "más elegante", es objetivamente más rápida.
+
+Dos niveles (Tormenta de Iones y Galería de Ecos) tienen huecos de 85-130 unidades en su ruta alta — muy por encima de lo que un salto simple cruza de un tirón — así que su camino bajo necesita varias piedras seguidas en vez de una sola. El propio Túnel de Escape (nivel de scroll forzado, documentado desde el principio como "no exige doble salto") tenía dos huecos que se quedaban cortos por muy poco al medirlos con precisión — un fallo real y preexistente, no introducido por este cambio, que salió a la luz precisamente por medir en vez de calcular a ojo.
+
+**Test de regresión** (`__tests__/live.test.js`, "Diseño de niveles"): corre ese mismo BFS contra los 12 niveles reales cada vez que se ejecuta la suite. Si un cambio futuro a `levels.js` deja algún nivel solo alcanzable con doble salto/vuelo/dash, el test falla y lista qué nivel — así este problema no puede volver a colarse en silencio.
+
+### 2.16 Reto Diario (crecimiento/viralidad)
+
+Pensado como el gancho de "vuelve mañana" del juego, al estilo Wordle: mismo desafío para todo el mundo el mismo día, para que comparar tiempos con otra gente signifique algo. Entrada propia en el menú principal (`RETO DIARIO`), separada de "JUGAR"/"CONTINUAR" — no toca el progreso guardado normal en ningún momento, ni al ganar, ni al morir, ni si sales a media partida (ver más abajo).
+
+**Qué cambia cada día, y por qué eso y no otra cosa:**
+- **Nivel**: siempre el 1 (Cráter de Amerizaje). Es el único apto para cualquier visitante sin importar su progreso real — variar el nivel exigiría además escalar las stats del jugador para que un enemigo de nivel 20 no aplaste a alguien que nunca ha jugado, lo cual es mucho más territorio para v2.
+- **Piloto**: rota entre los 4, determinista según la fecha (`dailyHeroFor()`). Es seguro porque los 4 comparten exactamente las mismas stats de combate (HP/ataque/defensa/Energía) — solo cambian la traversal y el nombre de la Habilidad (ver §2.13) — así que forzar cualquiera de los 4 en el nivel 1 nunca desequilibra nada.
+- **Física de combate**: variación de daño (±20%), probabilidad de Huir, y el timing de salto/vuelo de los enemigos se siembran con la fecha — ver `RNG` en `entities.js` y `mulberry32()`/`hashStringToSeed()` en `game.js`. Lo puramente visual (partículas, parpadeo, temblor de pantalla) sigue con `Math.random()` real a propósito: no aporta nada a la comparación y sembrarlo también solo complicaría el código sin beneficio.
+
+**RNG intercambiable, no una reescritura del motor**: en vez de enhebrar un generador sembrado por todas las llamadas del juego (cambio grande y arriesgado), `entities.js` expone un único `let RNG = Math.random;` a nivel de módulo, y las 5 llamadas que de verdad afectan al resultado lo usan en vez de `Math.random()` directamente. `Game.startDailyChallenge()` sustituye `RNG` por un generador sembrado (`mulberry32`, sin dependencias — sembrado con un hash simple de la fecha `YYYY-MM-DD`) y `restoreAfterDaily()` lo devuelve a `Math.random` real al salir, pase lo que pase.
+
+**Aislamiento del progreso real** (la parte que más cuidado exigió): `startDailyChallenge()` guarda aparte las referencias reales (`this._realPlayer`, `this._realWorldMap`, etc.) y las sustituye por instancias nuevas — `WorldMap`/`Player` frescos, nunca los del jugador. El nivel completado, la muerte con 0 vidas, y salir con ESC/✕ pasan los tres por `restoreAfterDaily()`, que devuelve esas referencias reales tal cual estaban. En concreto:
+- Ganar el reto **no** llama a `worldMap.completeLevel()` ni a `saveProgress()` — corta antes, con su propio `return`.
+- Morir sin vidas **no** llama a `fullGameOver()` (que borra TODO el progreso real) — en su lugar, `dailyChallengeFailed()` solo permite reintentar el reto de hoy cuando se quiera.
+- Salir a medias **no** abre el mapa estelar del reto (sería un mapa de un solo nodo sin sentido) — `exitLevel()` detecta `dailyMode` y aborta directo al menú.
+
+**Un único registro, no un histórico**: `astroLeapDaily_v1` guarda `{ date, time, hero }` — solo el MEJOR intento del día de hoy, se pisa solo al cambiar de fecha. Guardar un histórico completo (calendario tipo GitHub, rachas de días seguidos) es la mejora obvia siguiente, pero es una función de análisis/retención aparte de la mecánica base — esto es la versión mínima que ya cumple el gancho de "vuelve mañana, compara tu tiempo".
+
+**Por qué no hay marcador global**: comparar tiempos hoy en día depende de que dos personas se manden el resultado (compartir con `buildShareHTML()`, texto con fecha+piloto+tiempo). Un marcador de verdad entre desconocidos necesitaría un servidor — el proyecto entero es HTML/CSS/JS estático sin build ni backend (ver README), y añadir eso cambia esa naturaleza. Ver el punto pendiente en la lista de mejoras.

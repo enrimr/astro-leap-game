@@ -10,12 +10,23 @@ const btnJump = document.getElementById('btnJump');
 const btnExit = document.getElementById('btnExit');
 const btnMusicToggle = document.getElementById('btnMusicToggle');
 const btnSfxToggle = document.getElementById('btnSfxToggle');
+const btnReduceFxToggle = document.getElementById('btnReduceFxToggle');
+// El <span> del botón táctil "2" (Habilidad) del menú de combate — su texto se actualiza por
+// piloto en Game.updateTouchUI(), igual que el menú del canvas (ver CombatSystem.actions).
+const combatAbilityBtnSpan = combatButtonsEl ? combatButtonsEl.querySelector('[data-code="Digit2"] span') : null;
 
 const IS_TOUCH_DEVICE = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
 const SAVE_KEY = 'astroLeapSave_v1';
 const BEST_TIMES_KEY = 'astroLeapBestTimes_v1';
 const MAX_BEST_TIMES = 5;
+// Avisos contextuales de una sola vez (doble salto, primer combate). Aparte de SAVE_KEY a
+// propósito: son puramente informativos, así que no deben reaparecer en una Nueva Partida
+// ni tras un Game Over — solo la primera vez que ese jugador se topa con la situación.
+const HINTS_SEEN_KEY = 'astroLeapHintsSeen_v1';
+// Un único registro { date, time, hero } — el mejor intento de HOY, se pisa solo al cambiar de
+// día. No es una lista de histórico: eso es una mejora aparte, esto es la versión mínima.
+const DAILY_KEY = 'astroLeapDaily_v1';
 
 // El canvas mantiene su aspect-ratio 320:180 SIEMPRE (también en juego), así que en móviles
 // #gameContainer puede quedar más bajo que el propio menú (título+subtítulo+botones). Mientras
@@ -77,6 +88,50 @@ function formatTime(ms) {
     return `${m}:${s.toFixed(1).padStart(4, '0')}`;
 }
 
+// Fecha+hora compacta para la tabla de mejores tiempos (p.ej. "21 ago, 14:32") — vive en el
+// menú HTML (#startScreen), no en el canvas, así que no hay límite de ancho tan estricto como
+// el resto del HUD, pero igualmente sin año para no alargar la fila sin necesidad.
+function formatRecordDate(ts) {
+    try {
+        return new Date(ts).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+}
+
+// ---- Reto Diario: mismo nivel y mismo generador de números aleatorios (sembrado por la fecha)
+// para todo el mundo ese día, así que comparar tiempos significa algo de verdad — ver RNG en
+// entities.js. Determinista: la MISMA fecha da SIEMPRE la MISMA semilla y el MISMO piloto.
+
+// mulberry32: generador pseudoaleatorio determinista minúsculo (sin dependencias, coherente con
+// que el resto del juego tampoco usa ninguna) — misma semilla, misma secuencia siempre.
+function mulberry32(seed) {
+    let s = seed | 0;
+    return function () {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+// Hash de cadena → entero, para convertir "2026-08-24" en una semilla numérica.
+function hashStringToSeed(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+    return h;
+}
+// Fecha local en YYYY-MM-DD (no UTC — el reto cambia a medianoche de quien juega, no en Londres).
+function todayDateString() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// El piloto de hoy: determinista a partir de la fecha, rota entre los 4. Todos comparten las
+// mismas stats de combate (solo cambian traversal + nombre de Habilidad), así que forzar
+// cualquiera de los 4 en el nivel 1 es igual de justo para cualquier visitante, tenga o no
+// progreso guardado.
+function dailyHeroFor(dateStr) {
+    const seed = hashStringToSeed(dateStr + ':hero');
+    return HERO_ORDER[Math.abs(seed) % HERO_ORDER.length];
+}
+
 // Texto centrado partido en líneas para que quepa en un ancho máximo (px). Usado por la
 // pantalla de desbloqueo de personaje, la única con un párrafo en vez de una línea suelta.
 function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
@@ -119,34 +174,124 @@ class Game {
         this.levelStars = makeStars(140, 1200);
         this.musicOn = this.loadAudioPref('astroLeapMusicOn');
         this.sfxOn = this.loadAudioPref('astroLeapSfxOn');
+        // Accesibilidad: reduce/anula el screen shake y el parpadeo de invulnerabilidad, y calma
+        // el pulso rojo del muro del Túnel de Escape. A diferencia de música/sonido, empieza
+        // APAGADO por defecto — es un ajuste que se activa a propósito, no algo que se silencie.
+        this.reduceEffects = this.loadReduceEffectsPref();
         this.runStartTime = 0; this.runElapsed = 0; // cronómetro: tiempo real de reloj desde que arrancas hasta la victoria
         this.bestTimes = this.loadBestTimes();
+        this.hintScreen = null; // { text } mientras se muestra un aviso contextual (pausa el juego, ver showHint())
+        this.hintsSeen = this.loadHintsSeen();
+        this.dailyMode = false; // true durante un intento del Reto Diario — ver startDailyChallenge()
+        this.dailyRecord = this.loadDailyRecord();
         this.loadProgress();
         this.setupInput();
         this.setupTouchControls();
         this.applyAudioPrefs();
-        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: '3 zonas · 9 sectores · duelos de energía' });
+        this.applyReduceEffectsPref();
+        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: '4 zonas · 12 sectores · duelos de energía' });
     }
 
     loadBestTimes() {
         try {
             const raw = localStorage.getItem(BEST_TIMES_KEY);
             const list = raw ? JSON.parse(raw) : [];
-            return Array.isArray(list) ? list.filter(t => typeof t === 'number') : [];
+            if (!Array.isArray(list)) return [];
+            // Migración desde el formato viejo (array de números sueltos, sin fecha): un record
+            // guardado antes de este cambio se queda sin fecha en vez de perderse de la lista.
+            return list
+                .map(entry => typeof entry === 'number' ? { time: entry, date: null } : entry)
+                .filter(entry => entry && typeof entry.time === 'number');
         } catch (e) { return []; }
     }
     // Guarda un tiempo de partida COMPLETA (Game Over no cuenta, solo terminar el juego entero).
     // Devuelve true si ha quedado el nuevo mejor tiempo (el primero de la lista).
     saveBestTime(ms) {
-        this.bestTimes.push(ms);
-        this.bestTimes.sort((a, b) => a - b);
+        const entry = { time: ms, date: Date.now() };
+        this.bestTimes.push(entry);
+        this.bestTimes.sort((a, b) => a.time - b.time);
         this.bestTimes = this.bestTimes.slice(0, MAX_BEST_TIMES);
         try { localStorage.setItem(BEST_TIMES_KEY, JSON.stringify(this.bestTimes)); } catch (e) { /* sin almacenamiento: no pasa nada, solo no se guarda */ }
-        return this.bestTimes[0] === ms;
+        return this.bestTimes[0] === entry;
+    }
+    loadDailyRecord() {
+        try {
+            const raw = localStorage.getItem(DAILY_KEY);
+            return raw ? JSON.parse(raw) : null; // { date, time, hero } | null
+        } catch (e) { return null; }
+    }
+    // Se pisa solo si es un día distinto o si el tiempo de hoy mejora al guardado. Devuelve true
+    // si ha quedado como el mejor intento de HOY (para el "¡Nuevo mejor tiempo de hoy!").
+    saveDailyRecord(dateStr, ms, hero) {
+        const prev = this.dailyRecord;
+        const isSameDay = prev && prev.date === dateStr;
+        const best = isSameDay ? Math.min(prev.time, ms) : ms;
+        const isRecord = !isSameDay || ms <= prev.time;
+        this.dailyRecord = { date: dateStr, time: best, hero };
+        try { localStorage.setItem(DAILY_KEY, JSON.stringify(this.dailyRecord)); } catch (e) { /* sin almacenamiento: no pasa nada, solo no se guarda */ }
+        return isRecord;
+    }
+    loadHintsSeen() {
+        try {
+            const raw = localStorage.getItem(HINTS_SEEN_KEY);
+            const list = raw ? JSON.parse(raw) : [];
+            return new Set(Array.isArray(list) ? list : []);
+        } catch (e) { return new Set(); }
+    }
+    // Diálogo modal (pausa update(), ver el guard al inicio de update()) para explicar sobre la
+    // marcha la primera vez que una mecánica no obvia entra en juego, en vez de dejarlo solo en
+    // el menú de Ayuda. Cada id se muestra una sola vez por navegador — nunca se repite, ni
+    // siquiera tras una Nueva Partida o un Game Over completo (ver HINTS_SEEN_KEY). Mismo patrón
+    // de pausa que unlockScreen/charSelectOpen, pero sin sustituir la pantalla entera: se dibuja
+    // encima del juego oscurecido para que se note que sigue ahí, solo congelado.
+    showHint(id, text) {
+        if (this.hintsSeen.has(id)) return;
+        // Si ya hay un aviso en pantalla ESTE mismo frame (p.ej. saltas justo encima de un enemigo
+        // y disparas el de salto y el de combate a la vez), no lo pisamos ni lo marcamos como visto
+        // — si lo hiciéramos, el primero desaparecería sin que el jugador llegara a leerlo y
+        // quedaría "visto" para siempre. Se reintentará la próxima vez que se dé la situación.
+        if (this.hintScreen) return;
+        this.hintsSeen.add(id);
+        try { localStorage.setItem(HINTS_SEEN_KEY, JSON.stringify(Array.from(this.hintsSeen))); } catch (e) { /* sin almacenamiento: se mostrará otra vez la próxima sesión, no pasa nada */ }
+        this.hintScreen = { text };
+    }
+    dismissHintScreen() {
+        if (!this.hintScreen) return;
+        this.hintScreen = null;
+        if (window.SFX) SFX.confirm();
+    }
+    // Capa oscura sobre el frame actual (congelado, no se vuelve a dibujar detrás) + caja de
+    // mensaje centrada. Se llama SIEMPRE al final de draw() (nivel o combate), a diferencia de
+    // drawUnlockScreen/drawHangarScreen que sustituyen el frame entero — aquí interesa que se note
+    // que el juego sigue debajo, solo en pausa.
+    drawHintOverlay(ctx) {
+        if (!this.hintScreen) return;
+        ctx.save();
+        ctx.fillStyle = 'rgba(5,2,15,0.75)';
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        const w = 270, h = 66, x = GAME_WIDTH / 2 - w / 2, y = GAME_HEIGHT / 2 - h / 2;
+        ctx.save();
+        ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 10;
+        ctx.fillStyle = 'rgba(20,12,48,0.97)';
+        ctx.fillRect(x, y, w, h);
+        ctx.restore();
+        ctx.strokeStyle = PALETTE.accent; ctx.lineWidth = 1.4;
+        ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+        ctx.fillStyle = PALETTE.ink; ctx.font = '8px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
+        wrapText(ctx, this.hintScreen.text, GAME_WIDTH / 2, y + 16, w - 24, 11);
+        ctx.fillStyle = PALETTE.accent; ctx.font = 'bold 8px "Rajdhani", sans-serif';
+        ctx.fillText(IS_TOUCH_DEVICE ? 'TOCA PARA CONTINUAR' : 'PULSA ESPACIO PARA CONTINUAR', GAME_WIDTH / 2, y + h - 8);
+        ctx.textAlign = 'left';
+        ctx.restore();
     }
     renderBestTimesHTML() {
         if (!this.bestTimes.length) return '';
-        const items = this.bestTimes.map((t, i) => `<li>${i + 1}. ${formatTime(t)}</li>`).join('');
+        const items = this.bestTimes.map((entry, i) => {
+            // Records guardados antes de este cambio no tienen fecha (ver loadBestTimes) — se
+            // listan igual, solo sin la columna de fecha, en vez de perderse de la tabla.
+            const dateHTML = entry.date ? `<span class="best-times-date">${formatRecordDate(entry.date)}</span>` : '';
+            return `<li>${i + 1}. ${formatTime(entry.time)}${dateHTML}</li>`;
+        }).join('');
         return `<div class="best-times"><p class="best-times-title">MEJORES TIEMPOS</p><ol>${items}</ol></div>`;
     }
     hasSaveData() {
@@ -157,6 +302,11 @@ class Game {
     buildMenuScreen({ title, subtitle = '', resultHTML = '' }) {
         const hasSave = this.hasSaveData();
         const timesHTML = this.renderBestTimesHTML() || '<p class="best-times-empty">Todavía no has completado ninguna partida.</p>';
+        const today = todayDateString();
+        const playedToday = this.dailyRecord && this.dailyRecord.date === today;
+        const dailyNote = playedToday
+            ? `Hoy: ${formatTime(this.dailyRecord.time)} con ${HEROES[this.dailyRecord.hero].name}`
+            : 'Nivel 1, piloto sorpresa — mismo reto para todos hoy';
         return `
             <div class="menu-header">
                 <div class="menu-header-art">${MENU_HEADER_ART_SVG}</div>
@@ -168,6 +318,8 @@ class Game {
             <div class="menu-panel" id="menuMain">
                 <button class="menu-btn" data-action="play">${hasSave ? 'CONTINUAR PARTIDA' : 'JUGAR'}</button>
                 ${hasSave ? '<button class="menu-btn" data-action="newgame">NUEVA PARTIDA</button>' : ''}
+                <button class="menu-btn daily-btn" data-action="daily">RETO DIARIO${playedToday ? ' ✓' : ''}</button>
+                <p class="daily-note">${dailyNote}</p>
                 <button class="menu-btn" data-action="times">MEJORES TIEMPOS</button>
                 <button class="menu-btn" data-action="help">AYUDA</button>
             </div>
@@ -182,7 +334,8 @@ class Game {
                     <b>Combate</b> — ↑↓ + ESPACIO, o las teclas 1-4<br>
                     <b>Pilotos</b> — Kes dobla salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos.
                     Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C.<br>
-                    <b>Salir de un nivel</b> — ESC o el botón ✕
+                    <b>Salir de un nivel</b> — ESC o el botón ✕<br>
+                    <b>Accesibilidad</b> — el tercer botón de la esquina (junto a música/sonido) reduce el temblor de pantalla y el parpadeo de invulnerabilidad
                 </p>
                 <button class="menu-btn" data-action="back">◂ VOLVER</button>
             </div>`;
@@ -199,6 +352,7 @@ class Game {
         if (window.SFX) SFX.confirm();
         if (action === 'play') this.startGame();
         else if (action === 'newgame') this.startNewGame();
+        else if (action === 'daily') this.startDailyChallenge();
         else if (action === 'times') this.showMenuPanel('menuTimes');
         else if (action === 'help') this.showMenuPanel('menuHelp');
         else if (action === 'back') this.showMenuPanel('menuMain');
@@ -237,6 +391,71 @@ class Game {
         this.startGame();
     }
 
+    // ---- Reto Diario: nivel 1 fijo, piloto y física de combate sembrados por la fecha (ver
+    // dailyHeroFor()/RNG en entities.js) — misma partida para todo el mundo ese día, así que los
+    // tiempos se pueden comparar de verdad. Corre en instancias de player/worldMap APARTE de las
+    // reales (guardadas en this._real*), para que nada de esto pueda tocar la partida guardada
+    // — ni al ganar, ni al morir, ni si el jugador sale a media partida.
+    startDailyChallenge() {
+        if (this.gameStarted) return;
+        this._realPlayer = this.player;
+        this._realWorldMap = this.worldMap;
+        this._realUnlocked = this.unlockedCharacters;
+        this._realPickups = this.collectedPickups;
+
+        const dateStr = todayDateString();
+        const hero = dailyHeroFor(dateStr);
+        RNG = mulberry32(hashStringToSeed(dateStr));
+        this.dailyMode = true; this.dailyDate = dateStr; this.dailyHero = hero;
+
+        this.player = new Player(20, 100, hero);
+        this.unlockedCharacters = new Set([hero]);
+        this.worldMap = new WorldMap();
+        this.collectedPickups = new Set();
+
+        if (window.SFX) { SFX.unlock(); SFX.boot(); SFX.music.playExplore(); }
+        this.gameStarted = true;
+        this.runStartTime = performance.now(); this.runElapsed = 0;
+        closeMenuOverlay();
+        this.loadLevel(0);
+        this.inWorldMap = false; this.inLevel = true;
+        requestMobileFullscreen();
+    }
+    // Deshace startDailyChallenge(): recupera la partida real tal cual estaba y apaga el RNG
+    // sembrado. Se llama SIEMPRE al terminar un intento — con éxito, muerte, o saliendo a medias.
+    restoreAfterDaily() {
+        RNG = Math.random;
+        this.dailyMode = false;
+        if (this._realPlayer) {
+            this.player = this._realPlayer; this.worldMap = this._realWorldMap;
+            this.unlockedCharacters = this._realUnlocked; this.collectedPickups = this._realPickups;
+            this._realPlayer = null; this._realWorldMap = null; this._realUnlocked = null; this._realPickups = null;
+        }
+    }
+    // Salir a medias (ESC/botón ✕) durante el Reto Diario: no hay mapa al que volver (es un
+    // único nivel aislado), así que aborta directo al menú en vez de abrir un mapa de un solo nodo.
+    abandonDailyChallenge() {
+        if (window.SFX) SFX.music.stop();
+        this.gameStarted = false;
+        this.restoreAfterDaily();
+        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: '4 zonas · 12 sectores · duelos de energía' });
+        openMenuOverlay();
+        this.inLevel = false; this.inWorldMap = false; this.combat = null;
+    }
+    // Sin vidas durante el reto: a diferencia de fullGameOver(), esto NO toca el progreso
+    // guardado real — el reto de hoy se puede reintentar cuando se quiera, no consume "partidas".
+    dailyChallengeFailed() {
+        if (window.SFX) { SFX.music.stop(); SFX.gameOver(); }
+        this.gameStarted = false;
+        this.restoreAfterDaily();
+        startScreen.innerHTML = this.buildMenuScreen({
+            title: 'RETO FALLIDO',
+            subtitle: 'Sin vidas — el reto de hoy sigue disponible, inténtalo otra vez cuando quieras.'
+        });
+        openMenuOverlay();
+        this.inLevel = false; this.inWorldMap = false; this.combat = null;
+    }
+
     loadAudioPref(key) {
         try { return localStorage.getItem(key) !== '0'; } catch (e) { return true; }
     }
@@ -244,6 +463,17 @@ class Game {
         if (window.SFX) { SFX.setSfxEnabled(this.sfxOn); SFX.music.setEnabled(this.musicOn); }
         if (btnMusicToggle) btnMusicToggle.classList.toggle('off', !this.musicOn);
         if (btnSfxToggle) btnSfxToggle.classList.toggle('off', !this.sfxOn);
+    }
+    // A diferencia de loadAudioPref (que por defecto es "encendido" salvo que se guarde '0'),
+    // este ajuste empieza APAGADO salvo que se haya guardado '1' explícitamente.
+    loadReduceEffectsPref() {
+        try { return localStorage.getItem('astroLeapReduceEffects') === '1'; } catch (e) { return false; }
+    }
+    // window.REDUCE_EFFECTS es cómo CombatSystem.draw() (entities.js) se entera de este ajuste sin
+    // tener una referencia a Game — mismo patrón que window.SFX (ver audio.js §2.10 en DESIGN.md).
+    applyReduceEffectsPref() {
+        window.REDUCE_EFFECTS = this.reduceEffects;
+        if (btnReduceFxToggle) btnReduceFxToggle.classList.toggle('off', this.reduceEffects);
     }
 
     saveProgress() {
@@ -355,6 +585,11 @@ class Game {
         this.player.character = id;
         this.charSelectOpen = false;
         if (window.SFX) SFX.confirm();
+        // Scrap es el único piloto sin habilidad aérea (nada que "descubrir" saltando), así que
+        // se explica aquí, al equiparlo por primera vez, en vez de esperar a que el jugador
+        // tropiece solo con un bloque reforzado (que a propósito se ven casi iguales al suelo
+        // normal — DESIGN.md §2.13).
+        if (id === 'scrap') this.showHint('scrap-reinforced', 'Camina sobre los bloques con franjas de peligro (ámbar) para romperlos con Scrap y revelar lo que esconden.');
     }
     // Input del hangar mientras está abierto: se llama desde update() antes de pausar el resto.
     updateCharSelectScreen(keys) {
@@ -487,6 +722,7 @@ class Game {
     }
 
     exitLevel() {
+        if (this.dailyMode) { this.abandonDailyChallenge(); return; }
         this.inLevel = false; this.inWorldMap = true;
         this.player.hp = this.player.maxHp; this.player.energy = this.player.maxEnergy;
     }
@@ -499,6 +735,7 @@ class Game {
         this.combat = null;
         this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.hpLow, 16, { speed: 2.2, life: 30, size: 3 });
         if (this.player.lives <= 0) {
+            if (this.dailyMode) { this.dailyChallengeFailed(); return; }
             this.fullGameOver();
         } else {
             if (window.SFX) { SFX.loseLife(); SFX.music.playExplore(); }
@@ -555,6 +792,14 @@ class Game {
                 }
                 return;
             }
+            // Con un aviso contextual abierto (ver showHint()) no debe llegar nada más: ni el menú
+            // de combate ni ESC/R. Se cierra aquí mismo, por EVENTO de pulsación — no comprobando
+            // this.keys en update() cada frame, que se dispararía en el acto si la tecla de SALTO
+            // (la que suele abrir el aviso) sigue mantenida en ese instante, sin dar tiempo a leerlo.
+            if (this.hintScreen) {
+                if (e.code === 'Space' || e.code === 'Enter') this.dismissHintScreen();
+                return;
+            }
             if (this.combat && this.combat.active) this.combat.handleInput(e.code);
             if (e.code === 'Escape' && this.inLevel && !this.combat) this.exitLevel();
             // Atajo de depuración: reiniciar el nivel actual al instante (útil ajustando niveles)
@@ -570,7 +815,15 @@ class Game {
     setupTouchControls() {
         const bindHold = (el, code) => {
             if (!el) return;
-            const press = (e) => { e.preventDefault(); if (window.SFX) SFX.unlock(); this.keys[code] = true; };
+            const press = (e) => {
+                e.preventDefault();
+                if (window.SFX) SFX.unlock();
+                // Con el aviso contextual abierto, tocar cualquier control (incluido SALTO, el que
+                // normalmente lo dispara) lo cierra en vez de quedar inerte — mismo gesto que tocar
+                // el canvas directamente (ver mapTap).
+                if (this.hintScreen) { this.dismissHintScreen(); return; }
+                this.keys[code] = true;
+            };
             const release = (e) => { e.preventDefault(); this.keys[code] = false; };
             el.addEventListener('touchstart', press, { passive: false });
             el.addEventListener('touchend', release, { passive: false });
@@ -584,7 +837,7 @@ class Game {
         bindHold(btnJump, 'Space');
 
         if (btnExit) {
-            const exitTap = (e) => { e.preventDefault(); if (this.inLevel && !this.combat) this.exitLevel(); };
+            const exitTap = (e) => { e.preventDefault(); if (this.hintScreen) return; if (this.inLevel && !this.combat) this.exitLevel(); };
             btnExit.addEventListener('touchstart', exitTap, { passive: false });
             btnExit.addEventListener('click', exitTap);
         }
@@ -611,10 +864,22 @@ class Game {
             btnSfxToggle.addEventListener('touchstart', toggleSfx, { passive: false });
             btnSfxToggle.addEventListener('click', toggleSfx);
         }
+        if (btnReduceFxToggle) {
+            const toggleReduceFx = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (window.SFX) SFX.unlock();
+                this.reduceEffects = !this.reduceEffects;
+                try { localStorage.setItem('astroLeapReduceEffects', this.reduceEffects ? '1' : '0'); } catch (err) { /* noop */ }
+                this.applyReduceEffectsPref();
+                if (window.SFX) SFX.select();
+            };
+            btnReduceFxToggle.addEventListener('touchstart', toggleReduceFx, { passive: false });
+            btnReduceFxToggle.addEventListener('click', toggleReduceFx);
+        }
         if (combatButtonsEl) {
             combatButtonsEl.querySelectorAll('button[data-code]').forEach((btn) => {
                 const code = btn.dataset.code;
-                const tap = (e) => { e.preventDefault(); if (this.combat && this.combat.active) this.combat.handleInput(code); };
+                const tap = (e) => { e.preventDefault(); if (this.hintScreen) return; if (this.combat && this.combat.active) this.combat.handleInput(code); };
                 btn.addEventListener('touchstart', tap, { passive: false });
                 btn.addEventListener('click', tap);
             });
@@ -629,6 +894,7 @@ class Game {
         // Tocar/clicar directamente un nodo del mapa estelar entra a ese nivel (si está desbloqueado)
         const mapTap = (e) => {
             if (this.unlockScreen) { e.preventDefault(); this.dismissUnlockScreen(); return; }
+            if (this.hintScreen) { e.preventDefault(); this.dismissHintScreen(); return; }
             const rect = canvas.getBoundingClientRect();
             const point = e.changedTouches ? e.changedTouches[0] : e;
             const gx = (point.clientX - rect.left) / rect.width * GAME_WIDTH;
@@ -672,11 +938,18 @@ class Game {
 
     updateTouchUI() {
         const inCombat = !!(this.combat && this.combat.active);
-        const paused = this.unlockScreen || this.charSelectOpen;
+        const paused = this.unlockScreen || this.charSelectOpen || this.hintScreen;
         if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !paused);
-        if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat);
+        if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat && !paused);
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
         if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat && !paused);
+        // Botón táctil "2" del menú de combate: mismo nombre propio por piloto que el menú del
+        // canvas (ver CombatSystem.actions), para que no diga "Habilidad" en un sitio y
+        // "Sobrecarga"/"Zarpazo"/etc. en otro.
+        if (combatAbilityBtnSpan) {
+            const label = HEROES[this.player.character].combatName;
+            if (combatAbilityBtnSpan.textContent !== label) combatAbilityBtnSpan.textContent = label;
+        }
     }
 
     update() {
@@ -688,6 +961,16 @@ class Game {
             return;
         }
         if (this.charSelectOpen) { this.updateCharSelectScreen(this.keys); return; }
+        // Aviso contextual (ver showHint()): congela el resto del juego —igual que unlockScreen—
+        // pero SIN sustituir el frame dibujado, para que se note oscurecido detrás en vez de
+        // desaparecer del todo. El cierre NO se sondea aquí (a diferencia de unlockScreen) —
+        // se dispara por el evento keydown de Space/Enter en setupInput(), o al tocar el canvas /
+        // un botón táctil (ver mapTap y bindHold) — así una pulsación ya mantenida en el instante
+        // en que aparece el aviso no lo cierra sola en el frame siguiente.
+        if (this.hintScreen) {
+            if (this.shake > 0) this.shake *= 0.85;
+            return;
+        }
         if (this.shake > 0) this.shake *= 0.85;
 
         if (this.inWorldMap) {
@@ -822,6 +1105,32 @@ class Game {
                 }
                 this.levelCompleting = true;
                 if (window.SFX) SFX.levelComplete();
+
+                // Reto Diario: termina aquí, ANTES de tocar worldMap.completeLevel()/saveProgress()
+                // — nunca debe escribir nada en el progreso guardado real (ver restoreAfterDaily()).
+                if (this.dailyMode) {
+                    this.levelCompleting = false; this.gameStarted = false;
+                    const finalTime = performance.now() - this.runStartTime;
+                    const isRecord = this.saveDailyRecord(this.dailyDate, finalTime, this.dailyHero);
+                    if (window.SFX) { SFX.music.stop(); SFX.victory(); }
+                    const heroName = HEROES[this.dailyHero].name;
+                    const shareText = `Reto diario de Astro Leap (${this.dailyDate}) con ${heroName}: ${formatTime(finalTime)} — ¿lo superas? 🚀`;
+                    const bestToday = this.dailyRecord.time; // ya actualizado por saveDailyRecord()
+                    this.restoreAfterDaily();
+                    startScreen.innerHTML = this.buildMenuScreen({
+                        title: '¡RETO SUPERADO!',
+                        subtitle: `Reto del ${this.dailyDate} — piloto: ${heroName}`,
+                        resultHTML: `
+                            <p class="run-time">Tiempo: ${formatTime(finalTime)}</p>
+                            <p class="run-time">${isRecord ? '¡Nuevo mejor tiempo de hoy!' : `Tu mejor tiempo de hoy: ${formatTime(bestToday)}`}</p>
+                            ${this.buildShareHTML(shareText)}
+                        `
+                    });
+                    openMenuOverlay();
+                    this.inLevel = false; this.inWorldMap = false; this.combat = null;
+                    return;
+                }
+
                 this.worldMap.completeLevel(this.currentLevel);
                 this.levelCompleteMessage = 150;
                 this.saveProgress();
@@ -839,7 +1148,7 @@ class Game {
                     this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
                     startScreen.innerHTML = this.buildMenuScreen({
                         title: '¡MISIÓN CUMPLIDA!',
-                        subtitle: 'Reparaste la nave y escapaste del sistema.',
+                        subtitle: 'Derrotaste a Nodo Cero, reparaste la nave y escapaste del Sistema Ceniza.',
                         resultHTML: `
                             <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Completaste los ${LEVELS.length} sectores en ${formatTime(finalTime)}</p>
                             ${this.buildShareHTML(shareText)}
@@ -889,8 +1198,9 @@ class Game {
             return;
         }
 
-        const shakeX = this.shake ? (Math.random() - 0.5) * this.shake : 0;
-        const shakeY = this.shake ? (Math.random() - 0.5) * this.shake * 0.6 : 0;
+        const shakeMag = this.reduceEffects ? 0 : this.shake;
+        const shakeX = shakeMag ? (Math.random() - 0.5) * shakeMag : 0;
+        const shakeY = shakeMag ? (Math.random() - 0.5) * shakeMag * 0.6 : 0;
         ctx.save();
         ctx.translate(shakeX, shakeY);
 
@@ -903,6 +1213,11 @@ class Game {
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
             ctx.fillText(formatTime(this.runElapsed), 308, 27);
             ctx.textAlign = 'left';
+            // El aviso de Scrap (ver confirmCharSelect()) puede dispararse estando en el mapa, a
+            // diferencia de los de salto/combate que solo pasan dentro de un nivel — sin esto, el
+            // juego se quedaría congelado (ver el guard de hintScreen en update()) sin ningún
+            // diálogo visible que lo explique.
+            this.drawHintOverlay(ctx);
             ctx.restore();
             return;
         }
@@ -921,13 +1236,21 @@ class Game {
             for (const cell of this.energyCells) cell.draw(ctx, this.cameraX);
             for (const e of this.enemies) e.draw(ctx, this.cameraX);
             this.particles.draw(ctx, this.cameraX);
-            if (this.playerInvulnerable === 0 || Math.floor(this.playerInvulnerable / 8) % 2 === 0) {
+            // Parpadeo de invulnerabilidad: con reduceEffects, en vez de destello on/off se dibuja
+            // siempre pero semitransparente — se sigue notando que estás invulnerable sin el
+            // destello rápido.
+            if (this.reduceEffects) {
+                if (this.playerInvulnerable > 0) { ctx.save(); ctx.globalAlpha = 0.55; this.player.draw(ctx, this.cameraX); ctx.restore(); }
+                else this.player.draw(ctx, this.cameraX);
+            } else if (this.playerInvulnerable === 0 || Math.floor(this.playerInvulnerable / 8) % 2 === 0) {
                 this.player.draw(ctx, this.cameraX);
             }
 
             const level = LEVELS[this.currentLevel];
             if (level.forcedScroll) {
-                const pulse = 0.6 + Math.sin(Date.now() * 0.012) * 0.4;
+                // Con reduceEffects, un valor fijo en vez del pulso rojo oscilante junto al borde
+                // izquierdo de la pantalla (la luz que más se acerca a un parpadeo real del juego).
+                const pulse = this.reduceEffects ? 0.8 : (0.6 + Math.sin(Date.now() * 0.012) * 0.4);
                 const wallGrad = ctx.createLinearGradient(0, 0, 18, 0);
                 wallGrad.addColorStop(0, `rgba(255,70,70,${0.9 * pulse})`);
                 wallGrad.addColorStop(1, 'rgba(255,70,70,0)');
@@ -1001,6 +1324,7 @@ class Game {
                 ctx.textAlign = 'left';
             }
         }
+        this.drawHintOverlay(ctx);
         ctx.restore();
     }
 }
@@ -1013,7 +1337,7 @@ const game = new Game();
 if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => window.scrollTo(0, 1), 50));
 
 // ---- Modo depuración vía URL, sin tocar la consola ----
-// ?level=N        -> entra directo al nivel N (1-9), con vida/energía llenas, saltándose el mapa.
+// ?level=N        -> entra directo al nivel N (1-12), con vida/energía llenas, saltándose el mapa.
 // ?unlock=all     -> desbloquea todos los nodos del mapa para poder elegir cualquiera a mano.
 // ?char=bolt|shade|scrap -> pilota ese héroe directamente (se da por desbloqueado).
 // Combinables: ?level=1&char=scrap&unlock=all para entrar al nivel 1 pilotando a Scrap, por ejemplo.

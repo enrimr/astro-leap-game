@@ -12,7 +12,7 @@
 
     <meta property="og:type" content="website">
     <meta property="og:title" content="ASTRO LEAP — Plataformas + Duelos por turnos">
-    <meta property="og:description" content="Salta entre restos flotantes y decide: ¿usas tu energía para un doble salto arriesgado, o la guardas para el próximo duelo? 9 sectores, incluido uno de scroll forzado donde el núcleo te persigue.">
+    <meta property="og:description" content="Salta entre restos flotantes y decide: ¿usas tu energía para un doble salto arriesgado, o la guardas para el próximo duelo? 12 sectores, incluido uno de scroll forzado donde el núcleo te persigue.">
     <meta property="og:image" content="og-image.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="ASTRO LEAP — Plataformas + Duelos por turnos">
@@ -36,6 +36,13 @@
             <svg class="icon-on" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5h4L12.5 5v14L7 14.5H3z" fill="currentColor" stroke="none"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.7 6a9 9 0 0 1 0 12"/></svg>
             <svg class="icon-off" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5h4L12.5 5v14L7 14.5H3z" fill="currentColor" stroke="none"/><line x1="16" y1="9" x2="21.5" y2="14.5"/><line x1="21.5" y1="9" x2="16" y2="14.5"/></svg>
         </button>
+        <!-- Accesibilidad: reduce/anula el screen shake y el parpadeo de invulnerabilidad (ver
+             Game.reduceEffects). Empieza APAGADO (a diferencia de música/sonido, que empiezan
+             encendidos) — es un ajuste que se activa a propósito, no algo que se silencie. -->
+        <button id="btnReduceFxToggle" class="audio-btn" aria-label="Reducir temblor y parpadeo">
+            <svg class="icon-on" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l4-7 4 14 4-14 4 7 3-3"/></svg>
+            <svg class="icon-off" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l4-7 4 14 4-14 4 7 3-3"/><line x1="3" y1="3" x2="21" y2="21" stroke-width="2.4"/></svg>
+        </button>
     </div>
     <div id="gameContainer" class="menu-open">
         <canvas id="gameCanvas" width="320" height="180"></canvas>
@@ -53,7 +60,9 @@
     </div>
     <div id="combatButtons">
         <button class="combat-btn" data-code="Digit1">1<span>Atacar</span></button>
-        <button class="combat-btn" data-code="Digit2">2<span>Habilidad</span></button>
+        <!-- "Sobrecarga" es el texto por defecto de Kes (el piloto inicial) — Game.updateTouchUI()
+             lo cambia por el nombre del piloto activo (ver HEROES.combatName en entities.js). -->
+        <button class="combat-btn" data-code="Digit2">2<span>Sobrecarga</span></button>
         <button class="combat-btn" data-code="Digit3">3<span>Defender</span></button>
         <button class="combat-btn" data-code="Digit4">4<span>Huir</span></button>
     </div>

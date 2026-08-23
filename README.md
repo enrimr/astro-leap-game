@@ -47,7 +47,7 @@ El sector 8 ("Túnel de Escape") es distinto al resto: al entrar, el núcleo de 
 
 No hace falta jugar desde el principio ni tocar la consola:
 
-- `?level=N` (1-9) — entra directo a ese nivel, con vida y energía al máximo, saltándose el mapa.
+- `?level=N` (1-12) — entra directo a ese nivel, con vida y energía al máximo, saltándose el mapa.
   Ej: `http://localhost:8000/?level=8` te deja directamente en el Túnel de Escape.
 - `?unlock=all` — desbloquea todos los nodos del mapa estelar para poder elegir cualquiera a mano
   con las flechas y `ESPACIO`, en vez de tener que completarlos en orden.
@@ -61,7 +61,7 @@ index.html          punto de entrada, controles en pantalla, meta tags
 style.css           tema visual (neón espacial)
 js/audio.js         SFX sintetizados con Web Audio (sin archivos externos)
 js/entities.js      Player, Enemy, Platform, ParticleSystem, WorldMap, CombatSystem
-js/levels.js        definición de los 9 niveles (incluido el de scroll forzado) y stats de enemigos
+js/levels.js        definición de los 12 niveles (incluido el de scroll forzado) y stats de enemigos
 js/game.js          bucle principal, input (teclado/ratón/táctil), guardado, render
 __tests__/          suite de Jest sobre la lógica núcleo
 scripts/            generador del banner og-image.png (dev-time, node-canvas)
@@ -77,3 +77,7 @@ npm test
 ## Progreso guardado
 
 El progreso (nivel del jugador, stats, sectores desbloqueados/completados) se guarda automáticamente en `localStorage` al completar cada sector. Se limpia al terminar el juego (victoria) para permitir una partida nueva.
+
+## Reto Diario
+
+Botón propio en el menú principal (`RETO DIARIO`), separado de la partida normal — no toca ni lee tu progreso guardado. Mismo nivel (el 1) y mismo piloto para todo el mundo cada día (rota según la fecha), con el combate sembrado para que el resultado sea igual de justo para todos — así comparar tiempos con otra gente significa algo. Se puede reintentar tantas veces como quieras; se guarda tu mejor tiempo de hoy y hay botón de compartir al terminar. Ver `DESIGN.md` §2.16 para el detalle de implementación (por qué es seguro forzar cualquier piloto, y cómo se garantiza que nunca toca la partida real).

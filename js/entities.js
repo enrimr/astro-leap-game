@@ -1,5 +1,14 @@
 const GAME_WIDTH = 320;
 const GAME_HEIGHT = 180;
+
+// Generador de números aleatorios intercambiable: Math.random por defecto, pero Game lo sustituye
+// por uno determinista (sembrado por la fecha, ver mulberry32 en game.js) durante el Reto Diario,
+// para que el daño, las fugas y el timing de los enemigos sean IGUALES para todo el mundo ese
+// día — si no, comparar tiempos no significaría nada. Solo se usa en los sitios que afectan al
+// RESULTADO (variación de daño, huir, cuándo salta/vuela un enemigo); lo puramente visual
+// (partículas, parpadeo, temblor de pantalla) sigue con Math.random real — no aporta nada a la
+// comparación y sembrarlo también solo añadiría complicación sin beneficio.
+let RNG = Math.random;
 const PALETTE = {
     bg1: '#0b0620', bg2: '#160c33', ink: '#f5f3ff',
     dim: '#a89ee0', panel: '#1c1140', panelLight: '#2a1a5e',
@@ -11,14 +20,18 @@ const PALETTE = {
 // al jefe de un mundo (salvo Kes, que empieza desbloqueada) y usa el MISMO botón
 // de salto que ya existe para una habilidad de traversal propia — ver Player.update().
 const HERO_ORDER = ['kes', 'bolt', 'shade', 'scrap'];
+// combatName: el nombre de la acción "HABILIDAD" del menú de combate (CombatSystem), propio de
+// cada piloto — distinto de `ability`, que es la habilidad de TRAVERSAL en plataformas. Mismo
+// daño (×1.5 el ataque base, ver CombatSystem.executePlayerAction) para los 4: esto es solo
+// identidad, un nombre acorde a cada personaje según LORE.md §3, no un cambio de mecánica.
 const HEROES = {
-    kes:   { id: 'kes',   name: 'Kes',   ability: 'Doble salto',     color: PALETTE.accent,  requiresBoss: null,
+    kes:   { id: 'kes',   name: 'Kes',   ability: 'Doble salto',     combatName: 'Sobrecarga',       color: PALETTE.accent,  requiresBoss: null,
              desc: 'Un segundo impulso en el aire para ganar altura extra. Cuesta 1 de Energía.' },
-    bolt:  { id: 'bolt',  name: 'Bolt',  ability: 'Vuelo breve',     color: '#ffd23f',        requiresBoss: 'queen_larva',
+    bolt:  { id: 'bolt',  name: 'Bolt',  ability: 'Vuelo breve',     combatName: 'Pulso EMP',         color: '#ffd23f',        requiresBoss: 'queen_larva',
              desc: 'Mantén pulsado el salto en el aire para ascender despacio mientras te dure la Energía.' },
-    shade: { id: 'shade', name: 'Shade', ability: 'Impulso lateral', color: PALETTE.accent2,  requiresBoss: 'sentinel',
+    shade: { id: 'shade', name: 'Shade', ability: 'Impulso lateral', combatName: 'Zarpazo',           color: PALETTE.accent2,  requiresBoss: 'sentinel',
              desc: 'Pulsa salto una vez en el aire para lanzarte hacia delante y cruzar huecos anchos.' },
-    scrap: { id: 'scrap', name: 'Scrap', ability: 'Rompe refuerzos', color: '#c98a2b',        requiresBoss: 'overlord',
+    scrap: { id: 'scrap', name: 'Scrap', ability: 'Rompe refuerzos', combatName: 'Puño Cibernético',  color: '#c98a2b',        requiresBoss: 'overlord',
              desc: 'Sin salto extra, pero camina sobre plataformas de franjas ámbar para romperlas y colarse.' }
 };
 
@@ -311,7 +324,10 @@ const ENEMY_STATS = {
     ionwisp:    { level: 6, hp: 20, atk: 9, def: 3, xp: 22, color: '#b58bff', speed: 0.9, canJump: false, range: 45, boss: false, flying: true },
     queen_larva:{ level: 8, hp: 55, atk: 12, def: 6, xp: 60, color: '#ff5ecb', speed: 0, canJump: false, range: 0, boss: true, flying: false },
     sentinel:   { level: 12, hp: 90, atk: 17, def: 9, xp: 120, color: '#8b83c2', speed: 0, canJump: false, range: 0, boss: true, flying: false },
-    overlord:   { level: 16, hp: 140, atk: 23, def: 12, xp: 220, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false }
+    overlord:   { level: 16, hp: 140, atk: 23, def: 12, xp: 220, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false },
+    // Jefe final de la Zona 4 (Núcleo Expuesto) — no un fragmento como el Overlord, la Red misma.
+    // Notablemente por encima del Overlord en todo: es el auténtico último jefe, no un mundo más.
+    nodo_cero:  { level: 20, hp: 190, atk: 27, def: 14, xp: 380, color: '#ff3366', speed: 0, canJump: false, range: 0, boss: true, flying: false }
 };
 
 class Enemy {
@@ -324,7 +340,7 @@ class Enemy {
             isBoss: s.boss, isFlying: s.flying,
             w: s.boss ? 20 : 11, h: s.boss ? 20 : 11,
             vx: s.speed, vy: 0, gravity: s.flying ? 0 : 0.3, onGround: false,
-            jumpTimer: 0, jumpCooldown: 120 + Math.random() * 60, flyTimer: Math.random() * 100, flyAmplitude: 14,
+            jumpTimer: 0, jumpCooldown: 120 + RNG() * 60, flyTimer: RNG() * 100, flyAmplitude: 14,
             animT: Math.random() * Math.PI * 2, blinkTimer: 60 + Math.random() * 150
         });
     }
@@ -363,7 +379,7 @@ class Enemy {
         }
         if (this.canJump && this.onGround) {
             this.jumpTimer++;
-            if (this.jumpTimer >= this.jumpCooldown) { this.vy = -3.4; this.jumpTimer = 0; this.jumpCooldown = 120 + Math.random() * 60; }
+            if (this.jumpTimer >= this.jumpCooldown) { this.vy = -3.4; this.jumpTimer = 0; this.jumpCooldown = 120 + RNG() * 60; }
         }
     }
     takeDamage(amt) {
@@ -439,6 +455,7 @@ class Enemy {
         if (this.type === 'queen_larva') this.drawQueenLarva(ctx, x, y, w, h);
         else if (this.type === 'sentinel') this.drawSentinel(ctx, x, y, w, h);
         else if (this.type === 'overlord') this.drawOverlord(ctx, x, y, w, h);
+        else if (this.type === 'nodo_cero') this.drawNodoCero(ctx, x, y, w, h);
         else { // fallback genérico por si se añade un jefe sin diseño propio todavía
             ctx.save();
             ctx.shadowColor = this.color; ctx.shadowBlur = 10; ctx.fillStyle = this.color;
@@ -538,6 +555,38 @@ class Enemy {
         ctx.fillStyle = '#ffd23f'; ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = w * 0.25 * pulse;
         ctx.beginPath(); ctx.arc(cx, cy, w * 0.08 * pulse * blink, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
+    }
+    // Nodo Cero: no un cuerpo único, sino una red de nodos orbitando un núcleo — cada nodo lleva
+    // el color de uno de los guardianes anteriores (Reina Larva, Centinela, Overlord) más el suyo
+    // propio, para que se lea a simple vista "esto absorbió a los tres" sin decirlo en un texto.
+    // Nunca tiene una silueta fija — es justo lo contrario a "posar" para el jugador.
+    drawNodoCero(ctx, x, y, w, h) {
+        const t = this.animT;
+        const cx = x + w / 2, cy = y + h / 2;
+        const orbitR = w * 0.42;
+        const colors = ['#ff5ecb', '#8b83c2', '#ffd23f', '#ff3366'];
+        const nodes = colors.map((c, i) => {
+            const angle = t * 0.5 + (i * Math.PI / 2);
+            return { x: cx + Math.cos(angle) * orbitR, y: cy + Math.sin(angle) * orbitR * 0.85, c };
+        });
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,51,102,0.5)'; ctx.lineWidth = 1;
+        nodes.forEach(n => { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(n.x, n.y); ctx.stroke(); });
+        ctx.restore();
+        const pulse = 0.7 + Math.sin(t * 2.1) * 0.3;
+        const blink = this.blinkTimer < 5 ? 0.3 : 1;
+        ctx.save();
+        ctx.shadowColor = '#ff3366'; ctx.shadowBlur = w * 0.35 * pulse;
+        ctx.fillStyle = '#ff3366';
+        ctx.beginPath(); ctx.arc(cx, cy, w * 0.16 * blink, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        nodes.forEach(n => {
+            ctx.save();
+            ctx.shadowColor = n.c; ctx.shadowBlur = w * 0.22;
+            ctx.fillStyle = n.c;
+            ctx.beginPath(); ctx.arc(n.x, n.y, w * 0.09, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        });
     }
 }
 
@@ -671,19 +720,26 @@ class LevelNode {
 
 class WorldMap {
     constructor() {
+        // Espaciado horizontal recalculado para los 12 nodos: con solo 9, el último ya llegaba casi
+        // al borde derecho del canvas (298 de 320px) — no había sitio para añadir 3 más sin
+        // reapretar todo el recorrido. El último nodo (Nodo Cero) queda deliberadamente más alto
+        // que cualquier otro pico del mapa: es el clímax, y así debe leerse antes de tocarlo.
         this.nodes = [
             new LevelNode(28, 140, 0, 'Cráter de Amerizaje'),
-            new LevelNode(58, 108, 1, 'Grietas de Hielo'),
-            new LevelNode(90, 138, 2, 'Nido de la Reina Larva'),
-            new LevelNode(130, 104, 3, 'Chatarral Magnético'),
-            new LevelNode(162, 74, 4, 'Tormenta de Iones'),
-            new LevelNode(195, 104, 5, 'Núcleo del Centinela'),
-            new LevelNode(230, 134, 6, 'Muelle de Carga'),
-            new LevelNode(262, 100, 7, 'Túnel de Escape'),
-            new LevelNode(298, 68, 8, 'Núcleo del Reactor')
+            new LevelNode(52, 108, 1, 'Grietas de Hielo'),
+            new LevelNode(76, 138, 2, 'Nido de la Reina Larva'),
+            new LevelNode(100, 104, 3, 'Chatarral Magnético'),
+            new LevelNode(124, 74, 4, 'Tormenta de Iones'),
+            new LevelNode(148, 104, 5, 'Núcleo del Centinela'),
+            new LevelNode(172, 134, 6, 'Muelle de Carga'),
+            new LevelNode(196, 100, 7, 'Túnel de Escape'),
+            new LevelNode(220, 68, 8, 'Núcleo del Reactor'),
+            new LevelNode(244, 110, 9, 'Bóveda Sellada'),
+            new LevelNode(268, 145, 10, 'Galería de Ecos'),
+            new LevelNode(292, 50, 11, 'Nodo Cero')
         ];
         this.currentNodeIndex = 0;
-        this.paths = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8]];
+        this.paths = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11]];
     }
     update(keys) {
         const node = this.nodes[this.currentNodeIndex];
@@ -741,9 +797,13 @@ class CombatSystem {
     constructor(player, enemy) {
         this.player = player; this.enemy = enemy; this.turn = 'player';
         this.message = 'Tu turno. Elige acción:';
-        this.actions = ['ATACAR', 'HABILIDAD', 'DEFENDER', 'HUIR'];
+        // La acción de "Habilidad" lleva el nombre propio del piloto (ver HEROES.combatName) —
+        // mismo daño para los 4, solo cambia cómo se llama y cómo suena al usarla.
+        this.actions = ['ATACAR', HEROES[player.character].combatName.toUpperCase(), 'DEFENDER', 'HUIR'];
         this.defending = false; this.active = true; this.result = null; this.messageTimer = 0;
         this.selectedIndex = 0; this.shake = 0;
+        this.enemyTurnCount = 0; // cuenta turnos de ENEMIGO (no del jugador), para los patrones de jefe
+        this.bossCharging = false; // true en el turno siguiente a una carga (Centinela o Nodo Cero): el próximo golpe viene reforzado
     }
     handleInput(key) {
         if (this.turn !== 'player' || this.messageTimer > 0) return;
@@ -757,19 +817,19 @@ class CombatSystem {
         this.defending = false;
         if (window.SFX) SFX.confirm();
         if (action === 0) {
-            const dealt = this.enemy.takeDamage(Math.floor(this.player.attack * (0.8 + Math.random() * 0.4)));
+            const dealt = this.enemy.takeDamage(Math.floor(this.player.attack * (0.8 + RNG() * 0.4)));
             this.message = `Disparaste! Daño: ${dealt}`; this.shake = 6;
             if (window.SFX) SFX.hitEnemy();
         } else if (action === 1) {
             if (this.player.energy >= 3) {
                 const dealt = this.enemy.takeDamage(Math.floor(this.player.attack * 1.5));
-                this.player.energy -= 3; this.message = `¡Sobrecarga! Daño: ${dealt}`; this.shake = 9;
+                this.player.energy -= 3; this.message = `¡${HEROES[this.player.character].combatName}! Daño: ${dealt}`; this.shake = 9;
                 if (window.SFX) SFX.hitEnemy();
             } else { this.message = 'Energía insuficiente!'; if (window.SFX) SFX.select(); return; }
         } else if (action === 2) {
             this.defending = true; this.message = 'Escudos arriba...';
         } else if (action === 3) {
-            if (Math.random() < 0.5) { this.message = 'Escapaste!'; this.result = 'flee'; this.active = false; if (window.SFX) SFX.flee(); return; }
+            if (RNG() < 0.5) { this.message = 'Escapaste!'; this.result = 'flee'; this.active = false; if (window.SFX) SFX.flee(); return; }
             else { this.message = 'No pudiste escapar!'; }
         }
         this.messageTimer = 60;
@@ -789,20 +849,84 @@ class CombatSystem {
         if (this.messageTimer > 0) {
             this.messageTimer--;
             if (this.messageTimer === 0 && this.turn === 'enemy') {
-                const dmg = Math.floor(this.enemy.attack * (0.8 + Math.random() * 0.4));
-                let rec;
-                if (this.defending) { rec = Math.max(1, Math.floor(dmg * 0.5)); this.player.hp -= rec; }
-                else { rec = this.player.takeDamage(dmg); }
-                this.message = `${this.enemy.type} ataca! Daño: ${rec}`; this.messageTimer = 60; this.shake = 6;
-                if (window.SFX) SFX.hitPlayer();
+                this.resolveEnemyTurn();
                 if (this.player.hp <= 0) { this.result = 'lose'; this.active = false; return; }
                 this.turn = 'player';
                 setTimeout(() => { this.message = 'Tu turno. Elige acción:'; }, 1000);
             }
         }
     }
+    // Decide la acción del enemigo en su turno. Los enemigos normales siempre atacan (sin cambios);
+    // los 4 jefes tienen un patrón propio encima de eso, para que cada uno se lea distinto en
+    // combate y no solo en el sprite (ver DESIGN.md §2.12, que ya les da identidad visual pero no
+    // mecánica). El contador es de turnos de ENEMIGO, no de ronda completa, así el ritmo del patrón
+    // no depende de cuántas veces el jugador haya Defendido/Huido fallido de más.
+    resolveEnemyTurn() {
+        this.enemyTurnCount++;
+        // Reina Larva: no es agresiva por naturaleza (es una víctima, no la villana — LORE.md) así
+        // que cada 3 turnos se regenera en vez de atacar. Convierte el duelo en una carrera: si no
+        // le metes suficiente daño entre curaciones, la pelea se alarga en vez de ponerse más dura.
+        if (this.enemy.type === 'queen_larva' && this.enemyTurnCount % 3 === 0) return this.bossHealTurn();
+        // Centinela: dos arquitecturas en conflicto (la suya y la Red). Cada 3 turnos "pierde el
+        // control" un turno (carga, sin dañar, con aviso) y el turno siguiente golpea el doble —
+        // el aviso le da al jugador una ventana real para Defender antes del golpe fuerte.
+        if (this.enemy.type === 'sentinel') {
+            if (this.bossCharging) { this.bossCharging = false; return this.enemyStrikeTurn({ multiplier: 2, verb: '¡Descarga corrupta!' }); }
+            if (this.enemyTurnCount % 3 === 0) return this.bossChargeTurn();
+        }
+        // Overlord: la Red hablando por primera vez, sin las reglas de nadie más — cada 3 turnos
+        // ignora Defender por completo, para que el jefe final se sienta como que juega sucio de
+        // verdad, no solo con más HP/ataque que los otros dos.
+        if (this.enemy.type === 'overlord' && this.enemyTurnCount % 3 === 0) {
+            // El aviso especial solo tiene sentido si de verdad estabas defendiendo ESE turno —
+            // si no, "ignora tus defensas" sería mentira (no había nada que ignorar) aunque el
+            // flag ignoreDefense siga activo (no tiene efecto ninguno cuando defending es false).
+            const verb = this.defending ? 'El Overlord ignora tus defensas!' : null;
+            return this.enemyStrikeTurn({ ignoreDefense: true, verb });
+        }
+        // Nodo Cero: no es un fragmento como el Overlord — es la Red misma, ya sin ocultarse
+        // (LORE.md §2.2: "Ganar esa pelea no acaba la amenaza. La deja al descubierto"). Por eso
+        // no tiene un patrón propio nuevo: usa los TRES a la vez, en un ciclo de 6 turnos —
+        // literalmente aprendió de cada guardián que le has derrotado hasta ahora.
+        if (this.enemy.type === 'nodo_cero') {
+            if (this.bossCharging) { this.bossCharging = false; return this.enemyStrikeTurn({ multiplier: 2, verb: '¡Sobrecarga de la Red!' }); }
+            const t = this.enemyTurnCount % 6;
+            if (t === 3) return this.bossHealTurn();
+            if (t === 4) return this.bossChargeTurn();
+            if (t === 0) {
+                const verb = this.defending ? 'La Red ignora tus defensas!' : null;
+                return this.enemyStrikeTurn({ ignoreDefense: true, verb });
+            }
+        }
+        return this.enemyStrikeTurn({});
+    }
+    enemyStrikeTurn({ multiplier = 1, ignoreDefense = false, verb = null } = {}) {
+        const dmg = Math.floor(this.enemy.attack * multiplier * (0.8 + RNG() * 0.4));
+        let rec;
+        if (this.defending && !ignoreDefense) { rec = Math.max(1, Math.floor(dmg * 0.5)); this.player.hp -= rec; }
+        else { rec = this.player.takeDamage(dmg); }
+        this.message = verb ? `${verb} Daño: ${rec}` : `${this.enemy.type} ataca! Daño: ${rec}`;
+        this.messageTimer = 60; this.shake = multiplier > 1 ? 10 : 6;
+        if (window.SFX) SFX.hitPlayer();
+    }
+    bossChargeTurn() {
+        this.bossCharging = true;
+        this.message = `${this.enemy.type} carga una descarga...`;
+        this.messageTimer = 60; this.shake = 3;
+        if (window.SFX) SFX.bossCharge();
+    }
+    bossHealTurn() {
+        const amount = Math.max(1, Math.floor(this.enemy.maxHp * 0.12));
+        this.enemy.hp = Math.min(this.enemy.maxHp, this.enemy.hp + amount);
+        this.message = `${this.enemy.type} se regenera... +${amount} HP`;
+        this.messageTimer = 60; this.shake = 0;
+        if (window.SFX) SFX.bossHeal();
+    }
     draw(ctx) {
-        const shakeX = this.shake ? (Math.random() - 0.5) * this.shake : 0;
+        // window.REDUCE_EFFECTS: ajuste de accesibilidad de Game (game.js) — CombatSystem no tiene
+        // referencia a Game, así que se lee vía global, mismo patrón que window.SFX.
+        const shakeMag = window.REDUCE_EFFECTS ? 0 : this.shake;
+        const shakeX = shakeMag ? (Math.random() - 0.5) * shakeMag : 0;
         ctx.save();
         ctx.translate(shakeX, 0);
         const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
