@@ -541,6 +541,24 @@ describe('Reto Diario (contra js/game.js real)', () => {
         expect(game.player.level).toBe(5); // el jugador real (restaurado) sigue como estaba
     });
 
+    test('la pantalla de "¡RETO SUPERADO!" solo ofrece compartir y volver al menú (no el menú completo)', () => {
+        const { game, window, LEVELS } = loadGame();
+        game.startDailyChallenge();
+        game.player.x = LEVELS[game.dailyLevelIdx].goal;
+        game.update(); // completa el reto y construye la pantalla de resultado
+
+        const screen = window.document.getElementById('startScreen');
+        expect(screen.innerHTML).toContain('data-action="menu"'); // volver al menú
+        expect(screen.innerHTML).toContain('share'); // compartir (botón nativo o fila de enlaces)
+        expect(screen.innerHTML).not.toContain('data-action="play"'); // sin JUGAR/CONTINUAR
+        expect(screen.innerHTML).not.toContain('data-action="daily"'); // sin relanzar el reto desde aquí
+        expect(screen.innerHTML).not.toContain('data-action="times"');
+
+        game.handleMenuAction('menu'); // el botón de volver reconstruye el menú completo
+        expect(screen.innerHTML).toContain('data-action="play"');
+        expect(screen.innerHTML).toContain('data-action="daily"');
+    });
+
     test('un empate exacto con el mejor tiempo de hoy NO cuenta como nuevo récord', () => {
         const { game } = loadGame();
         game.saveDailyRecord('2026-08-24', 5000, 'kes');

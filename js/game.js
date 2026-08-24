@@ -378,6 +378,28 @@ class Game {
                 <button class="menu-btn" data-action="back">◂ VOLVER</button>
             </div>`;
     }
+    // Pantalla de fin del Reto Diario: a diferencia del menú completo (buildMenuScreen), aquí
+    // solo caben dos acciones — compartir el tiempo y volver al menú — para que el resultado sea
+    // el protagonista y no haya media docena de botones compitiendo con él.
+    buildDailyResultScreen({ title, subtitle = '', resultHTML = '' }) {
+        // Sin las lunas decorativas a los lados: este título es más largo que "ASTRO LEAP" y
+        // con ellas la cabecera flex se parte en dos líneas.
+        return `
+            <div class="menu-header">
+                <h1>${title}</h1>
+            </div>
+            ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
+            ${resultHTML}
+            <div class="menu-panel">
+                <button class="menu-btn" data-action="menu">◂ VOLVER AL MENÚ</button>
+            </div>`;
+    }
+    // Reconstruye el menú principal completo (título por defecto). Lo usa el "VOLVER AL MENÚ"
+    // de la pantalla de resultado del Reto Diario.
+    showMainMenu() {
+        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: '4 zonas · 12 sectores · duelos de energía' });
+        openMenuOverlay();
+    }
     showMenuPanel(id) {
         ['menuMain', 'menuTimes', 'menuHelp'].forEach(pid => {
             const el = document.getElementById(pid);
@@ -394,6 +416,7 @@ class Game {
         else if (action === 'times') this.showMenuPanel('menuTimes');
         else if (action === 'help') this.showMenuPanel('menuHelp');
         else if (action === 'back') this.showMenuPanel('menuMain');
+        else if (action === 'menu') this.showMainMenu();
         else if (action === 'share') this.shareRun(btn.dataset.shareText);
     }
     // Botón nativo de compartir (X, Facebook, WhatsApp, Instagram... lo que tenga instalado el
@@ -1198,7 +1221,7 @@ class Game {
                     ].join('\n');
                     const bestToday = this.dailyRecord.time; // ya actualizado por saveDailyRecord()
                     this.restoreAfterDaily();
-                    startScreen.innerHTML = this.buildMenuScreen({
+                    startScreen.innerHTML = this.buildDailyResultScreen({
                         title: '¡RETO SUPERADO!',
                         subtitle: `Reto del ${this.dailyDate} — ${levelName} · dificultad ${diffLabel} — piloto: ${heroName}`,
                         resultHTML: `
