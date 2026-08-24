@@ -10,15 +10,22 @@
     <title>ASTRO LEAP — Plataformas + Duelos por turnos</title>
     <meta name="description" content="Salta entre restos flotantes, gestiona tu energía entre el doble salto y el combate, escapa de un núcleo que colapsa, y derrota a los guardianes de dos lunas alienígenas y una estación abandonada. Un híbrido de plataformas y JRPG por turnos, jugable en móvil y escritorio.">
 
+    <!-- URLs ABSOLUTAS a propósito: los scrapers de Open Graph (X, WhatsApp, Facebook...) leen
+         el HTML crudo sin ejecutar JS ni resolver rutas relativas, así que og:image/og:url no
+         pueden ser relativas ni calcularse en runtime. Si el juego cambia de dominio, este bloque
+         es el ÚNICO sitio a tocar — los botones de compartir del juego usan location.href y se
+         adaptan solos (ver Game.buildShareHTML en js/game.js). -->
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://astroleap.enri.me/">
     <meta property="og:title" content="ASTRO LEAP — Plataformas + Duelos por turnos">
     <meta property="og:description" content="Salta entre restos flotantes y decide: ¿usas tu energía para un doble salto arriesgado, o la guardas para el próximo duelo? 12 sectores, incluido uno de scroll forzado donde el núcleo te persigue.">
-    <meta property="og:image" content="og-image.png">
+    <meta property="og:image" content="https://astroleap.enri.me/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="ASTRO LEAP — Plataformas + Duelos por turnos">
     <meta name="twitter:description" content="Un híbrido de plataformas y combate por turnos ambientado en dos lunas alienígenas y una estación que se autodestruye.">
-    <meta name="twitter:image" content="og-image.png">
+    <meta name="twitter:image" content="https://astroleap.enri.me/og-image.png">
 
+    <link rel="canonical" href="https://astroleap.enri.me/">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%80%3C/text%3E%3C/svg%3E">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
