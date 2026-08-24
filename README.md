@@ -29,7 +29,7 @@ Dos botones (🎵/🔊) en la esquina superior izquierda silencian música y efe
 
 ## La mecánica nueva
 
-La Energía es un recurso **compartido** entre el doble salto en plataformas y la Habilidad en combate. No se regenera con el tiempo — solo derrotando enemigos o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo. Ver `DESIGN.md` §2.2 para el detalle.
+La Energía es un recurso **compartido** entre el doble salto en plataformas y la Habilidad en combate. No se regenera con el tiempo — solo derrotando enemigos (+2 por derrota) o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo. Ver `DESIGN.md` §2.2 para el detalle.
 
 ## Vidas
 
@@ -51,6 +51,11 @@ No hace falta jugar desde el principio ni tocar la consola:
   Ej: `http://localhost:8000/?level=8` te deja directamente en el Túnel de Escape.
 - `?unlock=all` — desbloquea todos los nodos del mapa estelar para poder elegir cualquiera a mano
   con las flechas y `ESPACIO`, en vez de tener que completarlos en orden.
+- `?dailyDate=YYYY-MM-DD` — simula "hoy" para el Reto Diario (nivel, piloto, dificultad, semilla
+  del combate y el registro de "ya jugaste hoy") sin esperar días de verdad ni tocar el reloj del
+  sistema. Ej: `?dailyDate=2026-08-25` un día, luego `?dailyDate=2026-08-26` otro — deberías ver
+  un piloto/nivel/dificultad distintos y que el "RETO DIARIO ✓" del primer día no aparece en el
+  segundo.
 - Combinables: `?level=8&unlock=all`.
 - Ya dentro de un nivel, la tecla `R` lo reinicia al instante (posición, vida y energía), para iterar rápido sin salir al mapa.
 
@@ -80,4 +85,4 @@ El progreso (nivel del jugador, stats, sectores desbloqueados/completados) se gu
 
 ## Reto Diario
 
-Botón propio en el menú principal (`RETO DIARIO`), separado de la partida normal — no toca ni lee tu progreso guardado. Mismo nivel (el 1) y mismo piloto para todo el mundo cada día (rota según la fecha), con el combate sembrado para que el resultado sea igual de justo para todos — así comparar tiempos con otra gente significa algo. Se puede reintentar tantas veces como quieras; se guarda tu mejor tiempo de hoy y hay botón de compartir al terminar. Ver `DESIGN.md` §2.16 para el detalle de implementación (por qué es seguro forzar cualquier piloto, y cómo se garantiza que nunca toca la partida real).
+Botón propio en el menú principal (`RETO DIARIO`), separado de la partida normal — no toca ni lee tu progreso guardado. Mismo nivel, mismo piloto y misma dificultad para todo el mundo cada día (los tres rotan según la fecha, entre los sectores 1-2, los 4 pilotos y 4 tiers de dificultad que escalan HP/ataque de los enemigos), con el combate sembrado para que el resultado sea igual de justo para todos — así comparar tiempos con otra gente significa algo. Se puede reintentar tantas veces como quieras; se guarda tu mejor tiempo de hoy y hay botón de compartir al terminar. Ver `DESIGN.md` §2.16 para el detalle de implementación (por qué es seguro forzar cualquier piloto/nivel/dificultad, y cómo se garantiza que nunca toca la partida real).

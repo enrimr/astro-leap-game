@@ -84,6 +84,22 @@ body {
 #startScreen .daily-btn:active { background: var(--accent3); color: var(--bg1); }
 #startScreen .daily-note { font-size: clamp(10px, 2.2vw, 12px); color: var(--dim); opacity: 0.8; text-align: center; margin: -2px 0 2px; font-style: italic; }
 
+/* ---- Opciones secundarias (Mejores tiempos / Ayuda): enlaces discretos en una fila, no
+   botones de tarjeta — no compiten con JUGAR / RETO DIARIO. Van DESPUÉS de las reglas base de
+   .menu-btn a propósito: anulan el borde/brillo/animación heredados (incluido el pulso de
+   :first-child, que si no se colaría en el primero de la fila). ---- */
+#startScreen .menu-quiet-row { display: flex; justify-content: center; gap: 20px; margin-top: 2px; }
+#startScreen .menu-btn.quiet {
+    background: none; border: none; box-shadow: none; animation: none;
+    color: var(--dim); font-size: clamp(11px, 2.4vw, 13px); letter-spacing: 1px;
+    padding: 4px 6px;
+    text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(168,158,224,0.4);
+}
+#startScreen .menu-btn.quiet:hover, #startScreen .menu-btn.quiet:focus-visible {
+    border: none; box-shadow: none; color: var(--accent); text-decoration-color: currentColor;
+}
+#startScreen .menu-btn.quiet:active { transform: scale(0.97); background: none; color: var(--accent); }
+
 /* ---- Resumen de partida (Game Over / Victoria): compartir en X, Facebook, WhatsApp... ---- */
 #startScreen .share-btn { border-color: var(--accent2); margin-top: 4px; }
 #startScreen .share-btn:hover, #startScreen .share-btn:focus-visible { border-color: var(--accent2); box-shadow: 0 0 14px rgba(255,94,203,0.5); }

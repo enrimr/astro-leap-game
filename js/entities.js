@@ -131,6 +131,10 @@ class ParticleSystem {
 }
 
 const MAX_LIVES = 3;
+// Energía recuperada por cada enemigo derrotado (pisotón o duelo ganado) — la otra mitad de la
+// regla de DESIGN.md §2.2: la Energía "se regenera solo al derrotar enemigos o al inicio de cada
+// nivel". Menos que el coste de la Habilidad (3), para que gastarla siga siendo una decisión.
+const ENERGY_PER_KILL = 2;
 
 class Player {
     constructor(x, y, character = 'kes') {

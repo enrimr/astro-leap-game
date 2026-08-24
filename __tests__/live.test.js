@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, HEROES, HERO_ORDER, WorldMap, game, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, mulberry32, hashStringToSeed };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, HEROES, HERO_ORDER, WorldMap, game, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -451,21 +451,47 @@ describe('Reto Diario (contra js/game.js real)', () => {
         expect(HERO_ORDER).toContain(h1);
     });
 
-    test('startDailyChallenge() carga el nivel 1 con el piloto de hoy, sin tocar el guardado real', () => {
-        const { game, window, todayDateString, dailyHeroFor } = loadGame();
+    test('la misma fecha da siempre el mismo nivel y la misma dificultad del día', () => {
+        const { dailyLevelFor, dailyDifficultyFor, LEVELS } = loadGame();
+        expect(dailyLevelFor('2026-08-24')).toBe(dailyLevelFor('2026-08-24'));
+        expect(dailyDifficultyFor('2026-08-24').label).toBe(dailyDifficultyFor('2026-08-24').label);
+        // El nivel de hoy siempre debe existir y no tener jefe — el Reto Diario arranca un
+        // jugador desde cero, un jefe pensado para alguien ya subido de nivel no sería justo.
+        const idx = dailyLevelFor('2026-08-24');
+        expect(LEVELS[idx]).toBeDefined();
+        expect(LEVELS[idx].boss).toBeUndefined();
+    });
+
+    test('startDailyChallenge() carga el nivel/piloto/dificultad de hoy, sin tocar el guardado real', () => {
+        const { game, window, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor } = loadGame();
         // Progreso real "de mentira", para comprobar después que el reto no lo ha tocado.
         game.player.level = 5; game.player.attack = 99;
         game.unlockedCharacters = new Set(['kes', 'bolt']);
         game.saveProgress();
         const savedBefore = window.localStorage.getItem('astroLeapSave_v1');
+        const today = todayDateString();
 
         game.startDailyChallenge();
 
         expect(game.dailyMode).toBe(true);
-        expect(game.currentLevel).toBe(0);
+        expect(game.currentLevel).toBe(dailyLevelFor(today));
+        expect(game.dailyDifficulty.label).toBe(dailyDifficultyFor(today).label);
         expect(game.player.level).toBe(1); // jugador NUEVO del reto, no el de nivel 5
-        expect(game.player.character).toBe(dailyHeroFor(todayDateString()));
+        expect(game.player.character).toBe(dailyHeroFor(today));
         expect(window.localStorage.getItem('astroLeapSave_v1')).toBe(savedBefore); // intacto
+    });
+
+    test('la dificultad de hoy escala HP y ataque de los enemigos del nivel (Defensa intacta)', () => {
+        const { game, Enemy } = loadGame();
+        game.startDailyChallenge();
+        const mult = game.dailyDifficulty.mult;
+        game.enemies.forEach(enemy => {
+            expect(enemy.hp).toBe(enemy.maxHp); // recién cargado, a tope de vida
+            const unscaled = new Enemy(0, 0, enemy.type); // mismas ENEMY_STATS, sin dificultad aplicada
+            expect(enemy.maxHp).toBe(Math.max(1, Math.round(unscaled.maxHp * mult)));
+            expect(enemy.attack).toBe(Math.max(1, Math.round(unscaled.attack * mult)));
+            expect(enemy.defense).toBe(unscaled.defense); // Defensa NO se toca
+        });
     });
 
     test('abandonar el reto a medias (ESC / botón salir) restaura exactamente el jugador y el mapa reales', () => {
@@ -491,7 +517,7 @@ describe('Reto Diario (contra js/game.js real)', () => {
         const savedBefore = window.localStorage.getItem('astroLeapSave_v1');
 
         game.startDailyChallenge();
-        game.player.x = LEVELS[0].goal; // nivel 1 no tiene jefe, se completa solo con llegar
+        game.player.x = LEVELS[game.dailyLevelIdx].goal; // ningún nivel del pool tiene jefe, se completa solo con llegar
         game.update();
 
         expect(game.dailyMode).toBe(false); // ya volvió al menú
@@ -515,6 +541,13 @@ describe('Reto Diario (contra js/game.js real)', () => {
         expect(game.player.level).toBe(5); // el jugador real (restaurado) sigue como estaba
     });
 
+    test('un empate exacto con el mejor tiempo de hoy NO cuenta como nuevo récord', () => {
+        const { game } = loadGame();
+        game.saveDailyRecord('2026-08-24', 5000, 'kes');
+        expect(game.saveDailyRecord('2026-08-24', 5000, 'kes')).toBe(false); // igualar no es superar
+        expect(game.dailyRecord.time).toBe(5000);
+    });
+
     test('saveDailyRecord se queda con el MEJOR tiempo del día, no con el último intento', () => {
         const { game } = loadGame();
         const isRecord1 = game.saveDailyRecord('2026-08-24', 5000, 'kes');
@@ -528,5 +561,84 @@ describe('Reto Diario (contra js/game.js real)', () => {
         const isRecord3 = game.saveDailyRecord('2026-08-25', 9000, 'kes'); // día NUEVO
         expect(isRecord3).toBe(true); // un día nuevo siempre "es récord" (no hay con qué comparar)
         expect(game.dailyRecord.time).toBe(9000);
+    });
+});
+
+describe('Regresiones: pisotón, Energía por derrota y anti-farmeo de XP (contra js/game.js real)', () => {
+    // Deja al jugador cayendo justo sobre la mitad superior del primer enemigo del nivel 1
+    // (drone Lv1), con nivel de sobra para que el contacto del próximo update() sea un PISOTÓN
+    // (derrota instantánea) y no un combate. xpToNextLevel altísimo para que la XP ganada no
+    // suba de nivel (subir rellenaría HP/Energía y contaminaría lo que se quiere medir).
+    function setupStomp() {
+        const { game } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(0);
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        const enemy = game.enemies[0];
+        game.player.level = enemy.level + 1;
+        game.player.xpToNextLevel = 9999;
+        game.player.x = enemy.x; game.player.y = enemy.y - 12; game.player.vy = 0.5;
+        game.player.onGround = false; game.playerInvulnerable = 0;
+        return { game, enemy };
+    }
+
+    test('regresión: un pisotón SIN subida de nivel no muestra el cartel "¡SUBISTE DE NIVEL!"', () => {
+        const { game, enemy } = setupStomp();
+        game.update();
+        expect(enemy.defeated).toBe(true); // el pisotón sí ocurrió (si no, el test no mide nada)
+        expect(game.levelUpMessage).toBe(0); // pero sin subir de nivel no hay cartel
+    });
+
+    test('derrotar de un pisotón regenera Energía (+2, DESIGN §2.2)', () => {
+        const { game, enemy } = setupStomp();
+        game.player.energy = 5;
+        game.update();
+        expect(enemy.defeated).toBe(true);
+        expect(game.player.energy).toBe(7);
+    });
+
+    test('la Energía regenerada por derrota no pasa del máximo', () => {
+        const { game, enemy } = setupStomp();
+        game.player.energy = game.player.maxEnergy;
+        game.update();
+        expect(enemy.defeated).toBe(true);
+        expect(game.player.energy).toBe(game.player.maxEnergy);
+    });
+
+    test('ganar un DUELO también regenera Energía (+2) y apunta al enemigo como derrotado', () => {
+        const { game, CombatSystem } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(0);
+        game.inWorldMap = false; game.inLevel = true; game.levelCompleting = false;
+        const enemy = game.enemies[0];
+        game.player.xpToNextLevel = 9999;
+        game.player.energy = 5;
+        game.combat = new CombatSystem(game.player, enemy);
+        game.combat.result = 'win'; game.combat.active = false; // el duelo acaba de ganarse
+        game.update(); // procesa el resultado del combate
+        expect(game.player.energy).toBe(7);
+        expect(game.collectedPickups.has(enemy.xpKey)).toBe(true);
+    });
+
+    test('anti-farmeo: un enemigo ya derrotado reaparece al recargar el nivel, pero con la mitad de XP', () => {
+        const { game, enemy } = setupStomp();
+        const fullXP = enemy.xpReward;
+        game.update(); // pisotón: derrota al primer enemigo y lo apunta en collectedPickups
+        expect(enemy.defeated).toBe(true);
+        game.loadLevel(0); // salir y reentrar al nivel: todos los enemigos reaparecen...
+        expect(game.enemies[0].alive).toBe(true);
+        expect(game.enemies[0].xpReward).toBe(Math.floor(fullXP / 2)); // ...el derrotado, a media XP
+        expect(game.enemies[1].xpReward).toBe(fullXP); // los NO derrotados (mismo tipo) siguen a XP completa
+    });
+
+    test('recargar o salir del nivel cancela la transición pendiente de "sector completado"', () => {
+        const { game, window } = loadGame();
+        game.loadLevel(0);
+        game.levelCompleteTimeout = window.setTimeout(() => {}, 5000);
+        game.loadLevel(0); // equivale a pulsar R durante la celebración
+        expect(game.levelCompleteTimeout).toBeNull();
+        game.levelCompleteTimeout = window.setTimeout(() => {}, 5000);
+        game.exitLevel(); // equivale a ESC / botón ✕
+        expect(game.levelCompleteTimeout).toBeNull();
     });
 });

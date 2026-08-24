@@ -125,11 +125,39 @@ function todayDateString() {
 }
 // El piloto de hoy: determinista a partir de la fecha, rota entre los 4. Todos comparten las
 // mismas stats de combate (solo cambian traversal + nombre de Habilidad), así que forzar
-// cualquiera de los 4 en el nivel 1 es igual de justo para cualquier visitante, tenga o no
-// progreso guardado.
+// cualquiera de los 4 es igual de justo para cualquier visitante, tenga o no progreso guardado.
 function dailyHeroFor(dateStr) {
     const seed = hashStringToSeed(dateStr + ':hero');
     return HERO_ORDER[Math.abs(seed) % HERO_ORDER.length];
+}
+// El nivel de hoy: determinista, rota SOLO entre los del Mundo 1 sin jefe (Cráter de Amerizaje,
+// Grietas de Hielo) — es la única zona diseñada para completarse con un personaje recién creado,
+// sin ningún nivel/stat previo (el Reto Diario siempre arranca un jugador desde cero, nunca usa
+// el progreso guardado real). Los niveles con jefe se quedan fuera a propósito: un jefe pensado
+// para alguien que ya subió de nivel en 2 sectores previos aplastaría a un nivel 1 recién salido
+// de fábrica — añadirlos a la rotación es la mejora obvia siguiente, pero necesita antes escalar
+// las stats iniciales del jugador según el nivel, no solo elegir el mapa.
+const DAILY_LEVEL_POOL = [0, 1];
+function dailyLevelFor(dateStr) {
+    const seed = hashStringToSeed(dateStr + ':level');
+    return DAILY_LEVEL_POOL[Math.abs(seed) % DAILY_LEVEL_POOL.length];
+}
+// La dificultad de hoy: multiplicador determinista sobre HP/ataque de los enemigos del nivel
+// (incluida la Reina Larva si algún día entra en DAILY_LEVEL_POOL) — para que rejugar el MISMO
+// nivel en días distintos no se sienta idéntico, y para que "hoy toca un día duro" sea parte del
+// gancho de volver mañana. La Defensa no se toca: solo cambia cuánto aguantan y cuánto pegan, no
+// la fórmula de daño en sí.
+// emoji: la versión de un vistazo de la dificultad en el texto de compartir (tipo Wordle:
+// quien lo recibe entiende el tier sin conocer las etiquetas del juego).
+const DAILY_DIFFICULTIES = [
+    { label: 'Suave', mult: 0.85, emoji: '🟢' },
+    { label: 'Normal', mult: 1.0, emoji: '🟡' },
+    { label: 'Intensa', mult: 1.15, emoji: '🟠' },
+    { label: 'Brutal', mult: 1.3, emoji: '🔴' }
+];
+function dailyDifficultyFor(dateStr) {
+    const seed = hashStringToSeed(dateStr + ':difficulty');
+    return DAILY_DIFFICULTIES[Math.abs(seed) % DAILY_DIFFICULTIES.length];
 }
 
 // Texto centrado partido en líneas para que quepa en un ancho máximo (px). Usado por la
@@ -166,7 +194,7 @@ class Game {
         this.charSelectOpen = false; this.charSelectIndex = 0; // hangar de selección de personaje (pausa el juego)
         this.collectedPickups = new Set(); // "life-N" / "energy-N" / "reinforced-N-N" por nivel, para no poder re-recoger/re-romper saliendo y entrando
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
-        this.levelCompleting = false; this.playerInvulnerable = 0;
+        this.levelCompleting = false; this.levelCompleteTimeout = null; this.playerInvulnerable = 0;
         this.autoScrollX = 0; this.forcedScrollDelay = 0;
         this.particles = new ParticleSystem();
         this.shake = 0;
@@ -226,7 +254,8 @@ class Game {
         const prev = this.dailyRecord;
         const isSameDay = prev && prev.date === dateStr;
         const best = isSameDay ? Math.min(prev.time, ms) : ms;
-        const isRecord = !isSameDay || ms <= prev.time;
+        // Estrictamente mejor: un empate exacto NO es "nuevo mejor tiempo", solo lo iguala.
+        const isRecord = !isSameDay || ms < prev.time;
         this.dailyRecord = { date: dateStr, time: best, hero };
         try { localStorage.setItem(DAILY_KEY, JSON.stringify(this.dailyRecord)); } catch (e) { /* sin almacenamiento: no pasa nada, solo no se guarda */ }
         return isRecord;
@@ -304,9 +333,13 @@ class Game {
         const timesHTML = this.renderBestTimesHTML() || '<p class="best-times-empty">Todavía no has completado ninguna partida.</p>';
         const today = todayDateString();
         const playedToday = this.dailyRecord && this.dailyRecord.date === today;
+        // Nivel/dificultad/piloto de hoy visibles ANTES de entrar — mismo cálculo que usará
+        // startDailyChallenge(), así que lo que se anuncia aquí es justo lo que te vas a encontrar.
+        const todayLevelName = LEVELS[dailyLevelFor(today)].name;
+        const todayDifficulty = dailyDifficultyFor(today).label;
         const dailyNote = playedToday
-            ? `Hoy: ${formatTime(this.dailyRecord.time)} con ${HEROES[this.dailyRecord.hero].name}`
-            : 'Nivel 1, piloto sorpresa — mismo reto para todos hoy';
+            ? `Hoy: ${formatTime(this.dailyRecord.time)} con ${HEROES[this.dailyRecord.hero].name} (${todayLevelName})`
+            : `Hoy: ${todayLevelName} · dificultad ${todayDifficulty} · piloto sorpresa`;
         return `
             <div class="menu-header">
                 <div class="menu-header-art">${MENU_HEADER_ART_SVG}</div>
@@ -320,8 +353,13 @@ class Game {
                 ${hasSave ? '<button class="menu-btn" data-action="newgame">NUEVA PARTIDA</button>' : ''}
                 <button class="menu-btn daily-btn" data-action="daily">RETO DIARIO${playedToday ? ' ✓' : ''}</button>
                 <p class="daily-note">${dailyNote}</p>
-                <button class="menu-btn" data-action="times">MEJORES TIEMPOS</button>
-                <button class="menu-btn" data-action="help">AYUDA</button>
+                <!-- Opciones secundarias como enlaces discretos (clase .quiet), no como botones
+                     de tarjeta — no deben competir visualmente con JUGAR / RETO DIARIO. Siguen
+                     siendo .menu-btn para heredar la navegación con flechas y el click delegado. -->
+                <div class="menu-quiet-row">
+                    <button class="menu-btn quiet" data-action="times">Mejores tiempos</button>
+                    <button class="menu-btn quiet" data-action="help">Ayuda</button>
+                </div>
             </div>
             <div class="menu-panel" id="menuTimes" hidden>
                 ${timesHTML}
@@ -391,11 +429,12 @@ class Game {
         this.startGame();
     }
 
-    // ---- Reto Diario: nivel 1 fijo, piloto y física de combate sembrados por la fecha (ver
-    // dailyHeroFor()/RNG en entities.js) — misma partida para todo el mundo ese día, así que los
-    // tiempos se pueden comparar de verdad. Corre en instancias de player/worldMap APARTE de las
-    // reales (guardadas en this._real*), para que nada de esto pueda tocar la partida guardada
-    // — ni al ganar, ni al morir, ni si el jugador sale a media partida.
+    // ---- Reto Diario: nivel, piloto, dificultad y física de combate, todo sembrado por la fecha
+    // (ver dailyLevelFor()/dailyHeroFor()/dailyDifficultyFor()/RNG en entities.js) — misma
+    // partida para todo el mundo ese día, así que los tiempos se pueden comparar de verdad. Corre
+    // en instancias de player/worldMap APARTE de las reales (guardadas en this._real*), para que
+    // nada de esto pueda tocar la partida guardada — ni al ganar, ni al morir, ni si el jugador
+    // sale a media partida.
     startDailyChallenge() {
         if (this.gameStarted) return;
         this._realPlayer = this.player;
@@ -405,8 +444,11 @@ class Game {
 
         const dateStr = todayDateString();
         const hero = dailyHeroFor(dateStr);
+        const levelIdx = dailyLevelFor(dateStr);
+        const difficulty = dailyDifficultyFor(dateStr);
         RNG = mulberry32(hashStringToSeed(dateStr));
         this.dailyMode = true; this.dailyDate = dateStr; this.dailyHero = hero;
+        this.dailyLevelIdx = levelIdx; this.dailyDifficulty = difficulty;
 
         this.player = new Player(20, 100, hero);
         this.unlockedCharacters = new Set([hero]);
@@ -417,7 +459,14 @@ class Game {
         this.gameStarted = true;
         this.runStartTime = performance.now(); this.runElapsed = 0;
         closeMenuOverlay();
-        this.loadLevel(0);
+        this.loadLevel(levelIdx);
+        // Dificultad de hoy: sube o baja HP/ataque de cada enemigo del nivel (Defensa intacta).
+        // Se aplica DESPUÉS de loadLevel() para no tocar ENEMY_STATS ni afectar a la partida normal.
+        this.enemies.forEach(e => {
+            e.maxHp = Math.max(1, Math.round(e.maxHp * difficulty.mult));
+            e.hp = e.maxHp;
+            e.attack = Math.max(1, Math.round(e.attack * difficulty.mult));
+        });
         this.inWorldMap = false; this.inLevel = true;
         requestMobileFullscreen();
     }
@@ -516,7 +565,14 @@ class Game {
         requestMobileFullscreen();
     }
 
+    // Cancela la transición pendiente de "sector completado" (si la hay) — recargar el nivel o
+    // salir de él durante la celebración debe descartarla, no dejar que dispare a destiempo.
+    cancelLevelCompleteTransition() {
+        if (this.levelCompleteTimeout) { clearTimeout(this.levelCompleteTimeout); this.levelCompleteTimeout = null; }
+    }
+
     loadLevel(lvl) {
+        this.cancelLevelCompleteTransition();
         this.currentLevel = lvl;
         const level = LEVELS[lvl];
         this.platforms = level.platforms.map(p => new Platform(...p, level.variant));
@@ -527,9 +583,15 @@ class Game {
             this.platforms.push(block);
         });
         const levelCompleted = this.worldMap.nodes[lvl].completed;
-        this.enemies = level.enemies.map(e => {
+        this.enemies = level.enemies.map((e, i) => {
             const enemy = new Enemy(...e);
-            if (levelCompleted) enemy.xpReward = Math.floor(enemy.xpReward / 2);
+            // Anti-farmeo de XP, misma regla que rejugar un nivel completado: un enemigo ya
+            // derrotado esta sesión (clave "xp-N-i" en collectedPickups) reaparece al recargar el
+            // nivel —saliendo con ESC, o al morir— pero da la mitad de XP. Sin esto, entrar y
+            // salir de un nivel a medias regeneraba a todos los enemigos con XP completa,
+            // farmeable infinito (y exitLevel() encima rellena HP/Energía gratis).
+            enemy.xpKey = `xp-${lvl}-${i}`;
+            if (levelCompleted || this.collectedPickups.has(enemy.xpKey)) enemy.xpReward = Math.floor(enemy.xpReward / 2);
             return enemy;
         });
         this.goalFlag = new GoalFlag(level.goal, 128);
@@ -722,7 +784,9 @@ class Game {
     }
 
     exitLevel() {
+        this.cancelLevelCompleteTransition();
         if (this.dailyMode) { this.abandonDailyChallenge(); return; }
+        this.levelCompleting = false;
         this.inLevel = false; this.inWorldMap = true;
         this.player.hp = this.player.maxHp; this.player.energy = this.player.maxEnergy;
     }
@@ -753,7 +817,8 @@ class Game {
         // Captura el nivel/tiempo ANTES de resetear currentLevel (lo hace loadLevel(0) más abajo).
         const levelReached = LEVELS[this.currentLevel];
         const elapsed = performance.now() - this.runStartTime;
-        const shareText = `Llegué hasta el sector ${this.currentLevel + 1}/${LEVELS.length} ("${levelReached.name}") de Astro Leap en ${formatTime(elapsed)}. 🚀`;
+        const pilotName = HEROES[this.player.character].name; // antes del reset del jugador, unas líneas más abajo
+        const shareText = `☠️ Caí en el sector ${this.currentLevel + 1}/${LEVELS.length} (${levelReached.name}) de ASTRO LEAP, pilotando a ${pilotName} — ${formatTime(elapsed)} de misión. ¿Llegas más lejos? 🚀`;
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
@@ -989,6 +1054,8 @@ class Game {
             if (!this.combat.active) {
                 if (this.combat.result === 'win') {
                     const leveled = this.player.gainXP(this.combat.enemy.xpReward);
+                    this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + ENERGY_PER_KILL);
+                    if (this.combat.enemy.xpKey) this.collectedPickups.add(this.combat.enemy.xpKey);
                     this.levelUpMessage = leveled ? 100 : 0;
                     if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
@@ -1043,8 +1110,12 @@ class Game {
                 if (this.player.collides(enemy) && this.playerInvulnerable === 0) {
                     if (this.player.collidesFromAbove(enemy) && enemy.level < this.player.level) {
                         enemy.alive = false; enemy.defeated = true;
-                        this.player.gainXP(enemy.xpReward);
-                        this.player.vy = -3; this.levelUpMessage = 80;
+                        const leveled = this.player.gainXP(enemy.xpReward);
+                        this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + ENERGY_PER_KILL);
+                        if (enemy.xpKey) this.collectedPickups.add(enemy.xpKey);
+                        // El cartel de subida de nivel solo si de verdad subiste — antes se
+                        // mostraba en CADA pisotón, hubiera nivel o no.
+                        this.player.vy = -3; this.levelUpMessage = leveled ? 80 : 0;
                         if (window.SFX) SFX.stomp();
                         this.particles.burst(enemy.x + enemy.w / 2, enemy.y, enemy.color, 10, { speed: 1.8, life: 20, size: 2.5 });
                     } else {
@@ -1114,12 +1185,22 @@ class Game {
                     const isRecord = this.saveDailyRecord(this.dailyDate, finalTime, this.dailyHero);
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
                     const heroName = HEROES[this.dailyHero].name;
-                    const shareText = `Reto diario de Astro Leap (${this.dailyDate}) con ${heroName}: ${formatTime(finalTime)} — ¿lo superas? 🚀`;
+                    const levelName = LEVELS[this.dailyLevelIdx].name;
+                    const diffLabel = this.dailyDifficulty.label;
+                    // Formato compacto en 3 líneas, estilo Wordle: cabecera con la fecha, el
+                    // desafío de hoy de un vistazo, y el tiempo con el reto al receptor. Los
+                    // saltos de línea sobreviven tanto a navigator.share como a los enlaces de
+                    // respaldo de buildShareHTML (encodeURIComponent los convierte en %0A).
+                    const shareText = [
+                        `🛰️ ASTRO LEAP — Reto Diario ${this.dailyDate}`,
+                        `📍 ${levelName} · ${this.dailyDifficulty.emoji} ${diffLabel} · 🧑‍🚀 ${heroName}`,
+                        `⏱️ ${formatTime(finalTime)} — ¿lo superas?`
+                    ].join('\n');
                     const bestToday = this.dailyRecord.time; // ya actualizado por saveDailyRecord()
                     this.restoreAfterDaily();
                     startScreen.innerHTML = this.buildMenuScreen({
                         title: '¡RETO SUPERADO!',
-                        subtitle: `Reto del ${this.dailyDate} — piloto: ${heroName}`,
+                        subtitle: `Reto del ${this.dailyDate} — ${levelName} · dificultad ${diffLabel} — piloto: ${heroName}`,
                         resultHTML: `
                             <p class="run-time">Tiempo: ${formatTime(finalTime)}</p>
                             <p class="run-time">${isRecord ? '¡Nuevo mejor tiempo de hoy!' : `Tu mejor tiempo de hoy: ${formatTime(bestToday)}`}</p>
@@ -1140,7 +1221,7 @@ class Game {
                     const finalTime = performance.now() - this.runStartTime;
                     const isRecord = this.saveBestTime(finalTime);
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
-                    const shareText = `¡He completado Astro Leap (${LEVELS.length}/${LEVELS.length} sectores) en ${formatTime(finalTime)}! 🚀${isRecord ? ' Nuevo récord personal.' : ''}`;
+                    const shareText = `🏆 ASTRO LEAP completado: ${LEVELS.length}/${LEVELS.length} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal! ⏱️' : ''}. ¿Me bajas el tiempo? 🚀`;
                     this.unlockedCharacters = new Set(['kes']);
                     this.player = new Player(20, 100, 'kes');
                     this.worldMap = new WorldMap();
@@ -1157,7 +1238,11 @@ class Game {
                     openMenuOverlay();
                     this.inLevel = false; this.inWorldMap = false;
                 } else {
-                    setTimeout(() => {
+                    // Guardado en this.levelCompleteTimeout para poder cancelarlo si el jugador
+                    // recarga el nivel (R) o sale (ESC) durante los 1.8s de celebración — si no,
+                    // el temporizador pendiente disparaba igual y te sacaba al mapa a destiempo.
+                    this.levelCompleteTimeout = setTimeout(() => {
+                        this.levelCompleteTimeout = null;
                         this.levelCompleting = false; this.inLevel = false; this.inWorldMap = true;
                         this.worldMap.currentNodeIndex = Math.min(this.currentLevel + 1, LEVELS.length - 1);
                         this.player.hp = this.player.maxHp; this.player.energy = this.player.maxEnergy;
@@ -1340,6 +1425,9 @@ if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => wind
 // ?level=N        -> entra directo al nivel N (1-12), con vida/energía llenas, saltándose el mapa.
 // ?unlock=all     -> desbloquea todos los nodos del mapa para poder elegir cualquiera a mano.
 // ?char=bolt|shade|scrap -> pilota ese héroe directamente (se da por desbloqueado).
+// ?dailyDate=YYYY-MM-DD -> simula "hoy" para el Reto Diario (piloto, semilla y el registro
+//   "¿ya jugaste hoy?" dependen de esta fecha en vez de la real) — para probar que rota de piloto
+//   y que el mejor tiempo se resetea de un día a otro sin tener que esperar días de verdad.
 // Combinables: ?level=1&char=scrap&unlock=all para entrar al nivel 1 pilotando a Scrap, por ejemplo.
 (function setupDebugMode() {
     const params = new URLSearchParams(location.search);
@@ -1351,6 +1439,10 @@ if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => wind
     if (debugChar && HEROES[debugChar]) {
         game.unlockedCharacters.add(debugChar);
         game.player.character = debugChar;
+    }
+    const debugDailyDate = params.get('dailyDate');
+    if (debugDailyDate && /^\d{4}-\d{2}-\d{2}$/.test(debugDailyDate)) {
+        todayDateString = () => debugDailyDate;
     }
     const debugLevel = params.get('level');
     if (debugLevel !== null) {
@@ -1369,5 +1461,22 @@ if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => wind
     }
 })();
 
-function gameLoop() { game.update(); game.draw(); requestAnimationFrame(gameLoop); }
-gameLoop();
+// Paso de simulación fijo a 60Hz: requestAnimationFrame dispara a la tasa de refresco del
+// monitor (120/144Hz en muchos equipos), pero update() debe correr un número de pasos
+// proporcional al TIEMPO real transcurrido, no una vez por frame — si no, toda la física
+// (calibrada en unidades/frame a 60fps) va más rápida cuanto mejor es la pantalla, y los
+// tiempos del cronómetro y del Reto Diario dejan de ser comparables entre dispositivos.
+const STEP_MS = 1000 / 60;
+let lastFrameTime = performance.now();
+let stepAccumulator = 0;
+function gameLoop(now) {
+    stepAccumulator += now - lastFrameTime;
+    lastFrameTime = now;
+    // Pestaña en segundo plano o parón largo del navegador: descartar el exceso en vez de
+    // simular cientos de pasos de golpe al volver.
+    if (stepAccumulator > 250) stepAccumulator = 250;
+    while (stepAccumulator >= STEP_MS) { game.update(); stepAccumulator -= STEP_MS; }
+    game.draw();
+    requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
