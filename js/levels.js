@@ -206,13 +206,20 @@ const LEVELS = [
         platforms: [
             [0, 150, 80, 15], [140, 150, 55, 15], [230, 130, 45, 6],
             [320, 150, 55, 15], [410, 115, 45, 6, 'fragile'], [500, 150, 55, 15],
-            [590, 130, 45, 6], [680, 150, 180, 15],
+            // El suelo largo se parte en dos a propósito: el hueco 700-720 lo tapa el refuerzo
+            // (reinforcedBlocks) — si fuera continuo, romperlo no abriría nada y la bóveda de
+            // abajo sería inalcanzable (pasaba de verdad: el suelo seguía ahí debajo).
+            [590, 130, 45, 6], [680, 150, 20, 15], [720, 150, 140, 15],
             // Camino bajo con salto simple (ver Grietas de Hielo, nivel 2) — el mundo que Scrap
             // abre debe poder cruzarse con Scrap, no solo con los otros tres pilotos.
             [105, 150, 20, 6], [220, 150, 20, 6], [303, 140, 20, 6],
             [400, 150, 20, 6], [580, 150, 20, 6], [663, 140, 20, 6],
             // Tramo final añadido al alargar el nivel (huecos ≤25 en llano, salto simple).
-            [885, 150, 55, 15, 'beltL'], [965, 150, 65, 15], [915, 118, 40, 6]
+            [885, 150, 55, 15, 'beltL'], [965, 150, 65, 15], [915, 118, 40, 6],
+            // Suelo de la bóveda bajo el refuerzo [700,150,20,8] — como en Cráter de Amerizaje:
+            // sin él, Scrap rozaba la cápsula en plena caída y moría (premio y castigo se
+            // anulaban), y el agujero quedaba como pozo mortal para cualquier piloto después.
+            [695, 172, 30, 6]
         ],
         // Pasillo de doble puerta desfasada justo tras la bóveda del refuerzo: el set piece del nivel.
         beams: [[720, 110, 40, 0], [800, 110, 40, 75]],
@@ -229,7 +236,8 @@ const LEVELS = [
         platforms: [
             [0, 150, 70, 15], [190, 145, 45, 6], [320, 125, 45, 6],
             [450, 105, 45, 6], [580, 125, 45, 6], [710, 145, 45, 6],
-            [840, 150, 55, 15], [930, 150, 150, 15],
+            // Suelo partido en dos: el hueco 945-965 lo tapa el refuerzo (ver Bóveda Sellada).
+            [840, 150, 55, 15], [930, 150, 15, 15], [965, 150, 115, 15],
             // Camino bajo con salto simple — como Tormenta de Iones (nivel 5), del mismo estilo
             // "doble salto obligatorio" en la ruta alta, necesita varias piedras seguidas.
             [95, 150, 20, 6], [140, 150, 20, 6],
@@ -238,7 +246,9 @@ const LEVELS = [
             [523, 115, 20, 6, 'fragile'], [653, 135, 20, 6],
             [781, 150, 20, 6], [826, 150, 14, 6],
             // Tramo final añadido al alargar el nivel (huecos ≤25, subida suave de 5).
-            [1105, 150, 55, 15], [1185, 145, 45, 6, 'fragile'], [1255, 150, 70, 15]
+            [1105, 150, 55, 15], [1185, 145, 45, 6, 'fragile'], [1255, 150, 70, 15],
+            // Suelo de la bóveda bajo el refuerzo [945,150,20,8] (ver Bóveda Sellada).
+            [940, 172, 30, 6]
         ],
         movingPlatforms: [[368, 95, 36, 6, 16, 0.02], [698, 95, 36, 6, 16, 0.025]],
         beams: [[1040, 110, 40, 0]],

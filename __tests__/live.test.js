@@ -423,6 +423,23 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
         return maxX >= level.goal;
     }
 
+    test('toda bóveda bajo un refuerzo tiene suelo SÓLIDO que recoja al jugador (y salida de un salto)', () => {
+        // Sin suelo, romper el refuerzo mata a Scrap en plena recogida (premio y castigo se
+        // anulan) y deja el agujero como pozo mortal permanente para cualquier piloto. Y debe
+        // ser sólido de verdad (ni frágil ni cinta): Scrap no tiene habilidad aérea con la que
+        // recuperarse si el suelo de la cámara del tesoro desaparece bajo sus pies.
+        const { LEVELS } = loadGame();
+        const missing = [];
+        LEVELS.forEach((lvl, i) => (lvl.reinforcedBlocks || []).forEach(([bx, by, bw]) => {
+            const floor = lvl.platforms.find(p =>
+                p[1] > by && p[1] - by <= 24 // debajo, pero a tiro de un salto simple (~29) para salir
+                && p[0] <= bx && p[0] + p[2] >= bx + bw // cubre el agujero entero: nada se cuela al vacío
+                && !p[4]); // sin variante especial: suelo normal y sólido
+            if (!floor) missing.push(`${lvl.name} (refuerzo en x=${bx})`);
+        }));
+        expect(missing).toEqual([]);
+    });
+
     test('los 12 niveles se pueden completar solo con salto simple — y por tanto con cualquier piloto', () => {
         const { LEVELS, Player } = loadGame();
         const maxReach = makeMaxReach(Player);
