@@ -130,7 +130,7 @@ La zona 4 existe por una razón mecánica, no solo narrativa: el Overlord no es 
 
 Hasta este punto la cámara siempre sigue al jugador — nunca hay prisa. El Túnel de Escape rompe esa regla a propósito, tomando prestado el recurso de *Super Mario World* donde ciertos niveles avanzan solos y el jugador debe mantener el ritmo del mapa en vez de explorarlo a placer:
 
-- Al entrar, una cuenta atrás (`forcedScroll.startDelay`, en frames) da un respiro antes de que empiece el movimiento.
+- Al entrar, una cuenta atrás (`forcedScroll.startDelay`, en frames) da un respiro antes de que empiece el movimiento. **Durante la cuenta atrás la cámara sigue al jugador como en un nivel normal** — se puede salir corriendo desde el primer segundo sin esperar (la primera versión dejaba la cámara clavada en x=0, y avanzar era salirse de la pantalla) — y el muro, al activarse, **arranca desde donde esté la cámara en ese momento**, no desde el inicio del nivel. Mientras dura la cuenta atrás no hay muro: ni empuja, ni daña, ni se dibuja su resplandor.
 - Pasada la cuenta atrás, la cámara avanza sola a velocidad constante (`forcedScroll.speed`), **sin esperar al jugador** e ignorando su posición — es la variable, no el resultado, de la ecuación de cámara.
 - El borde izquierdo de la pantalla es un muro real: si el jugador queda detrás de él, se le empuja hacia delante y recibe daño, con un pequeño margen de invulnerabilidad entre golpes para que no sea una muerte instantánea si te despistas un frame.
 - La velocidad del muro (0.55) es deliberadamente bastante menor que la velocidad de carrera del jugador (1.55): un jugador que no se detenga saca ventaja de sobra y puede permitirse fallar algún salto sin ser alcanzado de inmediato, pero no puede quedarse parado mucho rato.

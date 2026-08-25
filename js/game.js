@@ -1179,17 +1179,27 @@ class Game {
                     if (this.forcedScrollDelay % 60 === 0 && window.SFX) {
                         this.forcedScrollDelay === 0 ? SFX.scrollStart() : SFX.countdownTick();
                     }
-                } else this.autoScrollX = Math.min(this.autoScrollX + level.forcedScroll.speed, maxScroll);
-                this.cameraX = Math.max(0, this.autoScrollX);
-                const leftEdge = this.cameraX + 2;
-                if (this.player.x < leftEdge) {
-                    this.player.x = leftEdge;
-                    if (this.playerInvulnerable === 0) {
-                        this.player.takeDamage(3);
-                        this.playerInvulnerable = 40;
-                        this.shake = Math.max(this.shake, 4);
-                        if (window.SFX) SFX.hitPlayer();
-                        if (this.player.hp <= 0) { this.loseLife(); return; }
+                    // Durante la cuenta atrás la cámara sigue al jugador como en un nivel
+                    // normal: se puede salir corriendo desde el primer segundo, sin esperar
+                    // (antes la cámara se quedaba clavada en x=0 y avanzar era salirse de la
+                    // pantalla). autoScrollX se mantiene sincronizado para que, al terminar,
+                    // el muro arranque desde donde esté la cámara — no desde el inicio del
+                    // nivel. Y mientras dure, ni empuja ni daña: aún no hay muro.
+                    this.cameraX = Math.max(0, Math.min(this.player.x - GAME_WIDTH / 2, maxScroll));
+                    this.autoScrollX = this.cameraX;
+                } else {
+                    this.autoScrollX = Math.min(this.autoScrollX + level.forcedScroll.speed, maxScroll);
+                    this.cameraX = Math.max(0, this.autoScrollX);
+                    const leftEdge = this.cameraX + 2;
+                    if (this.player.x < leftEdge) {
+                        this.player.x = leftEdge;
+                        if (this.playerInvulnerable === 0) {
+                            this.player.takeDamage(3);
+                            this.playerInvulnerable = 40;
+                            this.shake = Math.max(this.shake, 4);
+                            if (window.SFX) SFX.hitPlayer();
+                            if (this.player.hp <= 0) { this.loseLife(); return; }
+                        }
                     }
                 }
             } else {
@@ -1450,11 +1460,15 @@ class Game {
                 // Con reduceEffects, un valor fijo en vez del pulso rojo oscilante junto al borde
                 // izquierdo de la pantalla (la luz que más se acerca a un parpadeo real del juego).
                 const pulse = this.reduceEffects ? 0.8 : (0.6 + Math.sin(Date.now() * 0.012) * 0.4);
-                const wallGrad = ctx.createLinearGradient(0, 0, 18, 0);
-                wallGrad.addColorStop(0, `rgba(255,70,70,${0.9 * pulse})`);
-                wallGrad.addColorStop(1, 'rgba(255,70,70,0)');
-                ctx.fillStyle = wallGrad;
-                ctx.fillRect(0, 20, 18, GAME_HEIGHT - 20);
+                // El resplandor rojo del muro solo cuando el muro existe: durante la cuenta
+                // atrás la cámara sigue al jugador y aún no hay nada persiguiendo.
+                if (this.forcedScrollDelay === 0) {
+                    const wallGrad = ctx.createLinearGradient(0, 0, 18, 0);
+                    wallGrad.addColorStop(0, `rgba(255,70,70,${0.9 * pulse})`);
+                    wallGrad.addColorStop(1, 'rgba(255,70,70,0)');
+                    ctx.fillStyle = wallGrad;
+                    ctx.fillRect(0, 20, 18, GAME_HEIGHT - 20);
+                }
                 if (this.forcedScrollDelay === 0) {
                     ctx.fillStyle = `rgba(255,100,100,${0.7 + pulse * 0.3})`;
                     ctx.font = 'bold 8px "Rajdhani", sans-serif'; ctx.textAlign = 'center';

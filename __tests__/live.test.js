@@ -719,6 +719,43 @@ describe('Peligros: frágiles, móviles, rayos y cintas (contra el código real)
     });
 });
 
+describe('Túnel de Escape — cuenta atrás del scroll forzado (contra js/game.js real)', () => {
+    function inTunnel() {
+        const { game } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(7); // Túnel de Escape
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        game.enemies.forEach(e => { e.x = -500; e.initialX = -500; });
+        return game;
+    }
+
+    test('durante la cuenta atrás la cámara sigue al jugador: se puede avanzar sin esperar', () => {
+        const game = inTunnel();
+        expect(game.forcedScrollDelay).toBeGreaterThan(0);
+        game.player.x = 260; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
+        game.update();
+        expect(game.cameraX).toBeGreaterThan(90); // centrada en el jugador (~100), no clavada en 0
+    });
+
+    test('al terminar la cuenta atrás, el muro arranca desde donde esté la cámara, no desde x=0', () => {
+        const game = inTunnel();
+        game.player.x = 420; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
+        game.forcedScrollDelay = 1;
+        game.update(); // último tick de cuenta atrás: la cámara aún sigue al jugador (~260)
+        game.update(); // primer tick de muro: avanza DESDE ahí
+        expect(game.autoScrollX).toBeGreaterThan(255);
+    });
+
+    test('durante la cuenta atrás el muro no empuja ni daña (todavía no existe)', () => {
+        const game = inTunnel();
+        game.player.x = 0; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
+        const hp0 = game.player.hp;
+        game.update();
+        expect(game.player.hp).toBe(hp0);
+        expect(game.playerInvulnerable).toBe(0);
+    });
+});
+
 describe('Transición de encuentro estilo Pokémon (contra js/game.js real)', () => {
     // Deja al jugador chocando con el primer enemigo del nivel 1 en el próximo update()
     // (contacto lateral, no pisotón: mismo nivel que el enemigo).

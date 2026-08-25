@@ -174,7 +174,7 @@ Mezcla de todo el bestiario y **debut de las puertas de energía**: dos, desfasa
 
 ![Mapa del nivel 8](guia/nivel-08.png)
 
-5 segundos de cuenta atrás y un **muro de energía** avanza desde la izquierda, empujando y dañando (3 de daño por toque, con tregua entre golpes). El muro (0.55) es más lento que tú corriendo (1.55): **no pares** y le sacarás pantalla y media de ventaja — puedes permitirte fallar un salto. Todos los huecos se cruzan con salto simple, pero ahora tres islotes elevados son **frágiles**: con el muro detrás, pararse encima a pensar es mala idea por partida doble. Consejo: ignora a los enemigos (pisotón al vuelo como mucho) — el muro se congela durante los duelos, así que no te matan, pero queman cronómetro si vas a por marca.
+5 segundos de cuenta atrás — que **no te retienen: sal corriendo desde el primer segundo** (la cámara te sigue, y el muro arrancará desde donde estés cuando acabe la cuenta, así que cada metro ganado es ventaja real) — y un **muro de energía** avanza desde la izquierda, empujando y dañando (3 de daño por toque, con tregua entre golpes). El muro (0.55) es más lento que tú corriendo (1.55): **no pares** y le sacarás pantalla y media de ventaja — puedes permitirte fallar un salto. Todos los huecos se cruzan con salto simple, pero ahora tres islotes elevados son **frágiles**: con el muro detrás, pararse encima a pensar es mala idea por partida doble. Consejo: ignora a los enemigos (pisotón al vuelo como mucho) — el muro se congela durante los duelos, así que no te matan, pero queman cronómetro si vas a por marca.
 
 ### Nivel 9 · Núcleo del Reactor (Estación Colapsada) — JEFE
 
