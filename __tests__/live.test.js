@@ -294,7 +294,9 @@ describe('Game — avisos contextuales (hintScreen, contra js/game.js real)', ()
         const enemy = game.enemies.find(e => e.alive);
         game.player.x = enemy.x; game.player.y = enemy.y; game.player.vy = 0.1; game.playerInvulnerable = 0;
         game.update();
-        expect(!!game.combat).toBe(true); // el combate sí debe empezar, solo sin el aviso
+        expect(game.combatTransition).not.toBeNull(); // arranca la transición de encuentro...
+        for (let i = 0; i < 80; i++) game.update(); // ...y al terminar, el combate de verdad
+        expect(!!game.combat).toBe(true);
         expect(game.hintScreen).toBeNull();
     });
 
@@ -579,6 +581,66 @@ describe('Reto Diario (contra js/game.js real)', () => {
         const isRecord3 = game.saveDailyRecord('2026-08-25', 9000, 'kes'); // día NUEVO
         expect(isRecord3).toBe(true); // un día nuevo siempre "es récord" (no hay con qué comparar)
         expect(game.dailyRecord.time).toBe(9000);
+    });
+});
+
+describe('Transición de encuentro estilo Pokémon (contra js/game.js real)', () => {
+    // Deja al jugador chocando con el primer enemigo del nivel 1 en el próximo update()
+    // (contacto lateral, no pisotón: mismo nivel que el enemigo).
+    function collideSetup() {
+        const { game, window } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(0);
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        const enemy = game.enemies.find(e => e.alive);
+        game.player.x = enemy.x; game.player.y = enemy.y; game.player.vy = 0.1; game.playerInvulnerable = 0;
+        return { game, window, enemy };
+    }
+
+    test('chocar con un enemigo congela el juego y arranca la transición, no el combate directo', () => {
+        const { game } = collideSetup();
+        game.update();
+        expect(game.combat).toBeNull();
+        expect(game.combatTransition).not.toBeNull();
+        const px = game.player.x;
+        game.keys.ArrowRight = true;
+        game.update(); // con la transición activa, la física está congelada
+        expect(game.player.x).toBe(px);
+        game.keys.ArrowRight = false;
+    });
+
+    test('al terminar la transición se abre el combate con ESE enemigo', () => {
+        const { game, enemy } = collideSetup();
+        game.update();
+        for (let i = 0; i < 80; i++) game.update();
+        expect(game.combatTransition).toBeNull();
+        expect(game.combat).not.toBeNull();
+        expect(game.combat.enemy).toBe(enemy);
+        expect(game.combat.active).toBe(true);
+    });
+
+    test('ESC no hace nada durante la transición (el combate ya es inevitable)', () => {
+        const { game, window } = collideSetup();
+        game.update();
+        window.document.dispatchEvent(new window.KeyboardEvent('keydown', { code: 'Escape' }));
+        expect(game.inLevel).toBe(true); // no ha salido al mapa
+        expect(game.combatTransition).not.toBeNull(); // ni se ha cancelado la transición
+    });
+
+    test('con reduceEffects la transición es un fundido más corto y también desemboca en combate', () => {
+        const { game } = collideSetup();
+        game.reduceEffects = true;
+        game.update();
+        for (let i = 0; i < 45; i++) game.update();
+        expect(game.combat).not.toBeNull();
+    });
+
+    test('recargar el nivel (perder una vida) descarta cualquier transición pendiente', () => {
+        const { game } = collideSetup();
+        game.update();
+        expect(game.combatTransition).not.toBeNull();
+        game.loadLevel(0);
+        expect(game.combatTransition).toBeNull();
     });
 });
 

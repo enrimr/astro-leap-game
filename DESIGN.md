@@ -279,3 +279,15 @@ Pensado como el gancho de "vuelve mañana" del juego, al estilo Wordle: mismo de
 ### 2.17 Anti-farmeo de XP al reentrar a un nivel
 
 Rejugar un nivel ya *completado* siempre dio media XP (§1.2 B), pero había un agujero: salir de un nivel a medias con ESC y reentrar regeneraba a todos los enemigos con XP completa — farmeable infinito, y encima `exitLevel()` rellena HP/Energía gratis al volver al mapa. Ahora cada enemigo derrotado (pisotón o duelo) se apunta en `Game.collectedPickups` con la clave `xp-<nivel>-<índice>` — el mismo Set, la misma protección y el mismo ciclo de vida (se reinicia en Game Over completo o victoria) que cápsulas, células y refuerzos. Al recargar el nivel (por salir, o por perder una vida) el enemigo reaparece, pero con la mitad de XP: la misma regla "se puede repetir, pero rinde la mitad" que ya regía para los niveles completados, sin prohibir nada.
+
+### 2.18 Transición de encuentro (estilo Pokémon)
+
+Antes, tocar a un enemigo cortaba a la pantalla de duelo en el mismo frame — funcional, pero seco: no había ningún "momento" entre explorar y combatir. Ahora el contacto arranca una transición de encuentro clásica (`Game.startCombatTransition()`/`drawCombatTransition()`):
+
+- **Fase 1 (28 frames)**: dos destellos blancos sobre el nivel, congelado en el instante del choque — `update()` corta en seco mientras `combatTransition` está activo, igual que hacen `unlockScreen`/`hintScreen`.
+- **Fase 2 (30 frames)**: un círculo negro crece desde el punto exacto de contacto con el enemigo hasta cubrir la esquina más lejana de la pantalla, con easing cuadrático (acelera, como el barrido clásico).
+- **Fase 3 (12 frames)**: negro sostenido, y entra el duelo.
+- El sonido de encuentro (normal o de jefe) y la música de combate suenan **con el primer destello**, no al abrirse el duelo — el audio anuncia el combate antes de que se vea, como en el original.
+- **Con `reduceEffects` activo no hay destellos** — un parpadeo a pantalla completa es exactamente lo que ese ajuste de accesibilidad promete evitar — solo un fundido a negro progresivo y más corto (45 frames en vez de 70).
+- Durante la transición no funcionan ESC ni R (el combate ya es inevitable) y los controles táctiles se ocultan como en cualquier otra pausa. `loadLevel()` descarta cualquier transición pendiente, por si una muerte simultánea recarga el nivel.
+- La duración es fija en frames, así que en el Reto Diario suma exactamente lo mismo al tiempo de todo el mundo — no ensucia la comparación.

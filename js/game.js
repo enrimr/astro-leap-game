@@ -188,7 +188,7 @@ class Game {
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null; this.capsules = []; this.energyCells = [];
-        this.combat = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
+        this.combat = null; this.combatTransition = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
         this.charSelectOpen = false; this.charSelectIndex = 0; // hangar de selección de personaje (pausa el juego)
@@ -596,6 +596,7 @@ class Game {
 
     loadLevel(lvl) {
         this.cancelLevelCompleteTransition();
+        this.combatTransition = null;
         this.currentLevel = lvl;
         const level = LEVELS[lvl];
         this.platforms = level.platforms.map(p => new Platform(...p, level.variant));
@@ -806,6 +807,50 @@ class Game {
         ctx.textAlign = 'left';
     }
 
+    // Transición de encuentro estilo Pokémon: dos destellos blancos y un barrido circular a
+    // negro que crece desde el punto de contacto con el enemigo, con el juego congelado detrás;
+    // al completarse (ver el contador en update()) arranca el duelo real. El sonido de encuentro
+    // y la música de combate entran YA, con el primer destello — como en Pokémon, el audio
+    // anuncia el combate antes de que se vea la pantalla de duelo.
+    startCombatTransition(enemy) {
+        this.combatTransition = {
+            t: 0, enemy,
+            x: enemy.x - this.cameraX + enemy.w / 2,
+            y: enemy.y + enemy.h / 2
+        };
+        if (window.SFX) { enemy.isBoss ? SFX.bossEncounter() : SFX.encounter(); SFX.music.playCombat(); }
+    }
+    // Overlay de la transición, dibujado encima del frame congelado del nivel (HUD incluido).
+    // Fase 1 (28f): dos destellos blancos. Fase 2 (30f): círculo negro creciendo desde el punto
+    // de contacto (easing cuadrático: acelera, como el barrido clásico). Fase 3 (12f): negro
+    // sostenido hasta que entra el duelo. Con reduceEffects NO hay destellos — un parpadeo a
+    // pantalla completa es justo lo que ese ajuste de accesibilidad promete evitar — solo un
+    // fundido a negro progresivo, más corto.
+    drawCombatTransition(ctx) {
+        const tr = this.combatTransition;
+        if (!tr) return;
+        if (this.reduceEffects) {
+            ctx.fillStyle = `rgba(5,2,15,${Math.min(1, tr.t / 35)})`;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            return;
+        }
+        const FLASH = 28, WIPE = 30;
+        if (tr.t < FLASH) {
+            const pulse = Math.abs(Math.sin(tr.t * Math.PI / 14)); // dos pulsos en 28 frames
+            ctx.fillStyle = `rgba(245,243,255,${0.85 * pulse})`;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        } else {
+            const p = Math.min(1, (tr.t - FLASH) / WIPE);
+            // radio final: hasta cubrir la esquina de pantalla más lejana al punto de contacto
+            const maxR = Math.max(
+                Math.hypot(tr.x, tr.y), Math.hypot(GAME_WIDTH - tr.x, tr.y),
+                Math.hypot(tr.x, GAME_HEIGHT - tr.y), Math.hypot(GAME_WIDTH - tr.x, GAME_HEIGHT - tr.y)
+            );
+            ctx.fillStyle = '#05020f';
+            ctx.beginPath(); ctx.arc(tr.x, tr.y, maxR * p * p, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
     exitLevel() {
         this.cancelLevelCompleteTransition();
         if (this.dailyMode) { this.abandonDailyChallenge(); return; }
@@ -889,9 +934,11 @@ class Game {
                 return;
             }
             if (this.combat && this.combat.active) this.combat.handleInput(e.code);
-            if (e.code === 'Escape' && this.inLevel && !this.combat) this.exitLevel();
+            // Durante la transición de encuentro no se puede salir ni reiniciar — el combate ya
+            // es inevitable (igual que en Pokémon: cuando la pantalla parpadea, ya estás dentro).
+            if (e.code === 'Escape' && this.inLevel && !this.combat && !this.combatTransition) this.exitLevel();
             // Atajo de depuración: reiniciar el nivel actual al instante (útil ajustando niveles)
-            if (e.code === 'KeyR' && this.inLevel && !this.combat) {
+            if (e.code === 'KeyR' && this.inLevel && !this.combat && !this.combatTransition) {
                 this.levelCompleting = false;
                 this.loadLevel(this.currentLevel);
                 this.player.hp = this.player.maxHp;
@@ -925,7 +972,7 @@ class Game {
         bindHold(btnJump, 'Space');
 
         if (btnExit) {
-            const exitTap = (e) => { e.preventDefault(); if (this.hintScreen) return; if (this.inLevel && !this.combat) this.exitLevel(); };
+            const exitTap = (e) => { e.preventDefault(); if (this.hintScreen) return; if (this.inLevel && !this.combat && !this.combatTransition) this.exitLevel(); };
             btnExit.addEventListener('touchstart', exitTap, { passive: false });
             btnExit.addEventListener('click', exitTap);
         }
@@ -1026,7 +1073,7 @@ class Game {
 
     updateTouchUI() {
         const inCombat = !!(this.combat && this.combat.active);
-        const paused = this.unlockScreen || this.charSelectOpen || this.hintScreen;
+        const paused = this.unlockScreen || this.charSelectOpen || this.hintScreen || this.combatTransition;
         if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !paused);
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat && !paused);
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
@@ -1067,6 +1114,19 @@ class Game {
             if (selected !== null) {
                 this.currentLevel = selected; this.loadLevel(selected);
                 this.inWorldMap = false; this.inLevel = true;
+            }
+            return;
+        }
+
+        // Transición de encuentro (estilo Pokémon): mientras dura, el nivel queda congelado
+        // detrás (este return se salta física, enemigos y colisiones) y solo avanza el contador.
+        // Al completarse arranca el duelo de verdad. Duración fija en frames — también en el
+        // Reto Diario suma lo mismo para todo el mundo, así que no ensucia la comparación.
+        if (this.combatTransition) {
+            this.combatTransition.t++;
+            if (this.combatTransition.t >= (this.reduceEffects ? 45 : 70)) {
+                this.combat = new CombatSystem(this.player, this.combatTransition.enemy);
+                this.combatTransition = null;
             }
             return;
         }
@@ -1142,8 +1202,7 @@ class Game {
                         if (window.SFX) SFX.stomp();
                         this.particles.burst(enemy.x + enemy.w / 2, enemy.y, enemy.color, 10, { speed: 1.8, life: 20, size: 2.5 });
                     } else {
-                        this.combat = new CombatSystem(this.player, enemy);
-                        if (window.SFX) { enemy.isBoss ? SFX.bossEncounter() : SFX.encounter(); SFX.music.playCombat(); }
+                        this.startCombatTransition(enemy);
                     }
                 }
             }
@@ -1431,6 +1490,8 @@ class Game {
                 ctx.fillText(`Máximo ahora: ${this.player.maxEnergy}`, GAME_WIDTH / 2, 86);
                 ctx.textAlign = 'left';
             }
+            // La última capa del nivel: la transición de encuentro tapa también el HUD
+            this.drawCombatTransition(ctx);
         }
         this.drawHintOverlay(ctx);
         ctx.restore();
