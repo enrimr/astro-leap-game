@@ -711,13 +711,18 @@ class MovingPlatform extends Platform {
     }
 }
 
-// Rayo eléctrico entre dos emisores fijos, al estilo de las pirañas de las tuberías: ciclo FIJO
-// de 150 frames — 90 apagado, 15 de aviso (los emisores chisporrotean) y 45 encendido y dañino.
-// offset desfasa el ciclo entre rayos del mismo nivel para que no se abran todos a la vez.
+// Puerta de energía VERTICAL entre dos emisores (uno arriba, otro clavado en el suelo), al
+// estilo de las pirañas de las tuberías: ciclo FIJO de 150 frames — 90 apagada, 15 de aviso
+// (los emisores chisporrotean) y 45 encendida y dañina. Bloquea el paso a ras de suelo cuando
+// está activa: o esperas el hueco del ciclo, o la superas por ARRIBA — con 40 de alto, el salto
+// simple no basta (sube ~29), pero el doble salto/vuelo/dash sí: la Energía compra tiempo.
+// offset desfasa el ciclo entre puertas del mismo nivel para que no se abran todas a la vez.
 // Frames, no tiempo real: determinista, mismo patrón en cualquier máquina.
+// (La primera versión eran rayos HORIZONTALES sobre los huecos — el arco del salto pasaba casi
+// siempre por encima o cruzaba la franja ya fuera de su rango, y en la práctica no tocaban nunca.)
 class EnergyBeam {
-    constructor(x, y, length, offset = 0) {
-        Object.assign(this, { x, y, w: length, h: 4, t: offset, PERIOD: 150, WARN: 15, ON: 45 });
+    constructor(x, y, height, offset = 0) {
+        Object.assign(this, { x, y, w: 4, h: height, t: offset, PERIOD: 150, WARN: 15, ON: 45 });
     }
     update() { this.t++; }
     phase() {
@@ -728,18 +733,18 @@ class EnergyBeam {
     }
     collides(pl) {
         return this.phase() === 'on'
-            && pl.x < this.x + this.w && pl.x + pl.w > this.x
-            && pl.y < this.y + 3 && pl.y + pl.h > this.y - 3;
+            && pl.x < this.x + 2 && pl.x + pl.w > this.x - 2
+            && pl.y < this.y + this.h && pl.y + pl.h > this.y;
     }
     draw(ctx, cx) {
-        const x1 = this.x - cx, x2 = x1 + this.w, y = this.y;
+        const x = this.x - cx, y1 = this.y, y2 = this.y + this.h;
         const ph = this.phase();
-        // emisores: siempre visibles, para que el hueco "se lea" peligroso también apagado
+        // emisores arriba y abajo: siempre visibles, el paso "se lee" peligroso también apagado
         ctx.save();
         ctx.fillStyle = ph === 'off' ? '#8a84b8' : PALETTE.accent3;
         if (ph !== 'off') { ctx.shadowColor = PALETTE.accent3; ctx.shadowBlur = 6; }
-        ctx.fillRect(x1 - 2, y - 3, 4, 6);
-        ctx.fillRect(x2 - 2, y - 3, 4, 6);
+        ctx.fillRect(x - 3, y1 - 2, 6, 4);
+        ctx.fillRect(x - 3, y2 - 2, 6, 4);
         ctx.restore();
         if (ph === 'warn') {
             // chisporroteo de aviso (fijo y tenue con REDUCE_EFFECTS, sin parpadeo)
@@ -747,16 +752,16 @@ class EnergyBeam {
             ctx.save();
             ctx.strokeStyle = PALETTE.accent3; ctx.globalAlpha = a; ctx.lineWidth = 1;
             ctx.setLineDash([2, 5]);
-            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
             ctx.restore();
         } else if (ph === 'on') {
             const flick = window.REDUCE_EFFECTS ? 1 : 0.85 + Math.random() * 0.15;
             ctx.save();
             ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 8;
             ctx.strokeStyle = `rgba(124,245,255,${flick})`; ctx.lineWidth = 2.4;
-            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
             ctx.strokeStyle = `rgba(245,243,255,${flick})`; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
             ctx.restore();
         }
     }

@@ -143,10 +143,11 @@ const LEVELS = [
             // Tramo final añadido al alargar el nivel (huecos ≤25 en llano, salto simple).
             [855, 150, 55, 15], [935, 150, 65, 15], [890, 118, 40, 6]
         ],
-        // Mundo 3: debutan los RAYOS ELÉCTRICOS ([x, y, longitud, desfase]): cruzan un hueco
-        // entre dos emisores con ciclo fijo de 2.5s (1.5 apagado, 0.25 aviso, 0.75 activo).
-        // El desfase alterna los dos rayos para que nunca estén abiertos a la vez.
-        beams: [[275, 136, 45, 0], [635, 136, 45, 75]],
+        // Mundo 3: debutan las PUERTAS DE ENERGÍA ([x, yTop, altura, desfase]): columna vertical
+        // entre dos emisores clavada en el suelo, ciclo fijo de 2.5s (1.5 apagada, 0.25 aviso,
+        // 0.75 activa). Con 40 de alto el salto simple no la supera: esperas el ciclo o gastas
+        // Energía en la habilidad aérea. Colocadas en tramos SIN enemigos patrullando encima.
+        beams: [[525, 110, 40, 0], [740, 110, 40, 75]],
         enemies: [[150, 138, 'crawler'], [240, 118, 'hoverbot', 50], [330, 138, 'spiker'], [420, 103, 'ionwisp', 55], [600, 118, 'magnetite'], [865, 138, 'spiker'], [900, 106, 'hoverbot', 45]],
         capsules: [[254, 94]],
         goal: 965
@@ -188,7 +189,7 @@ const LEVELS = [
             [95, 150, 20, 6], [193, 125, 20, 6], [308, 140, 20, 6],
             [410, 150, 20, 6], [590, 150, 20, 6], [673, 135, 20, 6]
         ],
-        beams: [[280, 135, 50, 75], [645, 130, 45, 0]],
+        beams: [[795, 110, 40, 0], [1000, 110, 40, 75]],
         enemies: [[145, 138, 'magnetite'], [250, 118, 'ionwisp', 40], [340, 138, 'spiker'], [430, 98, 'hoverbot', 45], [520, 138, 'crawler'], [615, 113, 'ionwisp', 50], [785, 138, 'magnetite'], [860, 120, 'ionwisp', 45], [1070, 130, 'overlord']],
         energyCells: [[149, 105]],
         goal: 1220, boss: 'overlord'
@@ -213,7 +214,8 @@ const LEVELS = [
             // Tramo final añadido al alargar el nivel (huecos ≤25 en llano, salto simple).
             [885, 150, 55, 15, 'beltL'], [965, 150, 65, 15], [915, 118, 40, 6]
         ],
-        beams: [[275, 135, 45, 0], [635, 135, 45, 75]],
+        // Pasillo de doble puerta desfasada justo tras la bóveda del refuerzo: el set piece del nivel.
+        beams: [[720, 110, 40, 0], [800, 110, 40, 75]],
         // Parche reforzado que tapa una bóveda justo debajo, al ras del suelo — igual que el
         // primer secreto de Scrap en Cráter de Amerizaje (nivel 1): cualquiera camina encima sin
         // notarlo, solo Scrap puede romperlo y bajar a por la cápsula.
@@ -239,7 +241,7 @@ const LEVELS = [
             [1105, 150, 55, 15], [1185, 145, 45, 6, 'fragile'], [1255, 150, 70, 15]
         ],
         movingPlatforms: [[368, 95, 36, 6, 16, 0.02], [698, 95, 36, 6, 16, 0.025]],
-        beams: [[1160, 148, 25, 0]],
+        beams: [[1040, 110, 40, 0]],
         reinforcedBlocks: [[945, 150, 20, 8]],
         enemies: [[200, 133, 'ionwisp', 60], [330, 113, 'spiker'], [460, 93, 'ionwisp', 65], [590, 113, 'hoverbot', 55], [720, 133, 'magnetite'], [850, 138, 'spiker'], [1120, 138, 'magnetite'], [1195, 133, 'spiker']],
         energyCells: [[952, 162]],
@@ -261,7 +263,8 @@ const LEVELS = [
             [430, 150, 20, 6], [610, 150, 20, 6], [693, 135, 20, 6]
         ],
         movingPlatforms: [[905, 100, 40, 6, 16, 0.02]],
-        beams: [[405, 140, 35, 0], [765, 140, 25, 75]],
+        // Doble puerta desfasada en la arena, el último control antes de Nodo Cero.
+        beams: [[1010, 110, 40, 0], [1075, 110, 40, 75]],
         enemies: [[160, 138, 'magnetite'], [265, 118, 'ionwisp', 45], [360, 138, 'spiker'], [450, 98, 'hoverbot', 45], [540, 138, 'magnetite'], [630, 113, 'ionwisp', 50], [720, 138, 'spiker'], [805, 138, 'crawler'], [885, 138, 'magnetite'], [1130, 130, 'nodo_cero']],
         goal: 1260, boss: 'nodo_cero'
     }

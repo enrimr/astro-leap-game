@@ -653,25 +653,43 @@ describe('Peligros: frágiles, móviles, rayos y cintas (contra el código real)
         expect(b.phase()).toBe('off');
     });
 
-    test('cruzar un rayo activo (nivel 7 real) daña y concede tregua de invulnerabilidad', () => {
-        const { game } = inLevel(6); // Muelle de Carga: primer nivel con rayos
+    test('tocar una puerta de energía activa (nivel 7 real) daña, empuja y concede tregua', () => {
+        const { game } = inLevel(6); // Muelle de Carga: primer nivel con puertas
         const beam = game.beams[0];
-        beam.t = beam.PERIOD - beam.ON; // forzado a fase activa
-        game.player.x = beam.x + 10; game.player.y = beam.y - 8; game.player.vy = 0;
+        beam.t = beam.PERIOD - beam.ON; // forzada a fase activa
+        // andando hacia la columna a ras de suelo desde la izquierda, solapando su banda x±2
+        game.player.x = beam.x - 6; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
         const hp0 = game.player.hp;
         game.update();
         expect(game.player.hp).toBe(hp0 - Math.max(1, 4 - game.player.defense));
         expect(game.playerInvulnerable).toBe(50); // tregua: no re-golpea cada frame
+        expect(game.player.x).toBeLessThan(beam.x - 6); // el empujón lo devuelve por donde venía
     });
 
-    test('un rayo apagado no hace nada aunque lo cruces', () => {
+    test('una puerta apagada no hace nada aunque la cruces', () => {
         const { game } = inLevel(6);
         const beam = game.beams[0];
         beam.t = 0; // fase apagada
-        game.player.x = beam.x + 10; game.player.y = beam.y - 8; game.player.vy = 0;
+        game.player.x = beam.x - 4; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
         const hp0 = game.player.hp;
         game.update();
         expect(game.player.hp).toBe(hp0);
+    });
+
+    test('regla de diseño: el salto simple NO supera los 40 de alto de una puerta', () => {
+        // Si algún día sube jumpPower, este test avisa de que las puertas dejan de ser puertas
+        // (se saltarían por encima gratis, sin gastar Energía ni esperar el ciclo).
+        const { Player } = loadGame();
+        const pl = new Player(0, 137, 'kes');
+        pl.onGround = true;
+        const particles = { burst() {} };
+        let jumped = false, minFeet = 150;
+        for (let f = 0; f < 80; f++) {
+            pl.update({ Space: !jumped }, [], particles);
+            jumped = true;
+            minFeet = Math.min(minFeet, pl.y + pl.h);
+        }
+        expect(150 - minFeet).toBeLessThan(40); // altura máxima del salto simple < altura de puerta
     });
 
     test('una cinta (nivel 9 real) arrastra al jugador parado hacia atrás', () => {

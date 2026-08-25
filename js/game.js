@@ -612,7 +612,7 @@ class Game {
         (level.movingPlatforms || []).forEach(([mx, my, mw, mh, amp, omega]) => {
             this.platforms.push(new MovingPlatform(mx, my, mw, mh, amp, omega, level.variant));
         });
-        this.beams = (level.beams || []).map(([bx, by, len, off]) => new EnergyBeam(bx, by, len, off));
+        this.beams = (level.beams || []).map(([bx, by, bh, off]) => new EnergyBeam(bx, by, bh, off));
         const levelCompleted = this.worldMap.nodes[lvl].completed;
         this.enemies = level.enemies.map((e, i) => {
             const enemy = new Enemy(...e);
@@ -1238,13 +1238,16 @@ class Game {
                 }
             }
 
-            // Rayos eléctricos: dañan solo en su fase activa, con la misma tregua de
-            // invulnerabilidad que el muro del Túnel (no es muerte instantánea).
+            // Puertas de energía: dañan solo en su fase activa, con la misma tregua de
+            // invulnerabilidad que el muro del Túnel (no es muerte instantánea). El empujón
+            // saca al jugador de la columna — sin él, quedarse dentro re-golpea cada tregua.
             for (const beam of this.beams) {
                 beam.update();
                 if (this.playerInvulnerable === 0 && beam.collides(this.player)) {
                     this.player.takeDamage(4);
                     this.playerInvulnerable = 50;
+                    this.player.x += this.player.x + this.player.w / 2 < beam.x ? -10 : 10;
+                    this.player.vy = Math.min(this.player.vy, -1.5);
                     this.shake = Math.max(this.shake, 5);
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y + this.player.h / 2, PALETTE.accent, 10, { speed: 1.8, life: 18, size: 2 });
                     if (window.SFX) SFX.zap();

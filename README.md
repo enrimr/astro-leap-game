@@ -53,11 +53,11 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 | 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores; **debutan las plataformas frágiles y las móviles** |
 | | 5 | Tormenta de Iones | Huecos largos, la ruta alta exige habilidad aérea |
 | | 6 | Núcleo del Centinela | **Jefe: Centinela** — carga un turno y golpea el doble (ventana para Defender) |
-| 3 · Estación Colapsada | 7 | Muelle de Carga | **Debutan los rayos eléctricos** (cíclicos, entre emisores); despierta el núcleo |
+| 3 · Estación Colapsada | 7 | Muelle de Carga | **Debutan las puertas de energía** (columnas cíclicas que bloquean el paso); despierta el núcleo |
 | | 8 | Túnel de Escape | **Scroll forzado**: tras 5s de cuenta atrás, un muro de energía avanza solo — con islotes frágiles bajo presión |
 | | 9 | Núcleo del Reactor | **Jefe: Overlord** — ignora Defender cada 3 turnos; **debuta la cinta magnética** en contra |
 | 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; todos los peligros combinados |
-| | 11 | Galería de Ecos | Huecos largos + móviles, frágiles y rayos |
+| | 11 | Galería de Ecos | Huecos largos + móviles, frágiles y una puerta de energía |
 | | 12 | Nodo Cero | **Jefe final: Nodo Cero** — combina los 3 patrones anteriores; el terreno combina los 4 peligros |
 
 ## Bestiario
