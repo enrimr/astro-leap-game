@@ -4,6 +4,8 @@ Plataformas + duelos por turnos, ambientado en dos lunas alienígenas, una estac
 
 **Juega ya: <https://astroleap.enri.me/>** — gratis, sin instalar nada, en móvil y escritorio.
 
+📖 **[Guía completa](./GUIA.md)**: pilotos, fórmulas de combate, bestiario, estrategia contra cada jefe y el mapa completo de los 12 niveles con todos los secretos.
+
 ![Gameplay de ASTRO LEAP](gameplay.gif)
 
 ## Capturas

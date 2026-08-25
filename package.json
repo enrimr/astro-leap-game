@@ -7,6 +7,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "generate-og-image": "node scripts/generate-og-image.js",
+    "generate-level-maps": "node scripts/generate-level-maps.js",
     "record-gameplay": "node scripts/record-gameplay.js"
   },
   "keywords": [],
