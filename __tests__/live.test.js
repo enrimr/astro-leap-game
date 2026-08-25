@@ -440,6 +440,21 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
         expect(missing).toEqual([]);
     });
 
+    test('regla de diseño: el hueco del set piece de hielo (nivel 2) NO se cruza sin carrerilla', () => {
+        // Si algún día crece jumpPower/speed, este test avisa de que el set piece del nivel 2
+        // deja de serlo (el salto normal cruzaría gratis, sin necesitar el deslizamiento).
+        const { LEVELS, Player } = loadGame();
+        const maxReach = makeMaxReach(Player);
+        const lvl = LEVELS[1]; // Grietas de Hielo
+        const runway = lvl.platforms.find(p => p[0] === 600 && p[1] === 150);
+        const island = lvl.platforms.find(p => p[0] === 782 && p[1] === 130);
+        expect(runway).toBeDefined();
+        expect(island).toBeDefined();
+        const gap = island[0] - (runway[0] + runway[2]);
+        const dy = island[1] - runway[1];
+        expect(gap).toBeGreaterThan(maxReach(dy));
+    });
+
     test('los 12 niveles se pueden completar solo con salto simple — y por tanto con cualquier piloto', () => {
         const { LEVELS, Player } = loadGame();
         const maxReach = makeMaxReach(Player);
@@ -598,6 +613,86 @@ describe('Reto Diario (contra js/game.js real)', () => {
         const isRecord3 = game.saveDailyRecord('2026-08-25', 9000, 'kes'); // día NUEVO
         expect(isRecord3).toBe(true); // un día nuevo siempre "es récord" (no hay con qué comparar)
         expect(game.dailyRecord.time).toBe(9000);
+    });
+});
+
+describe('Hielo resbaladizo (contra js/entities.js real)', () => {
+    // Suelo largo del variant pedido + jugador ya de pie encima, con groundPlatform preasignado
+    // (en el juego real lo asigna el snap de aterrizaje del frame anterior).
+    function onFloor(variant, character = 'kes') {
+        const { Player, Platform, LEVELS } = loadGame();
+        const floor = new Platform(0, 150, 400, 15, variant);
+        const p = new Player(20, 137, character);
+        p.onGround = true; p.groundPlatform = floor;
+        const particles = { burst() {} };
+        return { p, floor, particles, Player, Platform, LEVELS };
+    }
+
+    test('sobre hielo, mantener la dirección coge carrerilla por encima de la velocidad base', () => {
+        const { p, floor, particles } = onFloor('ice');
+        for (let f = 0; f < 90; f++) p.update({ ArrowRight: true }, [floor], particles);
+        expect(p.vx).toBeGreaterThan(2.3); // muy por encima de speed (1.55), cerca de ICE_MAX_SPEED (2.6)
+    });
+
+    test('regresión: sobre suelo NO helado la velocidad sigue clavada en la base', () => {
+        const { p, floor, particles } = onFloor('metal');
+        for (let f = 0; f < 90; f++) p.update({ ArrowRight: true }, [floor], particles);
+        expect(p.vx).toBe(p.speed);
+    });
+
+    test('al soltar la dirección sobre hielo sigues deslizándote, y acabas frenando del todo', () => {
+        const { p, floor, particles } = onFloor('ice');
+        for (let f = 0; f < 90; f++) p.update({ ArrowRight: true }, [floor], particles);
+        p.update({}, [floor], particles);
+        expect(p.vx).toBeGreaterThan(1); // un frame después de soltar, aún deslizando (nada de parar en seco)
+        for (let f = 0; f < 120; f++) p.update({}, [floor], particles);
+        expect(Math.abs(p.vx)).toBeLessThan(0.1); // pero el deslizamiento sí se agota solo
+    });
+
+    test('el impulso de la carrerilla se conserva en el aire — ahí vive el salto largo', () => {
+        const { p, floor, particles } = onFloor('ice');
+        for (let f = 0; f < 90; f++) p.update({ ArrowRight: true }, [floor], particles);
+        p.update({ ArrowRight: true, Space: true }, [floor], particles); // salta con carrerilla
+        expect(p.onGround).toBe(false);
+        for (let f = 0; f < 10; f++) p.update({ ArrowRight: true }, [floor], particles);
+        expect(p.vx).toBeGreaterThan(2); // sigue muy por encima de la velocidad base en pleno vuelo
+    });
+
+    test('pulsar la dirección contraria en el aire devuelve el control normal (puedes frenarte)', () => {
+        const { p, floor, particles } = onFloor('ice');
+        for (let f = 0; f < 90; f++) p.update({ ArrowRight: true }, [floor], particles);
+        p.update({ ArrowRight: true, Space: true }, [floor], particles);
+        p.update({ ArrowLeft: true }, [floor], particles);
+        expect(p.vx).toBe(-p.speed); // el impulso se descarta en cuanto contradices la dirección
+    });
+
+    test('regresión: el dash de Shade no hereda la inercia aérea del hielo', () => {
+        const { p, floor, particles } = onFloor('metal', 'shade');
+        p.update({ Space: true }, [floor], particles);  // salto desde el suelo
+        p.update({}, [floor], particles);               // suelta (edge detection)
+        p.update({ Space: true }, [floor], particles);  // dash en el aire: 12 frames a 3.2
+        for (let f = 0; f < 13; f++) p.update({}, [floor], particles); // el dash se agota
+        expect(p.vx).toBe(0); // sin teclas y sin dash: control directo normal — el 3.2 no "flota"
+    });
+
+    test('el set piece del nivel 2: con carrerilla desde la pista se aterriza en el islote de la cápsula', () => {
+        const { LEVELS, Player, Platform } = loadGame();
+        const lvl = LEVELS[1]; // Grietas de Hielo
+        const plats = lvl.platforms.map(pp => new Platform(...pp, lvl.variant));
+        const p = new Player(602, 137, 'scrap'); // Scrap, sin habilidad aérea: si llega, es solo el hielo
+        p.onGround = true;
+        const particles = { burst() {} };
+        let jumped = false;
+        for (let f = 0; f < 300; f++) {
+            const keys = { ArrowRight: !jumped };
+            if (!jumped && p.x + p.w >= 729) { keys.Space = true; keys.ArrowRight = true; jumped = true; }
+            p.update(keys, plats, particles);
+            if (jumped && (p.onGround || p.y > 200)) break;
+        }
+        expect(jumped).toBe(true);
+        expect(p.y + p.h).toBe(130);            // de pie sobre el islote [782,130,40,6]...
+        expect(p.x + p.w).toBeGreaterThan(782); // ...cruzado el hueco de 52 de verdad
+        expect(p.x).toBeLessThan(822);          // ...y sin pasarse de largo
     });
 });
 

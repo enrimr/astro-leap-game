@@ -136,12 +136,22 @@ const MAX_LIVES = 3;
 // nivel". Menos que el coste de la Habilidad (3), para que gastarla siga siendo una decisión.
 const ENERGY_PER_KILL = 2;
 
+// Hielo resbaladizo (plataformas variant 'ice' — DESIGN.md §2.20): sobre hielo el movimiento
+// tiene inercia — acelerar con carrerilla supera la velocidad normal (1.55 → 2.6) y ese impulso
+// se conserva al saltar, así que un salto con carrerilla llega bastante más lejos que uno normal.
+// Solo afecta al suelo 'ice': el game feel de todos los demás niveles queda intacto, y la
+// medición de alcance del test BFS (que simula el salto SIN carrerilla) sigue siendo fiel.
+const ICE_MAX_SPEED = 2.6;
+const ICE_ACCEL = 0.07;   // qué fracción del déficit de velocidad se gana por frame (lerp)
+const ICE_FRICTION = 0.94; // decaimiento por frame al soltar la dirección (~25u hasta pararse)
+
 class Player {
     constructor(x, y, character = 'kes') {
         Object.assign(this, {
             x, y, w: 9, h: 13, vx: 0, vy: 0, facing: 1, character,
             speed: 1.55, jumpPower: -4.3, doubleJumpPower: -3.5, gravity: 0.32,
             onGround: false, jumping: false, usedAirAbility: false,
+            groundPlatform: null, iceMomentum: false,
             dashTimer: 0, dashSpeed: 3.2, flyDrainTimer: 0,
             prevJumpKey: false, squash: 1, animT: 0, blinkTimer: 90 + Math.random() * 120,
             level: 1, maxHp: 22, hp: 22, maxEnergy: 10, energy: 10,
@@ -152,8 +162,35 @@ class Player {
     update(keys, platforms, particles) {
         const left = keys.ArrowLeft || keys.KeyA;
         const right = keys.ArrowRight || keys.KeyD;
-        if (this.dashTimer <= 0) this.vx = left ? -this.speed : right ? this.speed : 0;
+        // Hielo resbaladizo: sobre suelo 'ice' el movimiento tiene inercia (ver constantes ICE_*).
+        // groundPlatform es el suelo del frame ANTERIOR — el orden input→física hace imposible
+        // saber el de este frame aquí, y un frame de retardo es imperceptible.
+        const onIce = this.onGround && this.groundPlatform && this.groundPlatform.variant === 'ice';
+        if (this.dashTimer <= 0) {
+            if (onIce) {
+                // Con dirección: lerp hacia ±ICE_MAX_SPEED (acelera con carrerilla, frena y gira
+                // con la misma inercia). Sin dirección: sigues deslizándote, no te paras en seco.
+                const target = left ? -ICE_MAX_SPEED : right ? ICE_MAX_SPEED : null;
+                if (target !== null) this.vx += (target - this.vx) * ICE_ACCEL;
+                else this.vx *= ICE_FRICTION;
+                this.iceMomentum = true;
+            } else if (!this.onGround && this.iceMomentum && Math.abs(this.vx) > this.speed && !(this.vx > 0 ? left : right)) {
+                // Impulso de hielo conservado en el aire: mantener la dirección (o soltar todo)
+                // no lo pierde, solo decae suave; pulsar la contraria devuelve el control normal.
+                // El flag iceMomentum acota esto a saltos que salen DE hielo — sin él, el dash de
+                // Shade (vx 3.2) también quedaría flotando tras sus 12 frames y cambiaría su alcance.
+                this.vx *= 0.995;
+            } else {
+                this.vx = left ? -this.speed : right ? this.speed : 0;
+                this.iceMomentum = false;
+            }
+        }
         if (left) this.facing = -1; else if (right) this.facing = 1;
+        // Viruta de hielo bajo los pies mientras te deslizas por encima de la velocidad normal —
+        // el aviso visual de que llevas carrerilla (puramente estético: Math.random, no RNG).
+        if (onIce && Math.abs(this.vx) > this.speed && Math.random() < 0.35) {
+            particles.burst(this.x + this.w / 2 - this.facing * 4, this.y + this.h, '#bfe9ff', 1, { speed: 0.5, life: 10, size: 1.5 });
+        }
 
         const jumpKey = !!(keys.Space || keys.ArrowUp || keys.KeyW);
         const jumpPressed = jumpKey && !this.prevJumpKey;
@@ -193,6 +230,7 @@ class Player {
             if (this.x < p.x + p.w && this.x + this.w > p.x && this.y < p.y + p.h && this.y + this.h > p.y) {
                 if (this.vy > 0 && this.y + this.h <= p.y + 10) {
                     this.y = p.y - this.h; this.vy = 0; this.onGround = true; this.jumping = false; this.usedAirAbility = false;
+                    this.groundPlatform = p; // qué suelo pisas — el frame siguiente decide si resbala (hielo)
                 }
             }
         });

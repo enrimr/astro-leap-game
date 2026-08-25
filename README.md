@@ -48,7 +48,7 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 | Mundo | Sector | Nombre | Qué aporta |
 |---|---|---|---|
 | 1 · Luna Cenizal | 1 | Cráter de Amerizaje | Tutorial de salto/energía; bóveda reforzada de Scrap |
-| | 2 | Grietas de Hielo | Primeros huecos que premian el doble salto; secreto de vuelo de Bolt |
+| | 2 | Grietas de Hielo | **Hielo resbaladizo**: carrerilla con inercia y salto largo del set piece; secreto de vuelo de Bolt |
 | | 3 | Nido de la Reina Larva | **Jefe: Reina Larva** — se regenera cada 3 turnos; hueco de dash de Shade |
 | 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores; **debutan las plataformas frágiles y las móviles** |
 | | 5 | Tormenta de Iones | Huecos largos, la ruta alta exige habilidad aérea |

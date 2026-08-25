@@ -110,7 +110,7 @@ Esto crea una decisión constante que no existía en el original: *¿gasto energ
 | Zona | Nivel | Nombre | Enfoque |
 |---|---|---|---|
 | 1 · Luna Cenizal | 1 | Cráter de Amerizaje | Tutorial de salto/energía |
-| | 2 | Grietas de Hielo | Plataformas móviles, primeros huecos que exigen doble salto |
+| | 2 | Grietas de Hielo | **Hielo resbaladizo** (§2.20): inercia + set piece de salto con carrerilla; primeros huecos que premian el doble salto |
 | | 3 | Nido de la Reina Larva | Jefe: Reina Larva |
 | 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores, plataformas más separadas |
 | | 5 | Tormenta de Iones | Huecos largos, uso obligatorio del doble salto |
@@ -153,7 +153,7 @@ El sistema de vidas necesitaba una vía para *ganar* vidas, no solo perderlas �
 
 - `LevelNode`/nivel define un array `capsules: [[x, y], ...]` en `levels.js`; casi siempre uno por nivel elegido, no en todos.
 - Colocación por mundo:
-  - **Grietas de Hielo** (mundo 1): sobre una plataforma flotante que ya existía en el nivel pero nunca hacía falta pisar — solo exige un salto simple fuera de la ruta obvia.
+  - **Grietas de Hielo** (mundo 1): en el islote del set piece de hielo (§2.20), al otro lado de un hueco que solo cruza el salto con carrerilla — la cápsula ES la recompensa por dominar la mecánica del nivel. (Originalmente estaba sobre una plataforma flotante del arranque, a un salto simple trivial: no premiaba nada.)
   - **Tormenta de Iones** (mundo 2): sobre una plataforma nueva, añadida específicamente como secreto, a una altura que un salto simple no alcanza (el salto simple sube como mucho ~29 unidades; esta plataforma exige el doble salto que ya se entrena en este nivel).
   - **Muelle de Carga** (mundo 3): igual, plataforma secreta nueva, alcanzable con un salto simple bien cronometrado.
 - No hace falta *aterrizar* en la plataforma secreta para recoger la cápsula — sólo tocarla en pleno arco del salto ya cuenta, así que fallar el aterrizaje perfecto no te deja con las manos vacías si pasaste cerca.
@@ -296,9 +296,25 @@ Antes, tocar a un enemigo cortaba a la pantalla de duelo en el mismo frame — f
 
 ### 2.19 Peligros del terreno: rampa de dificultad por mundos
 
-Hasta aquí la dificultad crecía solo por stats de enemigos y anchura de huecos. Estos cuatro peligros hacen que el propio terreno escale: el Mundo 1 no tiene ninguno (tutorial, y el pool del Reto Diario — sectores 1-2 — queda limpio y determinista), el 2 introduce dos, el 3 otros dos, y el 4 los combina todos.
+Hasta aquí la dificultad crecía solo por stats de enemigos y anchura de huecos. Estos cuatro peligros hacen que el propio terreno escale: el Mundo 1 solo tiene el hielo del sector 2 (§2.20 — más herramienta que peligro, y sin reloj: el pool del Reto Diario, sectores 1-2, sigue determinista), el 2 introduce dos, el 3 otros dos, y el 4 los combina todos.
 
 - **Plataformas frágiles** (5º elemento `'fragile'` en `platforms`): al pisarlas arranca una cuenta atrás de 50 frames (tiemblan; con `reduceEffects`, parpadean en alfa en vez de temblar) y desaparecen... pero **reaparecen a los 180 frames**. Reaparecer es la decisión clave: un nivel nunca queda bloqueado sin salida, así que pueden estar en el camino obligatorio y el test BFS puede contarlas como suelo.
 - **Plataformas móviles** (`MovingPlatform`, array `movingPlatforms` aparte): senoide vertical sobre su Y base. El motor ya "lleva" al jugador gratis (gravedad + snap de aterrizaje cada frame), con la condición de que su velocidad vertical máxima (`amplitud × omega`) quede por debajo de la gravedad (0.32) o el snap lo pierde. Van en un array que el **BFS no cuenta a propósito**: son atajos/ruta alta, el camino obligatorio funciona sin ellas — nunca dependes de cazar una plataforma en movimiento.
 - **Puertas de energía** (`EnergyBeam`, array `beams`: `[x, yTop, altura, desfase]`): el préstamo de las pirañas de Super Mario — un peligro periódico que convierte avanzar en una cuestión de timing. Columna VERTICAL entre dos emisores plantada en el suelo, ciclo fijo de 150 frames (90 apagada, 15 de aviso con chisporroteo, 45 activa), daño 4 + empujón hacia atrás, con la misma tregua de invulnerabilidad que el muro del Túnel. Con 40 de alto el salto simple (sube ~29) no la supera: o esperas el ciclo, o gastas Energía en la habilidad aérea, o la atraviesas pagando los 4 de daño — tres monedas distintas (tiempo, Energía, HP) para el mismo peaje, y un test fija que el salto simple nunca crezca hasta saltarla gratis. **La primera versión eran rayos horizontales tendidos sobre los huecos y fue un fracaso silencioso**: el arco del salto pasaba por encima, o cruzaba la franja cuando ya estaba fuera de su rango horizontal — en la práctica no tocaban nunca (el bot cruzó un nivel entero con la vida intacta). El test de integración no lo detectó porque teletransportaba al jugador dentro de la franja en vez de llegar saltando como un jugador real. Los emisores se ven siempre (el paso "se lee" peligroso también apagado) y el desfase alterna las puertas de un mismo nivel. Frames, no tiempo real: determinista en cualquier máquina.
 - **Cintas magnéticas** (variantes `'beltL'`/`'beltR'`): arrastran al jugador 0.45/frame (~30% de su velocidad) mientras está de pie encima — siempre colocadas EN CONTRA, como peaje que ralentiza sin bloquear. Reutilizan el mismo chequeo de "de pie sobre la plataforma" que los refuerzos de Scrap (ahora un único bucle para frágiles/cintas/refuerzos).
+
+### 2.20 Hielo resbaladizo: la estética que se volvió mecánica
+
+Grietas de Hielo (sector 2) era "un nivel normal con estética helada": el variant `'ice'` solo cambiaba el color de las plataformas. La revisión lo convierte en mecánica de verdad — sobre suelo `'ice'` el movimiento tiene **inercia** (constantes `ICE_*` en `entities.js`):
+
+- **Con dirección pulsada**: lerp hacia ±`ICE_MAX_SPEED` (2.6) a razón de `ICE_ACCEL` (0.07/frame) — la carrerilla supera la velocidad normal (1.55), y frenar/girar cuesta la misma inercia. **Sin dirección**: `vx` decae con `ICE_FRICTION` (0.94/frame, ~25u hasta pararse) — sigues deslizándote, que es donde el hielo castiga (frenar tarde junto a un borde o un enemigo).
+- **El impulso se conserva al saltar**: en el aire, si llevas más velocidad que la base y no pulsas la dirección contraria, se mantiene (decaimiento suave 0.995/frame). Con eso un salto con carrerilla llega a ~68u en llano frente a ~42 del salto normal. El resto del control aéreo queda EXACTAMENTE como estaba (asignación directa) — decisión doble: no cambiar el game feel de los otros 11 niveles, y que la medición `maxReach` del test BFS (que simula el salto sin carrerilla) siga siendo fiel.
+- El flag `iceMomentum` acota la conservación del impulso a saltos que salen DE hielo: sin él, el dash de Shade (vx 3.2 > base) también quedaría "flotando" tras sus 12 frames y le cambiaría el alcance en todo el juego (hay test de regresión).
+
+**El set piece** (tramo final del sector 2): pista de despegue de 130 → hueco de 52 en llano → islote elevado con la cápsula ♥. Tres decisiones de diseño encadenadas:
+
+1. El hueco (52) está entre el alcance del salto normal (~42) y el del salto con carrerilla (~68): la mecánica es *necesaria*, no decorativa. Un test fija esa relación (si algún día crece la física base, el set piece dejaría de serlo y el test avisa).
+2. Regla de "completable con salto simple" (§2.15) intacta: el fondo de la grieta es una red de seguridad continua (y=172, como la del Nido de la Reina Larva) que desemboca en la meseta final con un salto simple — Scrap y el BFS pasan por abajo. Continua y no piedras sueltas A PROPÓSITO: al simular los arcos de caída, un salto normal fallado desde el borde de la pista aterrizaba justo en los huecos entre piedras — "fallar el set piece" habría sido muerte, no desvío. El islote queda a 42 por encima de la grieta, fuera del alcance de cualquier salto: la cápsula solo se gana deslizándose (o pagando Energía en habilidad aérea).
+3. Fallar el salto no es muerte ni softlock: caes a la red, pierdes el premio del primer intento, y desde la meseta final (también hielo) se puede reintentar el islote con carrerilla hacia atrás — castigo de tiempo, no de vidas.
+
+Es la primera vez que un "peligro" del terreno es a la vez la herramienta que abre un premio — el hielo enseña su propio dominio, igual que el nivel 5 entrena el doble salto que su cápsula exige. Aviso contextual de una sola vez (`showHint('ice-slide')`, mismo patrón que el de Scrap) al pisar hielo por primera vez, porque la inercia no se anuncia sola hasta que ya te ha tirado a un hueco.

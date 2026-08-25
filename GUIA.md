@@ -13,7 +13,7 @@ Todo lo que hay en el juego: pilotos, fórmulas de combate, bestiario, estrategi
 - **Raíl punteado vertical** — plataforma móvil que sube y baja por ese recorrido.
 - **Columna cian vertical entre dos emisores ámbar** — puerta de energía (dibujada activa en el mapa).
 - **Chevrones animados** en una plataforma — cinta que te arrastra en esa dirección.
-- Color de plataforma según el mundo: violeta (Luna Cenizal), hielo (Grietas), gris metal (resto).
+- Color de plataforma según el mundo: violeta (Luna Cenizal), hielo (Grietas — y ahí **resbala de verdad**, ver Peligros), gris metal (resto).
 
 ---
 
@@ -73,16 +73,17 @@ Los voladores son los más traicioneros de pisotear: su vaivén vertical hace f�
 
 ## 4b. Peligros del terreno
 
-El Mundo 1 es terreno amable; a partir del Mundo 2 el propio suelo empieza a conspirar, y en el 4 está todo junto:
+El Mundo 1 estrena el terreno con un solo giro (el hielo del nivel 2 — que además es herramienta, no solo peligro); a partir del Mundo 2 el propio suelo empieza a conspirar, y en el 4 está todo junto:
 
 | Peligro | Debut | Cómo funciona | Cómo se supera |
 |---|---|---|---|
+| **Hielo resbaladizo** (suelo azul hielo) | Mundo 1 (nivel 2) | Todo el suelo del nivel tiene inercia: acelera con carrerilla hasta **superar tu velocidad normal** (1.55 → 2.6), frenas y giras despacio, y al soltar la dirección sigues deslizándote (~25u hasta pararte). **El impulso se conserva al saltar**: un salto con carrerilla llega a ~68u en llano frente a los ~42 del salto normal | Es el único "peligro" que también es un regalo: usa la carrerilla para el salto largo del tramo final (es la única forma gratis de alcanzar el islote de la ♥). El peligro real es frenar tarde junto a un borde o un enemigo — suelta la dirección con antelación o pulsa la contraria |
 | **Plataforma frágil** (agrietada) | Mundo 2 (nivel 4) | Al pisarla tiembla y se desmorona a los ~0,8s. **Reaparece a los 3s** — nunca te deja encerrado | No te pares encima: cruza de una pasada. Si cae, espera a que reaparezca |
 | **Plataforma móvil** (raíl punteado) | Mundo 2 (nivel 4) | Sube y baja en ciclo constante. Te lleva encima sin resbalar | Son atajos de ruta alta — el camino obligatorio nunca depende de ellas |
 | **Puerta de energía** (columna vertical entre emisores) | Mundo 3 (nivel 7) | Bloquea el paso a ras de suelo con ciclo fijo de 2,5s: 1,5s apagada → 0,25s de aviso (chisporroteo) → 0,75s activa. Activa hace **4 de daño** y te empuja hacia atrás, con tregua de invulnerabilidad | Tres opciones: **esperar** el ciclo (el chisporroteo es tu semáforo), **saltarla por arriba** con habilidad aérea (40 de alto: el salto simple no llega, el doble salto/vuelo/dash sí — la Energía compra tiempo), o **atravesarla pagando** los 4 de daño y aprovechando la tregua. Las puertas de un mismo nivel van desfasadas |
 | **Cinta magnética** (chevrones) | Mundo 3 (nivel 9) | Te arrastra ~30% de tu velocidad en la dirección de los chevrones — siempre en contra | Camina sin pararte (avanzas igual, más despacio) y no te detengas cerca de un borde |
 
-Todos los peligros van con reloj **de frames, no de tiempo real**: el patrón es idéntico en cualquier máquina, y en el Reto Diario es el mismo para todo el mundo (aunque los niveles del reto, 1–2, no tienen ninguno).
+Todos los peligros con ciclo van con reloj **de frames, no de tiempo real**: el patrón es idéntico en cualquier máquina, y en el Reto Diario es el mismo para todo el mundo (de los niveles del reto, 1–2, solo el 2 tiene peligro — el hielo, que no depende de ningún reloj).
 
 ## 5. Los 4 jefes
 
@@ -132,8 +133,9 @@ Tutorial de salto y energía. Enemigos: 3 drones Lv1, 2 reptantes Lv2.
 
 ![Mapa del nivel 2](guia/nivel-02.png)
 
-Primeros huecos que premian el doble salto; suelo de hielo (solo estética). Erizos que saltan: pisotéalos cuando estén en el suelo.
-- **♥ Cápsula**: sobre la plataforma flotante del arranque — un salto simple fuera de la ruta.
+El nivel del **hielo resbaladizo** (ver Peligros): todo el suelo tiene inercia — carrerilla que supera tu velocidad normal y se conserva al saltar. Primeros huecos que premian el doble salto; erizos que saltan: pisotéalos cuando estén en el suelo.
+- **El set piece**: el tramo final es una pista de despegue de hielo que desemboca en un hueco de 52 en llano — imposible para el salto normal (~42), cómodo con carrerilla a tope. Si te quedas corto, la red de seguridad del fondo de la grieta te recoge (no pierdes nada) y de ahí se sube a la meseta final con un salto simple: la ruta de Scrap y de quien falle el salto.
+- **♥ Cápsula**: en el islote elevado al otro lado del hueco del set piece — se aterriza en él **solo con el salto con carrerilla** desde la pista (o gastando Energía en habilidad aérea; desde la grieta de abajo queda fuera de alcance). Si lo pasaste de largo, también sale con carrerilla hacia atrás desde la meseta final.
 - **⚡ Célula**: en la plataforma altísima del tramo central — **solo el vuelo de Bolt** llega.
 
 ### Nivel 3 · Nido de la Reina Larva (Luna Cenizal) — JEFE

@@ -23,10 +23,14 @@ const LEVELS = [
     },
     {
         name: 'Grietas de Hielo', world: 1, variant: 'ice',
+        // TODO el suelo de este nivel es hielo (variant 'ice'): el movimiento tiene inercia — la
+        // carrerilla supera la velocidad normal y el impulso se conserva al saltar (ver ICE_* en
+        // entities.js). El tramo final es el set piece que lo enseña: pista de despegue → hueco
+        // de 52 que SOLO se cruza deslizándose (el salto normal llega a ~42 en llano).
         platforms: [
             [0, 150, 100, 15], [130, 150, 60, 15],
             [70, 118, 30, 6], [250, 140, 70, 15], [355, 125, 40, 6],
-            [430, 105, 40, 6], [510, 130, 60, 15], [610, 150, 80, 15],
+            [430, 105, 40, 6], [510, 130, 60, 15],
             // plataforma secreta muy alta sobre [430,105,40,6]: fuera del alcance de un doble salto
             // normal, solo se llega manteniendo pulsado el salto de Bolt (vuelo)
             [440, 40, 24, 6],
@@ -35,14 +39,31 @@ const LEVELS = [
             // Cualquier piloto puede usarlas, pero solo Scrap las NECESITA — para los demás son un
             // desvío más lento que saltar directo.
             [215, 150, 20, 6], [348, 150, 20, 6], [423, 135, 20, 6],
-            // Tramo final añadido al alargar el nivel (huecos ≤25 en llano, salto simple).
-            [715, 150, 55, 15], [795, 150, 60, 15], [745, 120, 35, 6]
+            // Set piece del deslizamiento: pista de despegue larga (130 — de sobra para llegar
+            // a velocidad máxima de carrerilla) y, tras un hueco de 52 en llano, el islote con
+            // la cápsula a media altura (y=130): con carrerilla se aterriza en él de lleno; sin
+            // ella el salto se queda corto y caes a la grieta de abajo.
+            [600, 150, 130, 15], [782, 130, 40, 6],
+            // Fondo de la grieta bajo el hueco: red de seguridad CONTINUA (como la del Nido de
+            // la Reina Larva) — cualquier salto fallado desde la pista cae aquí, sin perder nada
+            // más que el premio, y sale a la meseta con un salto simple. Continua a propósito:
+            // con piedras sueltas, el arco de un salto normal fallado desde el borde caía justo
+            // en los huecos entre piedras y "fallar el set piece" se convertía en muerte.
+            // Desde el fondo, el islote (42 más arriba) queda fuera de alcance de cualquier
+            // salto: la cápsula es el premio del salto con carrerilla, no de la ruta lenta.
+            [742, 172, 110, 6],
+            // Meseta final con la meta.
+            [862, 150, 90, 15]
         ],
-        enemies: [[80, 106, 'drone'], [260, 128, 'spiker'], [440, 93, 'crawler'], [530, 118, 'spiker'], [730, 138, 'spiker'], [810, 138, 'crawler']],
-        // Cápsula escondida sobre la plataforma flotante [70,118,30,6], que no hace falta pisar para avanzar
-        capsules: [[82, 108]],
+        // El erizo de la meseta lleva rango corto (25) a propósito: salta y NO gira en los bordes
+        // como los reptantes, así que sin acotarlo acabaría cayéndose a la grieta del set piece.
+        enemies: [[80, 106, 'drone'], [260, 128, 'spiker'], [440, 93, 'crawler'], [530, 118, 'spiker'], [890, 138, 'spiker', 25], [925, 138, 'crawler']],
+        // Cápsula en el islote del set piece [782,130,40,6]: solo se alcanza con el salto con
+        // carrerilla desde la pista (o gastando Energía en habilidad aérea) — antes estaba sobre
+        // la flotante del arranque [70,118,30,6], un salto simple trivial que no premiaba nada.
+        capsules: [[794, 118]],
         energyCells: [[447, 27]],
-        goal: 825
+        goal: 930
     },
     {
         name: 'Nido de la Reina Larva', world: 1, variant: 'normal',

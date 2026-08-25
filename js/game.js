@@ -1238,6 +1238,9 @@ class Game {
                     && Math.abs((this.player.y + this.player.h) - p.y) < 2;
                 if (!standingOn) continue;
                 if (p.variant === 'fragile') p.touched();
+                // Hielo: la física vive en Player.update() (inercia, ver ICE_* en entities.js);
+                // aquí solo el aviso de una sola vez la primera vez que se pisa, como el de Scrap.
+                else if (p.variant === 'ice') this.showHint('ice-slide', 'El hielo resbala: mantén la dirección para coger carrerilla y saltar más lejos — y cuidado al frenar.');
                 else if (p.variant === 'beltL') this.player.x -= 0.45;
                 else if (p.variant === 'beltR') this.player.x += 0.45;
                 else if (p.variant === 'reinforced' && this.player.character === 'scrap') {
