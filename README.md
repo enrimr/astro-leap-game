@@ -50,15 +50,15 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 | 1 · Luna Cenizal | 1 | Cráter de Amerizaje | Tutorial de salto/energía; bóveda reforzada de Scrap |
 | | 2 | Grietas de Hielo | Primeros huecos que premian el doble salto; secreto de vuelo de Bolt |
 | | 3 | Nido de la Reina Larva | **Jefe: Reina Larva** — se regenera cada 3 turnos; hueco de dash de Shade |
-| 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores, plataformas separadas |
+| 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores; **debutan las plataformas frágiles y las móviles** |
 | | 5 | Tormenta de Iones | Huecos largos, la ruta alta exige habilidad aérea |
 | | 6 | Núcleo del Centinela | **Jefe: Centinela** — carga un turno y golpea el doble (ventana para Defender) |
-| 3 · Estación Colapsada | 7 | Muelle de Carga | Enemigos mixtos; despierta el núcleo |
-| | 8 | Túnel de Escape | **Scroll forzado**: tras 5s de cuenta atrás, un muro de energía avanza solo (más lento que tú corriendo — castiga pararse, no fallar) |
-| | 9 | Núcleo del Reactor | **Jefe: Overlord** — ignora Defender cada 3 turnos |
-| 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; segunda bóveda reforzada |
-| | 11 | Galería de Ecos | Huecos largos estilo Tormenta de Iones |
-| | 12 | Nodo Cero | **Jefe final: Nodo Cero** — combina los 3 patrones anteriores en un ciclo de 6 turnos |
+| 3 · Estación Colapsada | 7 | Muelle de Carga | **Debutan los rayos eléctricos** (cíclicos, entre emisores); despierta el núcleo |
+| | 8 | Túnel de Escape | **Scroll forzado**: tras 5s de cuenta atrás, un muro de energía avanza solo — con islotes frágiles bajo presión |
+| | 9 | Núcleo del Reactor | **Jefe: Overlord** — ignora Defender cada 3 turnos; **debuta la cinta magnética** en contra |
+| 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; todos los peligros combinados |
+| | 11 | Galería de Ecos | Huecos largos + móviles, frágiles y rayos |
+| | 12 | Nodo Cero | **Jefe final: Nodo Cero** — combina los 3 patrones anteriores; el terreno combina los 4 peligros |
 
 ## Bestiario
 

@@ -189,7 +189,7 @@ class Player {
         const wasOnGround = this.onGround;
         this.vy += this.gravity; this.x += this.vx; this.y += this.vy; this.onGround = false;
         platforms.forEach(p => {
-            if (p.broken) return;
+            if (!p.solid) return;
             if (this.x < p.x + p.w && this.x + this.w > p.x && this.y < p.y + p.h && this.y + this.h > p.y) {
                 if (this.vy > 0 && this.y + this.h <= p.y + 10) {
                     this.y = p.y - this.h; this.vy = 0; this.onGround = true; this.jumping = false; this.usedAirAbility = false;
@@ -369,7 +369,7 @@ class Enemy {
         this.onGround = false;
         let platform = null;
         for (const p of platforms) {
-            if (p.broken) continue;
+            if (!p.solid) continue;
             if (this.x < p.x + p.w && this.x + this.w > p.x && this.y < p.y + p.h && this.y + this.h > p.y) {
                 if (this.vy > 0 && this.y + this.h <= p.y + 10) {
                     this.y = p.y - this.h; this.vy = 0; this.onGround = true; platform = p;
@@ -595,17 +595,76 @@ class Enemy {
 }
 
 class Platform {
-    constructor(x, y, w, h, variant = 'normal') { Object.assign(this, { x, y, w, h, variant, broken: false }); }
+    constructor(x, y, w, h, variant = 'normal') {
+        Object.assign(this, {
+            x, y, w, h, variant, broken: false,
+            // Frágil ('fragile'): se desmorona ~0.8s después de pisarla y reaparece a los 3s —
+            // reaparecer es lo que garantiza que un nivel nunca queda bloqueado sin salida.
+            crumbleTimer: -1, gone: false, respawnTimer: 0,
+            beltT: 0 // fase de animación de las cintas ('beltL'/'beltR')
+        });
+    }
+    // Sólida = pisable ahora mismo. broken es permanente (refuerzos de Scrap);
+    // gone es temporal (frágiles desmoronadas, reaparecen).
+    get solid() { return !this.broken && !this.gone; }
+    update() {
+        if (this.variant === 'fragile') {
+            if (this.gone) {
+                this.respawnTimer--;
+                if (this.respawnTimer <= 0) { this.gone = false; this.crumbleTimer = -1; }
+            } else if (this.crumbleTimer >= 0) {
+                this.crumbleTimer++;
+                if (this.crumbleTimer >= 50) { this.gone = true; this.respawnTimer = 180; }
+            }
+        }
+        if (this.variant === 'beltL' || this.variant === 'beltR') this.beltT++;
+    }
+    // La pisa el jugador: una frágil intacta empieza su cuenta atrás de desmoronarse.
+    touched() { if (this.variant === 'fragile' && this.crumbleTimer < 0) this.crumbleTimer = 0; }
     draw(ctx, cx) {
-        if (this.broken) return;
-        const sx = this.x - cx;
+        if (!this.solid) return;
+        // Frágil pisada: tiembla mientras cuenta atrás (o parpadea en alfa con REDUCE_EFFECTS)
+        let shakeX = 0;
+        if (this.variant === 'fragile' && this.crumbleTimer >= 0) {
+            if (window.REDUCE_EFFECTS) ctx.globalAlpha = 0.55 + (this.crumbleTimer % 10 < 5 ? 0.25 : 0);
+            else shakeX = (Math.random() - 0.5) * 1.6;
+        }
+        const sx = this.x - cx + shakeX;
         const grad = ctx.createLinearGradient(0, this.y, 0, this.y + this.h);
         if (this.variant === 'ice') { grad.addColorStop(0, '#bfe9ff'); grad.addColorStop(1, '#5fb8d9'); }
         else if (this.variant === 'metal') { grad.addColorStop(0, '#8892b0'); grad.addColorStop(1, '#4a5170'); }
         else if (this.variant === 'reinforced') { grad.addColorStop(0, '#5a4a2a'); grad.addColorStop(1, '#3a2a0f'); }
+        else if (this.variant === 'fragile') { grad.addColorStop(0, '#7a6f9e'); grad.addColorStop(1, '#3f3660'); }
+        else if (this.variant === 'beltL' || this.variant === 'beltR') { grad.addColorStop(0, '#6c7a9c'); grad.addColorStop(1, '#3b4460'); }
         else { grad.addColorStop(0, PALETTE.panelLight); grad.addColorStop(1, PALETTE.panel); }
         ctx.fillStyle = grad;
         ctx.fillRect(sx, this.y, this.w, this.h);
+        if (this.variant === 'fragile') {
+            // grietas: se lee "esto no aguanta" antes de pisarla
+            ctx.strokeStyle = 'rgba(11,6,32,0.55)'; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(sx + this.w * 0.25, this.y); ctx.lineTo(sx + this.w * 0.35, this.y + this.h);
+            ctx.moveTo(sx + this.w * 0.6, this.y); ctx.lineTo(sx + this.w * 0.52, this.y + this.h * 0.6);
+            ctx.moveTo(sx + this.w * 0.82, this.y + this.h * 0.3); ctx.lineTo(sx + this.w * 0.75, this.y + this.h);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+        if (this.variant === 'beltL' || this.variant === 'beltR') {
+            // chevrones en movimiento marcando la dirección de arrastre de la cinta
+            const dir = this.variant === 'beltR' ? 1 : -1;
+            const shift = ((this.beltT * 0.4 * dir) % 9 + 9) % 9;
+            ctx.save();
+            ctx.beginPath(); ctx.rect(sx, this.y, this.w, this.h); ctx.clip();
+            ctx.strokeStyle = PALETTE.accent3; ctx.globalAlpha = 0.7; ctx.lineWidth = 1.2;
+            for (let cxx = -9; cxx < this.w + 9; cxx += 9) {
+                const bx = sx + cxx + shift, my = this.y + this.h / 2;
+                ctx.beginPath();
+                ctx.moveTo(bx - 2 * dir, my - 2.5); ctx.lineTo(bx + 2 * dir, my); ctx.lineTo(bx - 2 * dir, my + 2.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+            ctx.globalAlpha = 1;
+        }
         if (this.variant === 'reinforced') {
             // franjas de peligro: solo Scrap puede romper esto
             ctx.save();
@@ -622,6 +681,84 @@ class Platform {
         ctx.fillStyle = PALETTE.accent; ctx.globalAlpha = 0.5;
         ctx.fillRect(sx, this.y, this.w, 1);
         ctx.globalAlpha = 1;
+    }
+}
+
+// Plataforma que sube y baja en senoide alrededor de su Y base. El motor de físicas existente ya
+// "lleva" al jugador de serie: al estar de pie, cada frame la gravedad lo deja caer un pelín y el
+// snap de aterrizaje lo vuelve a pegar al borde superior — por eso la velocidad vertical máxima
+// (amplitude × omega) debe quedar por debajo de la gravedad (0.32), o el snap pierde al jugador.
+// IMPORTANTE (level design): van en el array movingPlatforms de levels.js, que el test BFS de
+// alcanzabilidad NO cuenta — son atajos/ruta alta opcionales, el camino obligatorio del nivel
+// tiene que funcionar sin ellas (así nunca dependes de cazar una plataforma en movimiento).
+class MovingPlatform extends Platform {
+    constructor(x, y, w, h, amplitude = 14, omega = 0.02, variant = 'normal') {
+        super(x, y, w, h, variant);
+        this.baseY = y; this.amplitude = amplitude; this.omega = omega; this.t = 0;
+    }
+    update() { this.t++; this.y = this.baseY + Math.sin(this.t * this.omega) * this.amplitude; }
+    draw(ctx, cx) {
+        // raíl vertical tenue marcando el recorrido, para que se lea que se mueve
+        const mx = this.x - cx + this.w / 2;
+        ctx.save();
+        ctx.strokeStyle = PALETTE.dim; ctx.globalAlpha = 0.3; ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(mx, this.baseY - this.amplitude);
+        ctx.lineTo(mx, this.baseY + this.amplitude + this.h);
+        ctx.stroke();
+        ctx.restore();
+        super.draw(ctx, cx);
+    }
+}
+
+// Rayo eléctrico entre dos emisores fijos, al estilo de las pirañas de las tuberías: ciclo FIJO
+// de 150 frames — 90 apagado, 15 de aviso (los emisores chisporrotean) y 45 encendido y dañino.
+// offset desfasa el ciclo entre rayos del mismo nivel para que no se abran todos a la vez.
+// Frames, no tiempo real: determinista, mismo patrón en cualquier máquina.
+class EnergyBeam {
+    constructor(x, y, length, offset = 0) {
+        Object.assign(this, { x, y, w: length, h: 4, t: offset, PERIOD: 150, WARN: 15, ON: 45 });
+    }
+    update() { this.t++; }
+    phase() {
+        const c = this.t % this.PERIOD;
+        if (c >= this.PERIOD - this.ON) return 'on';
+        if (c >= this.PERIOD - this.ON - this.WARN) return 'warn';
+        return 'off';
+    }
+    collides(pl) {
+        return this.phase() === 'on'
+            && pl.x < this.x + this.w && pl.x + pl.w > this.x
+            && pl.y < this.y + 3 && pl.y + pl.h > this.y - 3;
+    }
+    draw(ctx, cx) {
+        const x1 = this.x - cx, x2 = x1 + this.w, y = this.y;
+        const ph = this.phase();
+        // emisores: siempre visibles, para que el hueco "se lea" peligroso también apagado
+        ctx.save();
+        ctx.fillStyle = ph === 'off' ? '#8a84b8' : PALETTE.accent3;
+        if (ph !== 'off') { ctx.shadowColor = PALETTE.accent3; ctx.shadowBlur = 6; }
+        ctx.fillRect(x1 - 2, y - 3, 4, 6);
+        ctx.fillRect(x2 - 2, y - 3, 4, 6);
+        ctx.restore();
+        if (ph === 'warn') {
+            // chisporroteo de aviso (fijo y tenue con REDUCE_EFFECTS, sin parpadeo)
+            const a = window.REDUCE_EFFECTS ? 0.3 : (Math.random() < 0.5 ? 0.15 : 0.45);
+            ctx.save();
+            ctx.strokeStyle = PALETTE.accent3; ctx.globalAlpha = a; ctx.lineWidth = 1;
+            ctx.setLineDash([2, 5]);
+            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+            ctx.restore();
+        } else if (ph === 'on') {
+            const flick = window.REDUCE_EFFECTS ? 1 : 0.85 + Math.random() * 0.15;
+            ctx.save();
+            ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 8;
+            ctx.strokeStyle = `rgba(124,245,255,${flick})`; ctx.lineWidth = 2.4;
+            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+            ctx.strokeStyle = `rgba(245,243,255,${flick})`; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+            ctx.restore();
+        }
     }
 }
 

@@ -186,6 +186,8 @@ const SFX = (() => {
         // Victoria de combate: suena SIEMPRE al ganar, a diferencia de levelUp() que solo suena si además subes de nivel.
         battleWin() { tone(587, 0.09, { type: 'square', volume: 0.12 }); tone(880, 0.14, { type: 'square', volume: 0.14, delay: 0.09 }); },
         countdownTick() { tone(600, 0.06, { type: 'square', volume: 0.09 }); },
+        // Descarga de un rayo eléctrico: zumbido agudo que cae en picado, distinto de hitPlayer()
+        zap() { tone(1300, 0.09, { type: 'sawtooth', freqEnd: 280, volume: 0.13 }); noise(0.05, { volume: 0.05 }); },
         // Turno de carga de un jefe (aviso de que el próximo golpe viene reforzado): tono ascendente
         // que NO resuelve en un golpe, para que se distinga claramente de hitPlayer().
         bossCharge() { tone(260, 0.35, { type: 'sawtooth', freqEnd: 520, volume: 0.13 }); noise(0.2, { volume: 0.04 }); },

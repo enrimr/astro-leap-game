@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, HEROES, HERO_ORDER, WorldMap, game, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -581,6 +581,106 @@ describe('Reto Diario (contra js/game.js real)', () => {
         const isRecord3 = game.saveDailyRecord('2026-08-25', 9000, 'kes'); // día NUEVO
         expect(isRecord3).toBe(true); // un día nuevo siempre "es récord" (no hay con qué comparar)
         expect(game.dailyRecord.time).toBe(9000);
+    });
+});
+
+describe('Peligros: frágiles, móviles, rayos y cintas (contra el código real)', () => {
+    // Prepara una partida dentro del nivel `idx`, con los enemigos apartados para que ningún
+    // choque accidental abra un combate en mitad del test.
+    function inLevel(idx) {
+        const { game, Platform, MovingPlatform, EnergyBeam, Player } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(idx);
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        game.enemies.forEach(e => { e.x = -500; e.initialX = -500; });
+        return { game, Platform, MovingPlatform, EnergyBeam, Player };
+    }
+    function standOn(game, p) {
+        game.player.x = p.x + 5; game.player.y = p.y - game.player.h;
+        game.player.vx = 0; game.player.vy = 0; game.player.onGround = true;
+    }
+
+    test('una plataforma frágil se desmorona ~50 frames después de pisarla y reaparece a los 180', () => {
+        const { Platform } = loadGame();
+        const p = new Platform(0, 100, 40, 6, 'fragile');
+        expect(p.solid).toBe(true);
+        p.touched();
+        for (let i = 0; i < 50; i++) p.update();
+        expect(p.gone).toBe(true);
+        expect(p.solid).toBe(false);
+        for (let i = 0; i < 180; i++) p.update();
+        expect(p.solid).toBe(true); // reaparece: el nivel nunca queda bloqueado sin salida
+        expect(p.crumbleTimer).toBe(-1); // y vuelve intacta, con su cuenta atrás sin arrancar
+    });
+
+    test('estar de pie sobre una frágil (nivel 4 real) arranca su cuenta atrás y acaba cayendo', () => {
+        const { game } = inLevel(3); // Chatarral Magnético: primer nivel con frágiles
+        const frag = game.platforms.find(p => p.variant === 'fragile');
+        standOn(game, frag);
+        game.update();
+        expect(frag.crumbleTimer).toBeGreaterThanOrEqual(0); // pisada: cuenta atrás en marcha
+        for (let i = 0; i < 60; i++) game.update();
+        expect(frag.gone).toBe(true);
+    });
+
+    test('una plataforma móvil oscila alrededor de su Y base y lleva al jugador encima', () => {
+        const { MovingPlatform, Player } = loadGame();
+        const m = new MovingPlatform(100, 120, 60, 6, 14, 0.02);
+        let minY = Infinity, maxY = -Infinity;
+        const pl = new Player(110, 120 - 13, 'kes');
+        pl.onGround = true;
+        const particles = { burst() {} };
+        for (let i = 0; i < 350; i++) {
+            m.update();
+            pl.update({}, [m], particles);
+            minY = Math.min(minY, m.y); maxY = Math.max(maxY, m.y);
+        }
+        expect(minY).toBeLessThan(110); // recorre su amplitud hacia arriba...
+        expect(maxY).toBeGreaterThan(130); // ...y hacia abajo
+        expect(pl.onGround).toBe(true); // y el jugador sigue de pie encima
+        expect(Math.abs((pl.y + pl.h) - m.y)).toBeLessThan(1); // pegado a la altura ACTUAL
+    });
+
+    test('el ciclo del rayo eléctrico: apagado → aviso → activo, determinista por frames', () => {
+        const { EnergyBeam } = loadGame();
+        const b = new EnergyBeam(0, 100, 40, 0);
+        expect(b.phase()).toBe('off');
+        b.t = b.PERIOD - b.ON - b.WARN;
+        expect(b.phase()).toBe('warn');
+        b.t = b.PERIOD - b.ON;
+        expect(b.phase()).toBe('on');
+        b.t = b.PERIOD; // ciclo nuevo
+        expect(b.phase()).toBe('off');
+    });
+
+    test('cruzar un rayo activo (nivel 7 real) daña y concede tregua de invulnerabilidad', () => {
+        const { game } = inLevel(6); // Muelle de Carga: primer nivel con rayos
+        const beam = game.beams[0];
+        beam.t = beam.PERIOD - beam.ON; // forzado a fase activa
+        game.player.x = beam.x + 10; game.player.y = beam.y - 8; game.player.vy = 0;
+        const hp0 = game.player.hp;
+        game.update();
+        expect(game.player.hp).toBe(hp0 - Math.max(1, 4 - game.player.defense));
+        expect(game.playerInvulnerable).toBe(50); // tregua: no re-golpea cada frame
+    });
+
+    test('un rayo apagado no hace nada aunque lo cruces', () => {
+        const { game } = inLevel(6);
+        const beam = game.beams[0];
+        beam.t = 0; // fase apagada
+        game.player.x = beam.x + 10; game.player.y = beam.y - 8; game.player.vy = 0;
+        const hp0 = game.player.hp;
+        game.update();
+        expect(game.player.hp).toBe(hp0);
+    });
+
+    test('una cinta (nivel 9 real) arrastra al jugador parado hacia atrás', () => {
+        const { game } = inLevel(8); // Núcleo del Reactor: primer nivel con cinta
+        const belt = game.platforms.find(p => p.variant === 'beltL');
+        standOn(game, belt);
+        const x0 = game.player.x;
+        for (let i = 0; i < 10; i++) game.update();
+        expect(game.player.x).toBeLessThan(x0); // sin pulsar nada, la cinta te lleva
     });
 });
 

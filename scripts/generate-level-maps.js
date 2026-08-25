@@ -45,6 +45,10 @@ const OUT_DIR = path.join(ROOT, 'guia');
 
             level.platforms.forEach(p => new Platform(...p, level.variant).draw(g, 0));
             (level.reinforcedBlocks || []).forEach(b => new Platform(...b, 'reinforced').draw(g, 0));
+            // Móviles en su Y base (con su raíl de recorrido) y rayos dibujados ACTIVOS —
+            // en el mapa de la guía deben verse, no depender de la fase del ciclo.
+            (level.movingPlatforms || []).forEach(([mx, my, mw, mh, amp, om]) => new MovingPlatform(mx, my, mw, mh, amp, om, level.variant).draw(g, 0));
+            (level.beams || []).forEach(([bx, by, len, off]) => { const beam = new EnergyBeam(bx, by, len, off); beam.t = beam.PERIOD - beam.ON; beam.draw(g, 0); });
             (level.capsules || []).forEach(([x, y]) => { const cp = new LifeCapsule(x, y); cp.t = 0; cp.draw(g, 0); });
             (level.energyCells || []).forEach(([x, y]) => { const ce = new EnergyCell(x, y); ce.t = 0; ce.draw(g, 0); });
             level.enemies.forEach(e => new Enemy(...e).draw(g, 0)); // dibuja también su "LvN" (y "JEFE")

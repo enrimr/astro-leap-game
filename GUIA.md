@@ -9,6 +9,10 @@ Todo lo que hay en el juego: pilotos, fórmulas de combate, bestiario, estrategi
 - **LvN** sobre cada enemigo — su nivel. **JEFE** marca a los guardianes.
 - **♥** — cápsula de vida (+1 vida) · **⚡** — célula de energía (+1 Energía máxima, permanente).
 - **Franjas ámbar** en una plataforma — refuerzo que solo Scrap rompe al caminar encima.
+- **Plataforma agrietada** — frágil: se desmorona al pisarla (ver Peligros).
+- **Raíl punteado vertical** — plataforma móvil que sube y baja por ese recorrido.
+- **Dos emisores ámbar con línea cian** — rayo eléctrico (dibujado activo en el mapa).
+- **Chevrones animados** en una plataforma — cinta que te arrastra en esa dirección.
 - Color de plataforma según el mundo: violeta (Luna Cenizal), hielo (Grietas), gris metal (resto).
 
 ---
@@ -66,6 +70,19 @@ El daño que recibes sin defender es `ATQ enemigo × (0.8–1.2) − tu DEF` (m�
 | Espectro Iónico | 6 | 20 | 9 | 3 | 22 | **Vuela** rápido y con recorrido amplio | Lv7 |
 
 Los voladores son los más traicioneros de pisotear: su vaivén vertical hace fácil comerse el contacto lateral.
+
+## 4b. Peligros del terreno
+
+El Mundo 1 es terreno amable; a partir del Mundo 2 el propio suelo empieza a conspirar, y en el 4 está todo junto:
+
+| Peligro | Debut | Cómo funciona | Cómo se supera |
+|---|---|---|---|
+| **Plataforma frágil** (agrietada) | Mundo 2 (nivel 4) | Al pisarla tiembla y se desmorona a los ~0,8s. **Reaparece a los 3s** — nunca te deja encerrado | No te pares encima: cruza de una pasada. Si cae, espera a que reaparezca |
+| **Plataforma móvil** (raíl punteado) | Mundo 2 (nivel 4) | Sube y baja en ciclo constante. Te lleva encima sin resbalar | Son atajos de ruta alta — el camino obligatorio nunca depende de ellas |
+| **Rayo eléctrico** (dos emisores) | Mundo 3 (nivel 7) | Ciclo fijo de 2,5s: 1,5s apagado → 0,25s de aviso (chisporroteo) → 0,75s activo. Activo hace **4 de daño** con tregua de invulnerabilidad después | El chisporroteo es tu semáforo: si los emisores chispean, espera; si acaba de apagarse, tienes 1,5s de sobra. Los rayos del mismo nivel van desfasados |
+| **Cinta magnética** (chevrones) | Mundo 3 (nivel 9) | Te arrastra ~30% de tu velocidad en la dirección de los chevrones — siempre en contra | Camina sin pararte (avanzas igual, más despacio) y no te detengas cerca de un borde |
+
+Todos los peligros van con reloj **de frames, no de tiempo real**: el patrón es idéntico en cualquier máquina, y en el Reto Diario es el mismo para todo el mundo (aunque los niveles del reto, 1–2, no tienen ninguno).
 
 ## 5. Los 4 jefes
 
@@ -130,61 +147,61 @@ Primeros huecos que premian el doble salto; suelo de hielo (solo estética). Eri
 
 ![Mapa del nivel 4](guia/nivel-04.png)
 
-Debut de hoverbots (voladores) y magnetitas (DEF alta). Ruta alta con habilidad aérea o ruta baja de piedras con salto simple.
+Debut de hoverbots (voladores) y magnetitas (DEF alta) — y de dos peligros nuevos: los dos islotes agrietados son **frágiles** (cruza sin pararte) y hay una **plataforma móvil** como atajo de ruta alta.
 - **⚡ Célula**: plataforma secreta sobre el tercer islote — **doble salto cronometrado** (púlsalo en el ápice).
 
 ### Nivel 5 · Tormenta de Iones (Luna Ferrosa)
 
 ![Mapa del nivel 5](guia/nivel-05.png)
 
-EL nivel de huecos largos: la ruta alta pide habilidad aérea de un extremo a otro; la baja es el desvío de piedras más largo del juego. Espectros iónicos patrullando los huecos.
+EL nivel de huecos largos: la ruta alta pide habilidad aérea de un extremo a otro; la baja es el desvío de piedras más largo del juego. Espectros iónicos patrullando los huecos. El islote central de la ruta alta es **frágil**, y hay una **móvil** como atajo del tramo 620→760.
 - **♥ Cápsula**: plataforma secreta sobre el cuarto islote alto — **doble salto cronometrado**.
 
 ### Nivel 6 · Núcleo del Centinela (Luna Ferrosa) — JEFE
 
 ![Mapa del nivel 6](guia/nivel-06.png)
 
-Sin secretos: nivel de puro camino hacia el [Centinela](#️-centinela--núcleo-del-centinela-nivel-6). Los 5 enemigos previos son tu última oportunidad de ganar XP/Energía antes del duelo.
+Sin secretos: nivel de puro camino hacia el [Centinela](#️-centinela--núcleo-del-centinela-nivel-6), con un islote **frágil** a mitad y una **móvil** de atajo. Los 5 enemigos previos son tu última oportunidad de ganar XP/Energía antes del duelo.
 
 ### Nivel 7 · Muelle de Carga (Estación Colapsada)
 
 ![Mapa del nivel 7](guia/nivel-07.png)
 
-Mezcla de todo el bestiario. Aquí recoges la pieza de la nave — y despiertas el núcleo (narrativamente: por esto el nivel 8 es lo que es).
+Mezcla de todo el bestiario y **debut de los rayos eléctricos**: dos, desfasados entre sí, cruzando los huecos del segundo y el penúltimo islote — espera al ciclo o pasa por abajo. Aquí recoges la pieza de la nave — y despiertas el núcleo (narrativamente: por esto el nivel 8 es lo que es).
 - **♥ Cápsula**: plataforma secreta sobre el segundo islote — **salto simple** bien colocado.
 
 ### Nivel 8 · Túnel de Escape (Estación Colapsada) — SCROLL FORZADO
 
 ![Mapa del nivel 8](guia/nivel-08.png)
 
-5 segundos de cuenta atrás y un **muro de energía** avanza desde la izquierda, empujando y dañando (3 de daño por toque, con tregua entre golpes). El muro (0.55) es más lento que tú corriendo (1.55): **no pares** y le sacarás pantalla y media de ventaja — puedes permitirte fallar un salto. Todos los huecos se cruzan con salto simple. Consejo: ignora a los enemigos (pisotón al vuelo como mucho) — el muro se congela durante los duelos, así que no te matan, pero queman cronómetro si vas a por marca.
+5 segundos de cuenta atrás y un **muro de energía** avanza desde la izquierda, empujando y dañando (3 de daño por toque, con tregua entre golpes). El muro (0.55) es más lento que tú corriendo (1.55): **no pares** y le sacarás pantalla y media de ventaja — puedes permitirte fallar un salto. Todos los huecos se cruzan con salto simple, pero ahora tres islotes elevados son **frágiles**: con el muro detrás, pararse encima a pensar es mala idea por partida doble. Consejo: ignora a los enemigos (pisotón al vuelo como mucho) — el muro se congela durante los duelos, así que no te matan, pero queman cronómetro si vas a por marca.
 
 ### Nivel 9 · Núcleo del Reactor (Estación Colapsada) — JEFE
 
 ![Mapa del nivel 9](guia/nivel-09.png)
 
-El nivel más largo de enemigos antes del [Overlord](#️-overlord--núcleo-del-reactor-nivel-9): 8 enemigos Lv2-6 — una mina de XP y Energía.
+El nivel más largo de enemigos antes del [Overlord](#️-overlord--núcleo-del-reactor-nivel-9): 8 enemigos Lv2-6 — una mina de XP y Energía. Dos rayos desfasados, un islote **frágil**, y **debut de la cinta magnética**: la antesala del jefe te arrastra hacia atrás (camina sin pararte).
 - **⚡ Célula**: plataforma secreta nada más empezar, sobre el segundo islote — **doble salto cronometrado**. Cógela ANTES del jefe.
 
 ### Nivel 10 · Bóveda Sellada (Núcleo Expuesto)
 
 ![Mapa del nivel 10](guia/nivel-10.png)
 
-El mundo que solo se entiende con Scrap desbloqueado.
+El mundo que solo se entiende con Scrap desbloqueado. Mundo 4 = todo junto: dos rayos desfasados, un islote **frágil** y una **cinta** en contra en el tramo final.
 - **♥ Cápsula**: bóveda bajo el **refuerzo ámbar** del último tramo — solo Scrap.
 
 ### Nivel 11 · Galería de Ecos (Núcleo Expuesto)
 
 ![Mapa del nivel 11](guia/nivel-11.png)
 
-Huecos largos estilo Tormenta de Iones, con piedras de paso para la ruta baja.
+Huecos largos estilo Tormenta de Iones, con piedras de paso para la ruta baja — pero una de las piedras es **frágil**, hay **dos móviles** de atajo en la ruta alta, otro islote frágil y un rayo custodiando el tramo final.
 - **⚡ Célula**: bóveda bajo el **refuerzo ámbar** cerca del final — solo Scrap. La última mejora permanente del juego.
 
 ### Nivel 12 · Nodo Cero (Núcleo Expuesto) — JEFE FINAL
 
 ![Mapa del nivel 12](guia/nivel-12.png)
 
-9 enemigos de todo el bestiario en escalada hasta [Nodo Cero](#-nodo-cero--nodo-cero-nivel-12-jefe-final). Pisotea todo lo que puedas para llegar con la Energía llena: el duelo final premia poder encadenar Habilidades.
+9 enemigos de todo el bestiario en escalada hasta [Nodo Cero](#-nodo-cero--nodo-cero-nivel-12-jefe-final), con el examen final del terreno: dos islotes **frágiles**, dos rayos desfasados, una **móvil** y una **cinta** en contra como peaje justo antes del jefe. Pisotea todo lo que puedas para llegar con la Energía llena: el duelo final premia poder encadenar Habilidades.
 
 ---
 

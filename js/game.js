@@ -187,7 +187,7 @@ class Game {
     constructor() {
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
-        this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null; this.capsules = []; this.energyCells = [];
+        this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null; this.capsules = []; this.energyCells = []; this.beams = [];
         this.combat = null; this.combatTransition = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
@@ -606,6 +606,13 @@ class Game {
             if (this.collectedPickups.has(block.reinforcedKey)) block.broken = true;
             this.platforms.push(block);
         });
+        // Plataformas móviles: en un array aparte de levels.js A PROPÓSITO — el test BFS de
+        // alcanzabilidad no las cuenta, así que el camino obligatorio funciona sin ellas
+        // (son atajos/ruta alta). Comparten this.platforms para físicas y dibujo.
+        (level.movingPlatforms || []).forEach(([mx, my, mw, mh, amp, omega]) => {
+            this.platforms.push(new MovingPlatform(mx, my, mw, mh, amp, omega, level.variant));
+        });
+        this.beams = (level.beams || []).map(([bx, by, len, off]) => new EnergyBeam(bx, by, len, off));
         const levelCompleted = this.worldMap.nodes[lvl].completed;
         this.enemies = level.enemies.map((e, i) => {
             const enemy = new Enemy(...e);
@@ -1160,6 +1167,9 @@ class Game {
             if (outcome === 'fell') { this.loseLife(); return; }
             if (this.player.hp <= 0) { this.loseLife(); return; }
             this.particles.update();
+            // Plataformas con comportamiento: frágiles (cuenta atrás/reaparición), móviles
+            // (senoide vertical) y cintas (fase de animación).
+            for (const p of this.platforms) p.update();
             const CAMERA_END_MARGIN = 40; // deja la meta con aire a la derecha en vez de pegada al borde
             const maxScroll = level.goal + CAMERA_END_MARGIN - GAME_WIDTH;
 
@@ -1207,20 +1217,38 @@ class Game {
                 }
             }
 
-            // Habilidad de Scrap: al PISAR un bloque reforzado lo rompe (una sola vez por partida).
-            // No se puede reutilizar player.collides() tal cual: al aterrizar encima, el jugador
-            // queda pegado exactamente al borde superior (sin solape real), así que aquí basta con
+            // Efectos de ESTAR DE PIE sobre una plataforma: arrancar la cuenta atrás de una
+            // frágil, el arrastre de una cinta, o romper un refuerzo (Scrap). No se puede
+            // reutilizar player.collides() tal cual: al aterrizar encima, el jugador queda
+            // pegado exactamente al borde superior (sin solape real), así que aquí basta con
             // estar de pie sobre él, sin exigir profundidad de solape.
-            if (this.player.character === 'scrap') {
-                for (const p of this.platforms) {
-                    const standingOn = this.player.onGround && this.player.x < p.x + p.w && this.player.x + this.player.w > p.x
-                        && Math.abs((this.player.y + this.player.h) - p.y) < 2;
-                    if (p.variant === 'reinforced' && !p.broken && standingOn) {
-                        p.broken = true;
-                        this.collectedPickups.add(p.reinforcedKey);
-                        if (window.SFX) SFX.stomp();
-                        this.particles.burst(p.x + p.w / 2, p.y + p.h / 2, PALETTE.accent3, 14, { speed: 2, life: 24, size: 3 });
-                    }
+            for (const p of this.platforms) {
+                if (!p.solid) continue;
+                const standingOn = this.player.onGround && this.player.x < p.x + p.w && this.player.x + this.player.w > p.x
+                    && Math.abs((this.player.y + this.player.h) - p.y) < 2;
+                if (!standingOn) continue;
+                if (p.variant === 'fragile') p.touched();
+                else if (p.variant === 'beltL') this.player.x -= 0.45;
+                else if (p.variant === 'beltR') this.player.x += 0.45;
+                else if (p.variant === 'reinforced' && this.player.character === 'scrap') {
+                    p.broken = true;
+                    this.collectedPickups.add(p.reinforcedKey);
+                    if (window.SFX) SFX.stomp();
+                    this.particles.burst(p.x + p.w / 2, p.y + p.h / 2, PALETTE.accent3, 14, { speed: 2, life: 24, size: 3 });
+                }
+            }
+
+            // Rayos eléctricos: dañan solo en su fase activa, con la misma tregua de
+            // invulnerabilidad que el muro del Túnel (no es muerte instantánea).
+            for (const beam of this.beams) {
+                beam.update();
+                if (this.playerInvulnerable === 0 && beam.collides(this.player)) {
+                    this.player.takeDamage(4);
+                    this.playerInvulnerable = 50;
+                    this.shake = Math.max(this.shake, 5);
+                    this.particles.burst(this.player.x + this.player.w / 2, this.player.y + this.player.h / 2, PALETTE.accent, 10, { speed: 1.8, life: 18, size: 2 });
+                    if (window.SFX) SFX.zap();
+                    if (this.player.hp <= 0) { this.loseLife(); return; }
                 }
             }
 
@@ -1398,6 +1426,7 @@ class Game {
             this.combat.draw(ctx);
         } else {
             for (const p of this.platforms) p.draw(ctx, this.cameraX);
+            for (const beam of this.beams) beam.draw(ctx, this.cameraX);
             if (this.goalFlag) this.goalFlag.draw(ctx, this.cameraX);
             for (const cap of this.capsules) cap.draw(ctx, this.cameraX);
             for (const cell of this.energyCells) cell.draw(ctx, this.cameraX);
