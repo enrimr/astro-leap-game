@@ -1,75 +1,141 @@
 # ASTRO LEAP
 
-Plataformas + duelos por turnos, ambientado en dos lunas alienígenas y una estación abandonada. Construido sobre la misma mecánica que [Monster Jump](https://github.com/enrimr/juego-rol-plataformas) — ver [`DESIGN.md`](./DESIGN.md) para la descripción completa de esa mecánica y de qué añade este juego.
+Plataformas + duelos por turnos, ambientado en dos lunas alienígenas, una estación abandonada y el núcleo de una IA hostil. Como si **Super Mario Bros. y Pokémon compartieran motor**: exploras y saltas en tiempo real, pero cada enemigo es una decisión táctica. Construido sobre la misma mecánica que [Monster Jump](https://github.com/enrimr/juego-rol-plataformas) — ver [`DESIGN.md`](./DESIGN.md) para el diseño completo y [`LORE.md`](./LORE.md) para la historia.
+
+**Juega ya: <https://astroleap.enri.me/>** — gratis, sin instalar nada, en móvil y escritorio.
+
+![Gameplay de ASTRO LEAP](gameplay.gif)
+
+## Capturas
+
+| El mapa estelar | El hangar de pilotos |
+|---|---|
+| ![Mapa estelar con los 12 sectores](screenshots/mapa.png) | ![Selección de piloto](screenshots/hangar.png) |
+
+| Plataformas (Grietas de Hielo) | Un secreto encontrado |
+|---|---|
+| ![Doble salto sobre un hueco](screenshots/nivel.png) | ![Cápsula de vida extra escondida](screenshots/secreto.png) |
+
+| Duelo contra el jefe final | Scroll forzado (Túnel de Escape) |
+|---|---|
+| ![Duelo por turnos contra Nodo Cero](screenshots/combate-jefe.png) | ![Cuenta atrás del núcleo](screenshots/tunel.png) |
+
+Hay clips en vídeo de la habilidad de cada piloto, grabados por un bot que juega de verdad: [Kes](gameplay-kes.mp4) · [Bolt](gameplay-bolt.mp4) · [Shade](gameplay-shade.mp4) · [Scrap](gameplay-scrap.mp4) (ver `npm run record-gameplay` más abajo).
+
+## La mecánica central: Energía compartida
+
+La Energía es un recurso **único** que alimenta tanto la habilidad aérea en plataformas como la Habilidad en combate (daño ×1.5, cuesta 3). No se regenera con el tiempo — solo derrotando enemigos (+2 por derrota, sea pisotón o duelo) o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo.
+
+Y cada enemigo es una elección de riesgo: **si le caes encima desde arriba y tu nivel supera al suyo, muere al instante** (pisotón, XP directa, sin menú). Cualquier otro contacto abre el duelo por turnos: Atacar, Habilidad, Defender (mitad de daño ese turno) o Huir (50%).
+
+## Los 4 pilotos
+
+Se elige piloto antes de entrar a un nivel (chapa del mapa o tecla `C` → hangar). Los 4 comparten stats de combate; lo que cambia es cómo se mueven — y con el mismo botón de salto:
+
+| Piloto | Habilidad aérea | Coste | Habilidad en combate | Se desbloquea |
+|---|---|---|---|---|
+| **Kes** 🩵 | Doble salto (segunda pulsación en el aire) | 1 EN | Sobrecarga | Desde el inicio |
+| **Bolt** 💛 | Vuelo breve (mantén pulsado el salto) | 1 EN / 22 frames | Pulso EMP | Vencer a la Reina Larva |
+| **Shade** 🩷 | Impulso lateral (dash de 12 frames) | 1 EN | Zarpazo | Vencer al Centinela |
+| **Scrap** 🧡 | Ninguna — pero **rompe las plataformas reforzadas** (franjas ámbar) al pisarlas | — | Puño Cibernético | Vencer al Overlord |
+
+Todos los niveles se pueden completar con cualquier piloto (verificado por un test de alcanzabilidad BFS sobre la física real): los pilotos aéreos van por la **ruta alta**, más rápida; Scrap va escalón a escalón por el **camino bajo**, más lento pero seguro. Además hay un secreto dedicado por habilidad (una plataforma solo alcanzable en vuelo, un hueco solo cruzable con dash, y dos bóvedas selladas que solo Scrap abre).
+
+## Los 4 mundos (12 sectores)
+
+| Mundo | Sector | Nombre | Qué aporta |
+|---|---|---|---|
+| 1 · Luna Cenizal | 1 | Cráter de Amerizaje | Tutorial de salto/energía; bóveda reforzada de Scrap |
+| | 2 | Grietas de Hielo | Primeros huecos que premian el doble salto; secreto de vuelo de Bolt |
+| | 3 | Nido de la Reina Larva | **Jefe: Reina Larva** — se regenera cada 3 turnos; hueco de dash de Shade |
+| 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores, plataformas separadas |
+| | 5 | Tormenta de Iones | Huecos largos, la ruta alta exige habilidad aérea |
+| | 6 | Núcleo del Centinela | **Jefe: Centinela** — carga un turno y golpea el doble (ventana para Defender) |
+| 3 · Estación Colapsada | 7 | Muelle de Carga | Enemigos mixtos; despierta el núcleo |
+| | 8 | Túnel de Escape | **Scroll forzado**: tras 5s de cuenta atrás, un muro de energía avanza solo (más lento que tú corriendo — castiga pararse, no fallar) |
+| | 9 | Núcleo del Reactor | **Jefe: Overlord** — ignora Defender cada 3 turnos |
+| 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; segunda bóveda reforzada |
+| | 11 | Galería de Ecos | Huecos largos estilo Tormenta de Iones |
+| | 12 | Nodo Cero | **Jefe final: Nodo Cero** — combina los 3 patrones anteriores en un ciclo de 6 turnos |
+
+## Bestiario
+
+| Enemigo | Nv | HP | ATQ | XP | Rasgo |
+|---|---|---|---|---|---|
+| Dron | 1 | 7 | 3 | 5 | Patrulla |
+| Reptante | 2 | 11 | 4 | 8 | Patrulla más rápido |
+| Erizo de Púas | 3 | 15 | 6 | 12 | Salta |
+| Hoverbot | 4 | 16 | 6 | 14 | Vuela |
+| Magnetita | 5 | 22 | 8 | 18 | Tanque |
+| Espectro Iónico | 6 | 20 | 9 | 22 | Vuela, rápido |
+| **Reina Larva** | 8 | 55 | 12 | 60 | Jefe · se regenera |
+| **Centinela** | 12 | 90 | 17 | 120 | Jefe · carga + golpe doble |
+| **Overlord** | 16 | 140 | 23 | 220 | Jefe · ignora Defender |
+| **Nodo Cero** | 20 | 190 | 27 | 380 | Jefe final · los tres patrones |
+
+El jugador arranca con HP 22 · EN 10 · ATQ 5 · DEF 2 y 3 vidas (`♥` en el HUD). Subir de nivel cura del todo y da +5 HP máx, +2 EN máx, +2 ATQ, +1 DEF. Rejugar niveles completados (o re-matar enemigos ya derrotados en la sesión) da media XP — se puede farmear, pero rinde la mitad.
+
+## Vidas, secretos y mejoras permanentes
+
+- **Cualquier muerte** (caída, perder un duelo, el muro del Túnel) consume una vida y te devuelve al inicio del nivel con HP/EN llenos. Con 0 vidas: Game Over de verdad — se reinicia todo el progreso.
+- **Cápsulas de vida ♥** (+1 vida): una escondida por mundo, fuera del camino directo. Basta rozarla en pleno salto.
+- **Células de energía ⚡** (+1 Energía máxima, para siempre): otras tres, en niveles distintos a los de las cápsulas; dos exigen un doble salto bien cronometrado cerca del ápice.
+- Todo pickup se recoge **una sola vez por partida** — salir y reentrar al nivel no lo hace reaparecer.
+
+## Reto Diario
+
+Botón propio en el menú, al estilo Wordle: **el mismo desafío para todo el mundo cada día** — nivel (rota entre los sectores 1-2), piloto (entre los 4) y dificultad, deterministas según la fecha, con el azar del combate sembrado para que comparar tiempos signifique algo. No toca tu partida guardada en ningún caso. Se guarda tu mejor tiempo de hoy y hay botón de compartir al terminar.
+
+| Dificultad | Multiplicador de HP/ATQ enemigo |
+|---|---|
+| 🟢 Suave | ×0.85 |
+| 🟡 Normal | ×1.0 |
+| 🟠 Intensa | ×1.15 |
+| 🔴 Brutal | ×1.3 |
+
+## Cronómetro y récords
+
+Cronómetro RTA (tiempo real con `performance.now()`, no frames) desde que arrancas hasta completar los 12 sectores, con paso de simulación fijo a 60Hz para que el juego —y por tanto los tiempos— vaya igual en cualquier monitor. Los 5 mejores tiempos se guardan en `localStorage` y se listan en el menú.
+
+## Controles
+
+- `←` `→` — mover · `ESPACIO` — saltar (segunda pulsación en el aire = habilidad del piloto)
+- En combate: `↑`/`↓` navegan, `ESPACIO`/`Enter` confirma, o `1`-`4` directo
+- `C` — hangar de pilotos (en el mapa) · `ESC` — salir del nivel · `R` — reiniciar nivel
+- Táctil y ratón: controles en pantalla siempre visibles
+- Esquina superior izquierda: silenciar música 🎵 y efectos 🔊 por separado, y un tercer botón de **accesibilidad** que reduce el temblor de pantalla y los parpadeos. Todo se recuerda entre sesiones.
 
 ## Jugar en local
 
 No requiere build. Es HTML/CSS/JS plano.
 
 ```bash
-python3 -m http.server 8000
-# abre http://localhost:8000/
+python3 -m http.server 8000   # abre http://localhost:8000/
 ```
 
-O simplemente abre `index.html` directamente en el navegador.
+O simplemente abre `index.html` en el navegador. El sonido (efectos y dos loops de música) está 100% sintetizado con Web Audio, sin archivos externos — ver `DESIGN.md` §2.10.
 
-## Sonido
+## Probar/depurar
 
-Efectos y música de fondo (loop de exploración + loop de combate, con secuenciador propio) sintetizados con Web Audio, sin archivos externos. Ver `DESIGN.md` §2.10.
-
-Dos botones (🎵/🔊) en la esquina superior izquierda silencian música y efectos por separado, visibles en cualquier pantalla. La preferencia se recuerda entre sesiones.
-
-## Controles
-
-- `←` `→` — mover
-- `ESPACIO` — saltar. Una segunda pulsación en el aire = **propulsor** (doble salto), cuesta 1 de Energía.
-- En combate: `↑`/`↓` (o `←`/`→`) navegan el menú, `ESPACIO`/`Enter` confirma, o `1`-`4` como atajo directo.
-- `ESC` — salir del nivel actual.
-- Táctil y ratón: los mismos controles aparecen siempre en pantalla, debajo del juego.
-
-## La mecánica nueva
-
-La Energía es un recurso **compartido** entre el doble salto en plataformas y la Habilidad en combate. No se regenera con el tiempo — solo derrotando enemigos (+2 por derrota) o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo. Ver `DESIGN.md` §2.2 para el detalle.
-
-## Vidas
-
-3 vidas (`♥` en el HUD). Cualquier muerte —caer por un precipicio, perder un combate, o que te alcance el muro del Túnel de Escape— consume una vida y te devuelve al inicio del nivel actual con vida/energía llenas. Al quedarte sin vidas, Game Over: se reinicia todo (stats, progreso guardado, mapa) y vuelves al nivel 1. Ver `DESIGN.md` §2.7.
-
-**Conseguir vidas extra**: hay una cápsula escondida por mundo (3 en total), fuera del camino directo a la meta — una solo pide un salto simple, otra exige el doble salto. No hace falta aterrizar en la plataforma secreta, con tocar la cápsula en pleno salto vale. Cada cápsula solo se puede recoger una vez por sesión (no se puede farmear saliendo y reentrando al nivel). Ver `DESIGN.md` §2.8.
-
-**Conseguir más Energía máxima**: mismo patrón, otras 3 células escondidas (⚡) en otros niveles distintos a los de las cápsulas de vida. Suben `maxEnergy` en +1 para siempre, no son un recurso que se recupera solo al reiniciar nivel. Dos de ellas exigen doble salto cronometrado cerca del punto más alto del primer salto (saltar demasiado pronto da menos altura). Ver `DESIGN.md` §2.9.
-
-## El nivel de scroll forzado
-
-El sector 8 ("Túnel de Escape") es distinto al resto: al entrar, el núcleo de la estación empieza una cuenta atrás y luego una pared de energía avanza sola desde el borde izquierdo de la pantalla — no puedes detenerla ni ir más despacio que ella. Si te alcanza, empuja al jugador y hace daño (con un breve respiro entre golpes, no es instantáneo). Es el mismo tipo de tramo que en *Super Mario World* obliga a mantener el ritmo del mapa en vez de explorar a tu aire. Ver `DESIGN.md` §2.6.
-
-## Probar/depurar un nivel concreto
-
-No hace falta jugar desde el principio ni tocar la consola:
-
-- `?level=N` (1-12) — entra directo a ese nivel, con vida y energía al máximo, saltándose el mapa.
-  Ej: `http://localhost:8000/?level=8` te deja directamente en el Túnel de Escape.
-- `?unlock=all` — desbloquea todos los nodos del mapa estelar para poder elegir cualquiera a mano
-  con las flechas y `ESPACIO`, en vez de tener que completarlos en orden.
-- `?dailyDate=YYYY-MM-DD` — simula "hoy" para el Reto Diario (nivel, piloto, dificultad, semilla
-  del combate y el registro de "ya jugaste hoy") sin esperar días de verdad ni tocar el reloj del
-  sistema. Ej: `?dailyDate=2026-08-25` un día, luego `?dailyDate=2026-08-26` otro — deberías ver
-  un piloto/nivel/dificultad distintos y que el "RETO DIARIO ✓" del primer día no aparece en el
-  segundo.
-- Combinables: `?level=8&unlock=all`.
-- Ya dentro de un nivel, la tecla `R` lo reinicia al instante (posición, vida y energía), para iterar rápido sin salir al mapa.
+- `?level=N` (1-12) — entra directo a ese nivel con todo al máximo. Ej: `?level=8` para el Túnel de Escape.
+- `?char=bolt|shade|scrap` — pilota ese héroe directamente (se da por desbloqueado).
+- `?unlock=all` — desbloquea todos los nodos del mapa.
+- `?dailyDate=YYYY-MM-DD` — simula "hoy" para el Reto Diario sin esperar días reales.
+- Combinables: `?level=8&char=scrap&unlock=all`. Dentro de un nivel, `R` lo reinicia al instante.
 
 ## Estructura del proyecto
 
 ```
-index.html          punto de entrada, controles en pantalla, meta tags
-style.css           tema visual (neón espacial)
-js/audio.js         SFX sintetizados con Web Audio (sin archivos externos)
-js/entities.js      Player, Enemy, Platform, ParticleSystem, WorldMap, CombatSystem
-js/levels.js        definición de los 12 niveles (incluido el de scroll forzado) y stats de enemigos
-js/game.js          bucle principal, input (teclado/ratón/táctil), guardado, render
-__tests__/          suite de Jest sobre la lógica núcleo
-scripts/            generador del banner og-image.png (dev-time, node-canvas)
+index.html                  punto de entrada, controles en pantalla, meta tags OG
+style.css                   tema visual (neón espacial)
+js/audio.js                 SFX y música sintetizados con Web Audio (sin archivos externos)
+js/entities.js              Player, Enemy, Platform, ParticleSystem, WorldMap, CombatSystem
+js/levels.js                definición de los 12 niveles y stats de enemigos
+js/game.js                  bucle principal (timestep fijo 60Hz), input, guardado, render, Reto Diario
+__tests__/                  suite de Jest: lógica núcleo + ficheros reales vía jsdom (68 tests)
+scripts/generate-og-image.js  genera el banner og-image.png (dev-time, node-canvas)
+scripts/record-gameplay.js    graba los clips de gameplay: un bot juega en Chrome headless
+screenshots/                capturas usadas en este README
 ```
 
 ## Tests
@@ -79,10 +145,18 @@ npm install
 npm test
 ```
 
+68 tests, incluido un BFS de alcanzabilidad que simula la física real contra los 12 niveles: si un cambio en `levels.js` deja algún nivel imposible sin habilidad aérea, la suite falla y dice cuál.
+
+## Grabar gameplay
+
+```bash
+npm run record-gameplay          # un clip por piloto (Chrome headless + MediaRecorder)
+node scripts/record-gameplay.js bolt   # solo uno
+ffmpeg -i gameplay-bolt.webm -vf scale=1280:-2 -c:v libx264 -pix_fmt yuv420p -crf 20 -movflags +faststart gameplay-bolt.mp4
+```
+
+El bot lee el estado real del juego (plataformas, enemigos, combate) y juega: salta huecos con la física de verdad, pisotea enemigos, usa la habilidad aérea de cada piloto y gana duelos dejando el menú de acciones en pantalla el tiempo suficiente para leerse.
+
 ## Progreso guardado
 
-El progreso (nivel del jugador, stats, sectores desbloqueados/completados) se guarda automáticamente en `localStorage` al completar cada sector. Se limpia al terminar el juego (victoria) para permitir una partida nueva.
-
-## Reto Diario
-
-Botón propio en el menú principal (`RETO DIARIO`), separado de la partida normal — no toca ni lee tu progreso guardado. Mismo nivel, mismo piloto y misma dificultad para todo el mundo cada día (los tres rotan según la fecha, entre los sectores 1-2, los 4 pilotos y 4 tiers de dificultad que escalan HP/ataque de los enemigos), con el combate sembrado para que el resultado sea igual de justo para todos — así comparar tiempos con otra gente significa algo. Se puede reintentar tantas veces como quieras; se guarda tu mejor tiempo de hoy y hay botón de compartir al terminar. Ver `DESIGN.md` §2.16 para el detalle de implementación (por qué es seguro forzar cualquier piloto/nivel/dificultad, y cómo se garantiza que nunca toca la partida real).
+El progreso (nivel del jugador, stats, sectores, pilotos desbloqueados) se guarda en `localStorage` al completar cada sector, y se limpia al terminar el juego o en un Game Over completo.
