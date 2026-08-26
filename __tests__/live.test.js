@@ -440,19 +440,27 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
         expect(missing).toEqual([]);
     });
 
-    test('regla de diseño: el hueco del set piece de hielo (nivel 2) NO se cruza sin carrerilla', () => {
+    test('regla de diseño: los dos huecos del set piece de hielo (nivel 2) NO se cruzan sin carrerilla', () => {
         // Si algún día crece jumpPower/speed, este test avisa de que el set piece del nivel 2
         // deja de serlo (el salto normal cruzaría gratis, sin necesitar el deslizamiento).
         const { LEVELS, Player } = loadGame();
         const maxReach = makeMaxReach(Player);
         const lvl = LEVELS[1]; // Grietas de Hielo
+        // Hueco 1: pista de despegue → islote de la cápsula
         const runway = lvl.platforms.find(p => p[0] === 600 && p[1] === 150);
         const island = lvl.platforms.find(p => p[0] === 782 && p[1] === 130);
         expect(runway).toBeDefined();
         expect(island).toBeDefined();
-        const gap = island[0] - (runway[0] + runway[2]);
-        const dy = island[1] - runway[1];
-        expect(gap).toBeGreaterThan(maxReach(dy));
+        expect(island[0] - (runway[0] + runway[2])).toBeGreaterThan(maxReach(island[1] - runway[1]));
+        // Hueco 2 (el salto final, aún más ancho): meseta → plataforma de la BASE
+        const runway2 = lvl.platforms.find(p => p[0] === 862 && p[1] === 150);
+        const basePlat = lvl.platforms.find(p => p[0] === 1010 && p[1] === 150);
+        expect(runway2).toBeDefined();
+        expect(basePlat).toBeDefined();
+        const finalGap = basePlat[0] - (runway2[0] + runway2[2]);
+        expect(finalGap).toBeGreaterThan(maxReach(0));
+        // Y de verdad es el más ancho de los dos — es el bis, no una repetición literal
+        expect(finalGap).toBeGreaterThan(island[0] - (runway[0] + runway[2]));
     });
 
     test('los 12 niveles se pueden completar solo con salto simple — y por tanto con cualquier piloto', () => {
@@ -693,6 +701,25 @@ describe('Hielo resbaladizo (contra js/entities.js real)', () => {
         expect(p.y + p.h).toBe(130);            // de pie sobre el islote [782,130,40,6]...
         expect(p.x + p.w).toBeGreaterThan(782); // ...cruzado el hueco de 52 de verdad
         expect(p.x).toBeLessThan(822);          // ...y sin pasarse de largo
+    });
+
+    test('el salto final del nivel 2: con carrerilla desde la meseta se cruza el hueco de 58 hasta la BASE', () => {
+        const { LEVELS, Player, Platform } = loadGame();
+        const lvl = LEVELS[1];
+        const plats = lvl.platforms.map(pp => new Platform(...pp, lvl.variant));
+        const p = new Player(865, 137, 'scrap'); // arranca parado al inicio de la meseta [862,150,90,15]
+        p.onGround = true;
+        const particles = { burst() {} };
+        let jumped = false;
+        for (let f = 0; f < 300; f++) {
+            const keys = { ArrowRight: !jumped };
+            if (!jumped && p.x + p.w >= 951) { keys.Space = true; keys.ArrowRight = true; jumped = true; }
+            p.update(keys, plats, particles);
+            if (jumped && (p.onGround || p.y > 200)) break;
+        }
+        expect(jumped).toBe(true);
+        expect(p.y + p.h).toBe(150);             // aterrizó en la plataforma de la BASE [1010,150,80,15]...
+        expect(p.x + p.w).toBeGreaterThan(1010); // ...no en la red de seguridad de abajo
     });
 });
 

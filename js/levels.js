@@ -52,18 +52,25 @@ const LEVELS = [
             // Desde el fondo, el islote (42 más arriba) queda fuera de alcance de cualquier
             // salto: la cápsula es el premio del salto con carrerilla, no de la ruta lenta.
             [742, 172, 110, 6],
-            // Meseta final con la meta.
-            [862, 150, 90, 15]
+            // Meseta: pista de despegue del SALTO FINAL — el bis del set piece, esta vez sin
+            // premio que ganar sino la propia meta: hueco de 58 en llano (aún más ancho que el
+            // del islote) hasta la plataforma de la BASE. Misma regla que el primero: red de
+            // seguridad debajo que saca con salto simple — fallar cuesta tiempo, no vidas.
+            [862, 150, 90, 15],
+            [962, 172, 40, 6],
+            [1010, 150, 80, 15]
         ],
-        // El erizo de la meseta lleva rango corto (25) a propósito: salta y NO gira en los bordes
-        // como los reptantes, así que sin acotarlo acabaría cayéndose a la grieta del set piece.
-        enemies: [[80, 106, 'drone'], [260, 128, 'spiker'], [440, 93, 'crawler'], [530, 118, 'spiker'], [890, 138, 'spiker', 25], [925, 138, 'crawler']],
+        // El erizo vive en la red de la grieta, bajo el islote: peaje de la ruta lenta (quien
+        // cruza deslizándose ni lo ve). Rango acotado (20) porque salta y NO gira en los bordes.
+        // El reptante de la plataforma de la BASE también lleva rango corto para no patrullar
+        // la zona donde aterriza el salto final.
+        enemies: [[80, 106, 'drone'], [260, 128, 'spiker'], [440, 93, 'crawler'], [530, 118, 'spiker'], [790, 161, 'spiker', 20], [1045, 138, 'crawler', 20]],
         // Cápsula en el islote del set piece [782,130,40,6]: solo se alcanza con el salto con
         // carrerilla desde la pista (o gastando Energía en habilidad aérea) — antes estaba sobre
         // la flotante del arranque [70,118,30,6], un salto simple trivial que no premiaba nada.
         capsules: [[794, 118]],
         energyCells: [[447, 27]],
-        goal: 930
+        goal: 1055
     },
     {
         name: 'Nido de la Reina Larva', world: 1, variant: 'normal',
