@@ -161,11 +161,13 @@ function dailyDifficultyFor(dateStr) {
 }
 
 // Objetivo secundario (Cristales de Señal ◆, ver SignalCrystal en entities.js): umbrales que
-// destapan las puertas de las torres Extra en el mapa estelar. Hay 12 cristales (uno por nivel
-// del mapa) y los umbrales son 5 y 10 — dos de margen para que no haga falta el pleno.
+// destapan las puertas de las torres Extra en el mapa estelar. Hay 36 cristales (TRES por nivel
+// del mapa — con uno por nivel la primera puerta no podía abrirse antes del sector 5) y los
+// umbrales son 8 (≈ Mundo 1 explorado a fondo) y 20 (≈ mitad del juego), con margen de sobra
+// para que no haga falta el pleno.
 const SIGNAL_GATES = [
-    { level: 12, count: 5, name: 'Torre de Vigía' },
-    { level: 13, count: 10, name: 'Aguja Glacial' }
+    { level: 12, count: 8, name: 'Torre de Vigía' },
+    { level: 13, count: 20, name: 'Aguja Glacial' }
 ];
 const TOTAL_CRYSTALS = LEVELS.reduce((n, l) => n + (l.crystals || []).length, 0);
 
@@ -675,9 +677,10 @@ class Game {
         // Cristales de Señal: el set signalCrystals hace de anti-refarmeo Y de persistencia a
         // la vez (se guarda con la partida, a diferencia de collectedPickups que es de sesión —
         // los cristales abren contenido y no deben "des-recogerse" al recargar el navegador).
-        this.crystals = (level.crystals || []).map(([cx, cy]) => {
+        this.crystals = (level.crystals || []).map(([cx, cy], i) => {
             const cry = new SignalCrystal(cx, cy);
-            if (this.signalCrystals.has(lvl)) cry.collected = true;
+            cry.key = `${lvl}-${i}`; // clave por cristal: ahora hay varios por nivel
+            if (this.signalCrystals.has(cry.key)) cry.collected = true;
             return cry;
         });
         this.player.x = 20; this.player.y = 100; this.player.vx = 0; this.player.vy = 0;
@@ -1577,7 +1580,7 @@ class Game {
                 cry.update();
                 if (this.player.collides(cry)) {
                     cry.collected = true;
-                    this.signalCrystals.add(this.currentLevel);
+                    this.signalCrystals.add(cry.key);
                     this.crystalMessage = 110; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
                     this.applySignalUnlocks(true); // si cruza un umbral, el cartel de triangulación pisa al de cristal
                     this.saveProgress();

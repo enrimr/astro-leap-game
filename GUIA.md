@@ -105,32 +105,32 @@ Todos los peligros con ciclo van con reloj **de frames, no de tiempo real**: el 
 
 ## 4c. Objetivo secundario: Cristales de Señal ◆
 
-Restos de la red de vigilancia de quienes construyeron al Centinela «hace mucho, para detener esto». Hay **un cristal por nivel del mapa (12 en total)**, siempre fuera del camino directo, y reunirlos **triangula los emisores supervivientes** de esa red: las torres.
+Restos de la red de vigilancia de quienes construyeron al Centinela «hace mucho, para detener esto». Hay **tres cristales por nivel del mapa (36 en total)** — uno fácil, uno intermedio y uno «de firma» del nivel — siempre fuera del camino directo. Reunirlos **triangula los emisores supervivientes** de esa red: las torres.
 
-- Con **5 cristales** aparece en el mapa estelar la puerta de la **[Torre de Vigía](#nivel-extra--torre-de-vigía--vertical)**.
-- Con **10** aparece la de la **[Aguja Glacial](#nivel-extra-2--aguja-glacial--vertical--hielo--ascensores)**.
-- Los 2 restantes son margen: no hace falta el pleno para abrirlo todo.
+- Con **8 cristales** aparece en el mapa estelar la puerta de la **[Torre de Vigía](#nivel-extra--torre-de-vigía--vertical)** — al alcance de quien explora el Mundo 1 a fondo.
+- Con **20** aparece la de la **[Aguja Glacial](#nivel-extra-2--aguja-glacial--vertical--hielo--ascensores)** — hacia la mitad del juego.
+- Sobran 16 de margen: ni de lejos hace falta el pleno para abrirlo todo.
 
 Las puertas son nodos dorados con anillo, abajo del mapa, fuera de la constelación — no se dibujan bloqueadas: **aparecen** («¡SEÑAL TRIANGULADA!») al cruzar cada umbral. El contador ◆ va en el HUD (bajo el cronómetro) y en el mapa. Los cristales **se guardan con la partida** y, como toda la progresión, **se pierden con el Game Over** (las torres vuelven a ocultarse). En el Reto Diario no cuentan.
 
-Dónde está cada uno:
+Dónde están (los tres de cada nivel, de fácil a difícil):
 
-| Nivel | Dónde |
+| Nivel | Los 3 cristales |
 |---|---|
-| 1 · Cráter | Sobre la plataforma alta del tramo final — un salto desde ella |
-| 2 · Grietas | Flotando en la grieta del set piece, sobre la red — bucea a por él |
-| 3 · Nido | Sobre la antesala, justo antes de la arena de la Reina |
-| 4 · Chatarral | Sobre el punto **alto de la móvil** — súbete y salta |
-| 5 · Tormenta | Sobre el **techo del refugio D** — exige habilidad aérea y te deja expuesto a la tormenta |
-| 6 · Centinela | Sobre el punto alto de la móvil de la antesala |
-| 7 · Muelle | Muy por encima de la flotante [590,130] — se roza en el ápice del salto |
-| 8 · Túnel | Sobre la frágil [650,140]... con el muro pisándote los talones |
-| 9 · Reactor | Sobre la cinta magnética — salta mientras te arrastra |
-| 10 · Bóveda | Sobre la plataforma alta del tramo final |
-| 11 · Galería | Sobre el punto alto de la segunda móvil |
-| 12 · Nodo Cero | Sobre el punto alto de la móvil de la arena final |
+| 1 · Cráter | Flotante del arranque · flotante del medio · plataforma alta del final (con reptante al lado) |
+| 2 · Grietas | Flotante del tramo medio · **dentro de la grieta del set piece** (bucea a por él) · meseta del salto final |
+| 3 · Nido | Flotante [220,140] · flotante [400,135] · antesala de la arena de la Reina |
+| 4 · Chatarral | Sobre el suelo de salida · **punto alto de la móvil** · flotante del tramo final |
+| 5 · Tormenta | Flotante de la 1ª carrera · flotante de la 2ª · **techo del refugio D** (habilidad aérea + expuesto a la tormenta) |
+| 6 · Centinela | Flotante [260,130] · **punto alto de la móvil** · antesala del jefe |
+| 7 · Muelle | Flotante del arranque · en el ápice del salto sobre [590,130] · suelo largo del final |
+| 8 · Túnel | Flotante [170,140] · **sobre la frágil [650,140]**, con el muro pisándote los talones · flotante del final |
+| 9 · Reactor | Flotante [235,130] · flotante [600,125] · **sobre la cinta magnética** (salta mientras te arrastra) |
+| 10 · Bóveda | Flotante [230,130] · flotante [590,130] · plataforma alta del final |
+| 11 · Galería | Flotante [190,145] · flotante [450,105] · **punto alto de la 2ª móvil** |
+| 12 · Nodo Cero | Sobre la frágil del arranque (con espectro) · frágil del medio · **punto alto de la móvil de la arena** |
 
-Con salto simple llegan al menos 7 (niveles 1, 2, 3, 7, 8, 9 y 10): **Scrap puede abrir la Torre de Vigía sin ayuda de nadie**; los de las móviles y el techo del refugio piden montarse o habilidad aérea.
+Con salto simple sobran para ambas puertas: **Scrap puede abrir las dos torres él solo** — los de las móviles y el techo del refugio piden montarse o habilidad aérea, pero nunca son imprescindibles.
 
 ## 5. Los 4 jefes
 
@@ -263,7 +263,7 @@ El primer nivel **vertical** del juego: tres pisos (suelo, y=105 y y=60) recorri
 - El piso 2 se cruza de derecha a izquierda sobre **dos frágiles seguidas** — el peaje del serpentín: crúzalas de una pasada, cada una con su propia cuenta atrás. Si caen contigo, aterrizas en el suelo firme de abajo y a re-subir.
 - Una **puerta de energía** corta el corredor del suelo, y en cada piso patrulla su fauna (reptante y erizo abajo, magnetita y hoverbot en el 2, espectro y erizo guardián arriba).
 - **♥ Cápsula**: flotando entre pisos bajo las frágiles — un salto deliberado desde el corredor del suelo la roza en el ápice.
-- **Cómo se entra**: reúne **5 Cristales de Señal ◆** (ver §4c) y su puerta aparece en el mapa estelar (nodo dorado con anillo). Completarla marca su ✓ pero no desbloquea nada más — es un desafío aparte, rejugable. (`?level=13` sigue funcionando como acceso de depuración.)
+- **Cómo se entra**: reúne **8 Cristales de Señal ◆** (ver §4c) y su puerta aparece en el mapa estelar (nodo dorado con anillo). Completarla marca su ✓ pero no desbloquea nada más — es un desafío aparte, rejugable. (`?level=13` sigue funcionando como acceso de depuración.)
 
 ### Nivel Extra 2 · Aguja Glacial — VERTICAL + HIELO + ASCENSORES
 
@@ -275,7 +275,7 @@ La torre difícil de verdad: el mismo serpentín de tres pisos que la Torre de V
 - **Piso 2** (derecha→izquierda): mixto — metal, hielo y **dos frágiles seguidas**. El borde izquierdo es hielo: llega frenado o te caerás al piso 1 esperando el ascensor.
 - **Piso 3, la cumbre**: hielo de punta a punta y el final por todo lo alto: pista de 130 → **hueco de 50 que SOLO cruza el salto con carrerilla** (con un espectro patrullando el aire del hueco) → la BASE. Fallar el salto te deja en el piso 2: a re-subir.
 - **♥ Cápsula**: flotando en el hueco del ascensor 1 — se recoge durante el viaje.
-- 8 enemigos de fauna alta (Lv3-6). **Cómo se entra**: reúne **10 Cristales de Señal ◆** (ver §4c) y su puerta aparece en el mapa estelar. (`?level=14` sigue como acceso de depuración.)
+- 8 enemigos de fauna alta (Lv3-6). **Cómo se entra**: reúne **20 Cristales de Señal ◆** (ver §4c) y su puerta aparece en el mapa estelar. (`?level=14` sigue como acceso de depuración.)
 
 ---
 

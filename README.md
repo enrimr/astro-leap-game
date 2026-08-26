@@ -59,8 +59,8 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 | 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; todos los peligros combinados |
 | | 11 | Galería de Ecos | Huecos largos + móviles, frágiles y una puerta de energía |
 | | 12 | Nodo Cero | **Jefe final: Nodo Cero** — combina los 3 patrones anteriores; el terreno combina los 4 peligros |
-| Extra | 13 | Torre de Vigía | **Vertical en serpentín**: tres pisos, escaleras alternas y la BASE arriba del todo — aparece al reunir **5 ◆** |
-| | 14 | Aguja Glacial | **La torre difícil**: suelo helado, puertas, y **ascensores obligatorios**; final de salto con carrerilla — aparece con **10 ◆** |
+| Extra | 13 | Torre de Vigía | **Vertical en serpentín**: tres pisos, escaleras alternas y la BASE arriba del todo — aparece al reunir **8 ◆** |
+| | 14 | Aguja Glacial | **La torre difícil**: suelo helado, puertas, y **ascensores obligatorios**; final de salto con carrerilla — aparece con **20 ◆** |
 
 ## Bestiario
 
@@ -85,7 +85,7 @@ El jugador arranca con HP 22 · EN 10 · ATQ 5 · DEF 2 y 3 vidas (`♥` en el H
 - **Cápsulas de vida ♥** (+1 vida): una escondida por mundo, fuera del camino directo. Basta rozarla en pleno salto.
 - **Células de energía ⚡** (+1 Energía máxima, para siempre): otras tres, en niveles distintos a los de las cápsulas; dos exigen un doble salto bien cronometrado cerca del ápice.
 - Todo pickup se recoge **una sola vez por partida** — salir y reentrar al nivel no lo hace reaparecer.
-- **Cristales de Señal ◆**: objetivo secundario — un cristal escondido por nivel (12 en total). Con **5** aparece en el mapa la puerta de la **Torre de Vigía**; con **10**, la de la **Aguja Glacial**. Se guardan con la partida y se pierden con el Game Over.
+- **Cristales de Señal ◆**: objetivo secundario — tres cristales escondidos por nivel (36 en total). Con **8** aparece en el mapa la puerta de la **Torre de Vigía**; con **20**, la de la **Aguja Glacial**. Se guardan con la partida y se pierden con el Game Over.
 - **Árbol de mejoras** 🌳: cada subida de nivel da 1 punto; se gasta en el árbol del mapa estelar (chapa MEJORAS o tecla `T`) — 3 ramas × 3 nodos (críticos, economía de Energía, resistencias y un salvavidas de emergencia), con prerrequisito por rama. Una partida da ~8-9 puntos: elegir duele, como en un roguelike. Se pierde todo con el Game Over.
 
 ## Reto Diario
