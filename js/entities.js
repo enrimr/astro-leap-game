@@ -1023,6 +1023,9 @@ class WorldMap {
         ctx.fillText(`Nivel ${cur.levelIndex + 1}: ${LEVELS[cur.levelIndex].name}`, 14, 35);
     }
     completeLevel(levelIndex) {
+        // Un nivel Extra (Torre de Vigía) no tiene nodo: completarlo no marca ni desbloquea nada
+        // en el mapa — se rejuega libre, como un desafío aparte.
+        if (!this.nodes[levelIndex]) return;
         this.nodes[levelIndex].completed = true;
         if (levelIndex < this.nodes.length - 1) this.nodes[levelIndex + 1].unlocked = true;
     }

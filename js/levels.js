@@ -327,6 +327,57 @@ const LEVELS = [
         // Doble puerta desfasada en la arena, el último control antes de Nodo Cero.
         beams: [[1010, 110, 40, 0], [1075, 110, 40, 75]],
         enemies: [[160, 138, 'magnetite'], [265, 118, 'ionwisp', 45], [360, 138, 'spiker'], [450, 98, 'hoverbot', 45], [540, 138, 'magnetite'], [630, 113, 'ionwisp', 50], [720, 138, 'spiker'], [805, 138, 'crawler'], [885, 138, 'magnetite'], [1130, 130, 'nodo_cero']],
-        goal: 1260, boss: 'nodo_cero'
+        // final: completar ESTE nivel termina el juego. Antes la victoria era "el último índice
+        // de LEVELS", pero con el nivel Extra detrás eso habría movido el final de la historia.
+        goal: 1260, boss: 'nodo_cero', final: true
+    },
+
+    // ===== NIVEL EXTRA (sin nodo en el mapa todavía — se entra con ?level=13) =====
+    {
+        name: 'Torre de Vigía', world: 5, variant: 'normal', extra: true,
+        // El primer nivel VERTICAL: tres pisos (y=150, y=105, y=60 — separación 45, que ningún
+        // salto simple sube directo) recorridos en serpentín: → por el suelo, escalera al fondo
+        // derecho, ← por el piso 2, escalera al fondo izquierdo, → por el piso 3 hasta la BASE.
+        // La meta sigue siendo una X (player.x >= goal), así que el serpentín se fuerza por
+        // geometría: NINGÚN piso salvo el 3º se acerca a goal ni en pleno salto (extremo + ~42).
+        // Caerse de un piso castiga con tiempo, no con vidas: cada hueco de los pisos 2-3 tiene
+        // suelo debajo (incluido el suelo de recogida bajo la escalera derecha) — los únicos
+        // huecos letales son los dos del piso 1.
+        goalY: 38, // la bandera pisa el piso 3 (y=60), no el suelo
+        platforms: [
+            // Piso 1 (izquierda → derecha). El tramo central es largo a propósito: queda justo
+            // bajo la frágil del piso 2 — quien caiga cuando se desmorone aterriza en suelo
+            // firme, no en un hueco.
+            [0, 150, 120, 15], [145, 150, 170, 15], [340, 150, 120, 15],
+            // Suelo de recogida bajo la escalera derecha: recoge cualquier caída del extremo
+            // derecho del piso 2. Termina en 590 (590+42 < 640): ni en pleno salto alcanza la meta.
+            [462, 150, 128, 15],
+            // Escalera derecha (piso 1 → piso 2): peldaño a media altura.
+            [472, 128, 24, 6],
+            // Piso 2 (derecha → izquierda). El tramo derecho acaba en 505 a propósito
+            // (505+42 < goal). El del medio son DOS frágiles cortas, no una larga: con una sola
+            // de 85, cruzarla andando (47-49 frames) rozaba su cuenta atrás de 50 y el margen
+            // real era de 1-3 frames — injugable. Dos de 38 con temporizador propio se cruzan
+            // con margen de sobra... si no te paras en ninguna.
+            [440, 105, 65, 8], [330, 105, 80, 8],
+            [215, 105, 38, 8, 'fragile'], [262, 105, 38, 8, 'fragile'],
+            [95, 105, 90, 8], [30, 105, 40, 8],
+            // Escalera izquierda (piso 2 → piso 3), en zigzag: arranca en x=34 y no en el borde
+            // para no pisar el x=20 del spawn (el BFS de los tests elige como salida la
+            // plataforma MÁS ALTA que cubre x=20 — si el peldaño lo cubriera, validaría un
+            // camino que el jugador real no tiene).
+            [34, 83, 24, 6],
+            // Piso 3 (izquierda → derecha), con la meta al final. Sus huecos caen siempre sobre
+            // tramo sólido del piso 2 (o del suelo de recogida), nunca sobre un pozo encadenado.
+            [26, 60, 80, 8], [130, 60, 85, 8], [240, 60, 105, 8], [370, 60, 85, 8], [480, 60, 65, 8], [568, 60, 150, 8]
+        ],
+        beams: [[310, 110, 40, 0]],
+        enemies: [[180, 138, 'crawler'], [400, 138, 'spiker', 20], [355, 93, 'magnetite'], [130, 90, 'hoverbot', 40], [270, 48, 'ionwisp', 45], [600, 48, 'spiker', 25]],
+        // Cápsula flotando entre pisos, bajo la frágil: un salto deliberado desde el corredor
+        // del piso 1 la roza en el ápice.
+        capsules: [[250, 118]],
+        // 650 y no 640: el suelo de recogida acaba en 590 y un salto desde su borde plantaba al
+        // jugador en x≈630 en el aire — a 12 de la meta. Con 650 el margen sube a ~20.
+        goal: 650
     }
 ];

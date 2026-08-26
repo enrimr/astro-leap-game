@@ -52,7 +52,7 @@ const OUT_DIR = path.join(ROOT, 'guia');
             (level.capsules || []).forEach(([x, y]) => { const cp = new LifeCapsule(x, y); cp.t = 0; cp.draw(g, 0); });
             (level.energyCells || []).forEach(([x, y]) => { const ce = new EnergyCell(x, y); ce.t = 0; ce.draw(g, 0); });
             level.enemies.forEach(e => new Enemy(...e).draw(g, 0)); // dibuja también su "LvN" (y "JEFE")
-            new GoalFlag(level.goal, 128).draw(g, 0);
+            new GoalFlag(level.goal, level.goalY ?? 128).draw(g, 0); // goalY: niveles verticales (Torre de Vigía)
 
             // Punto de partida: Kes de pie en el arranque real del nivel (x=20, sobre el suelo)
             const pl = new Player(20, 137, 'kes');

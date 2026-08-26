@@ -623,7 +623,10 @@ class Game {
             this.platforms.push(new MovingPlatform(mx, my, mw, mh, amp, omega, level.variant));
         });
         this.beams = (level.beams || []).map(([bx, by, bh, off]) => new EnergyBeam(bx, by, bh, off));
-        const levelCompleted = this.worldMap.nodes[lvl].completed;
+        // Un nivel Extra (Torre de Vigía) no tiene nodo en el mapa: sin nodo, se trata como
+        // no-completado (XP entera la primera vez, como cualquier nivel nuevo).
+        const mapNode = this.worldMap.nodes[lvl];
+        const levelCompleted = mapNode ? mapNode.completed : false;
         this.enemies = level.enemies.map((e, i) => {
             const enemy = new Enemy(...e);
             // Anti-farmeo de XP, misma regla que rejugar un nivel completado: un enemigo ya
@@ -635,7 +638,9 @@ class Game {
             if (levelCompleted || this.collectedPickups.has(enemy.xpKey)) enemy.xpReward = Math.floor(enemy.xpReward / 2);
             return enemy;
         });
-        this.goalFlag = new GoalFlag(level.goal, 128);
+        // goalY opcional por nivel: en los niveles verticales (Torre de Vigía) la bandera debe
+        // pisar el piso alto, no flotar a la altura del suelo de siempre.
+        this.goalFlag = new GoalFlag(level.goal, level.goalY ?? 128);
         this.capsules = (level.capsules || []).map(([cx, cy]) => {
             const cap = new LifeCapsule(cx, cy);
             if (this.collectedPickups.has(`life-${lvl}`)) cap.collected = true;
@@ -1072,7 +1077,11 @@ class Game {
         const levelReached = LEVELS[this.currentLevel];
         const elapsed = performance.now() - this.runStartTime;
         const pilotName = HEROES[this.player.character].name; // antes del reset del jugador, unas líneas más abajo
-        const shareText = `☠️ Caí en el sector ${this.currentLevel + 1}/${LEVELS.length} (${levelReached.name}) de ASTRO LEAP, pilotando a ${pilotName} — ${formatTime(elapsed)} de misión. ¿Llegas más lejos? 🚀`;
+        // Sector N/12 contra los nodos del mapa (el nivel Extra no cuenta en el marcador); si
+        // caíste justo en el Extra, se nombra sin numerar — no es un sector del recorrido.
+        const isExtra = !this.worldMap.nodes[this.currentLevel];
+        const sectorLabel = isExtra ? `el nivel extra (${levelReached.name})` : `el sector ${this.currentLevel + 1}/${this.worldMap.nodes.length} (${levelReached.name})`;
+        const shareText = `☠️ Caí en ${sectorLabel} de ASTRO LEAP, pilotando a ${pilotName} — ${formatTime(elapsed)} de misión. ¿Llegas más lejos? 🚀`;
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
@@ -1082,7 +1091,7 @@ class Game {
             title: 'GAME OVER',
             subtitle: 'Sin vidas restantes — vuelves a empezar.',
             resultHTML: `
-                <p class="run-time">Llegaste hasta el sector ${this.currentLevel + 1}/${LEVELS.length} — ${levelReached.name}</p>
+                <p class="run-time">Llegaste hasta ${isExtra ? `el nivel extra — ${levelReached.name}` : `el sector ${this.currentLevel + 1}/${this.worldMap.nodes.length} — ${levelReached.name}`}</p>
                 <p class="run-time">Tiempo: ${formatTime(elapsed)}</p>
                 ${this.buildShareHTML(shareText)}
             `
@@ -1563,12 +1572,15 @@ class Game {
                 this.levelCompleteMessage = 150;
                 this.saveProgress();
 
-                if (this.currentLevel === LEVELS.length - 1) {
+                // La victoria la marca el nivel `final` (Nodo Cero), NO el último índice de
+                // LEVELS: el nivel Extra vive detrás en el array y no debe terminar el juego.
+                if (LEVELS[this.currentLevel].final) {
                     this.levelCompleting = false; this.gameStarted = false;
                     const finalTime = performance.now() - this.runStartTime;
                     const isRecord = this.saveBestTime(finalTime);
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
-                    const shareText = `🏆 ASTRO LEAP completado: ${LEVELS.length}/${LEVELS.length} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal! ⏱️' : ''}. ¿Me bajas el tiempo? 🚀`;
+                    const sectors = this.worldMap.nodes.length; // los 12 del mapa — el Extra no cuenta en el marcador
+                    const shareText = `🏆 ASTRO LEAP completado: ${sectors}/${sectors} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal! ⏱️' : ''}. ¿Me bajas el tiempo? 🚀`;
                     this.unlockedCharacters = new Set(['kes']);
                     this.player = new Player(20, 100, 'kes');
                     this.worldMap = new WorldMap();
@@ -1578,7 +1590,7 @@ class Game {
                         title: '¡MISIÓN CUMPLIDA!',
                         subtitle: 'Derrotaste a Nodo Cero, reparaste la nave y escapaste del Sistema Ceniza.',
                         resultHTML: `
-                            <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Completaste los ${LEVELS.length} sectores en ${formatTime(finalTime)}</p>
+                            <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Completaste los ${sectors} sectores en ${formatTime(finalTime)}</p>
                             ${this.buildShareHTML(shareText)}
                         `
                     });
@@ -1591,7 +1603,9 @@ class Game {
                     this.levelCompleteTimeout = setTimeout(() => {
                         this.levelCompleteTimeout = null;
                         this.levelCompleting = false; this.inLevel = false; this.inWorldMap = true;
-                        this.worldMap.currentNodeIndex = Math.min(this.currentLevel + 1, LEVELS.length - 1);
+                        // Clamp a los nodos del MAPA, no a LEVELS: al volver del nivel Extra
+                        // (sin nodo propio) el cursor debe caer en un nodo que exista.
+                        this.worldMap.currentNodeIndex = Math.min(this.currentLevel + 1, this.worldMap.nodes.length - 1);
                         this.player.hp = this.player.maxHp; this.player.energy = this.player.maxEnergy;
                     }, 1800);
                 }
@@ -1830,7 +1844,7 @@ const game = new Game();
 if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => window.scrollTo(0, 1), 50));
 
 // ---- Modo depuración vía URL, sin tocar la consola ----
-// ?level=N        -> entra directo al nivel N (1-12), con vida/energía llenas, saltándose el mapa.
+// ?level=N        -> entra directo al nivel N (1-13, el 13 es el Extra), con vida/energía llenas, saltándose el mapa.
 // ?unlock=all     -> desbloquea todos los nodos del mapa para poder elegir cualquiera a mano.
 // ?char=bolt|shade|scrap -> pilota ese héroe directamente (se da por desbloqueado).
 // ?dailyDate=YYYY-MM-DD -> simula "hoy" para el Reto Diario (piloto, semilla y el registro
@@ -1856,7 +1870,8 @@ if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => wind
     if (debugLevel !== null) {
         const idx = parseInt(debugLevel, 10) - 1;
         if (idx >= 0 && idx < LEVELS.length) {
-            game.worldMap.nodes[idx].unlocked = true;
+            // El nivel Extra (?level=13) no tiene nodo en el mapa — nada que desbloquear.
+            if (game.worldMap.nodes[idx]) game.worldMap.nodes[idx].unlocked = true;
             game.gameStarted = true;
             closeMenuOverlay();
             game.loadLevel(idx);

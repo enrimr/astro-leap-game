@@ -56,6 +56,7 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 | 3 · Estación Colapsada | 7 | Muelle de Carga | **Debutan las puertas de energía** (columnas cíclicas que bloquean el paso); despierta el núcleo |
 | | 8 | Túnel de Escape | **Scroll forzado**: tras 5s de cuenta atrás, un muro de energía avanza solo — con islotes frágiles bajo presión |
 | | 9 | Núcleo del Reactor | **Jefe: Overlord** — ignora Defender cada 3 turnos; **debuta la cinta magnética** en contra |
+| Extra | 13 | Torre de Vigía | **Vertical en serpentín**: tres pisos, escaleras alternas y la BASE arriba del todo (por ahora, `?level=13`) |
 | 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; todos los peligros combinados |
 | | 11 | Galería de Ecos | Huecos largos + móviles, frágiles y una puerta de energía |
 | | 12 | Nodo Cero | **Jefe final: Nodo Cero** — combina los 3 patrones anteriores; el terreno combina los 4 peligros |
@@ -120,7 +121,7 @@ O simplemente abre `index.html` en el navegador. El sonido (efectos y dos loops 
 
 ## Probar/depurar
 
-- `?level=N` (1-12) — entra directo a ese nivel con todo al máximo. Ej: `?level=8` para el Túnel de Escape.
+- `?level=N` (1-13) — entra directo a ese nivel con todo al máximo. Ej: `?level=8` para el Túnel de Escape, `?level=13` para el nivel extra vertical (Torre de Vigía, aún sin nodo en el mapa).
 - `?char=bolt|shade|scrap` — pilota ese héroe directamente (se da por desbloqueado).
 - `?unlock=all` — desbloquea todos los nodos del mapa.
 - `?dailyDate=YYYY-MM-DD` — simula "hoy" para el Reto Diario sin esperar días reales.

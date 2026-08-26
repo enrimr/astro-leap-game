@@ -551,6 +551,9 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
     // BFS de alcanzabilidad: ¿se puede llegar de la plataforma de salida hasta x >= goal saltando
     // (con salto simple) de plataforma en plataforma? Incluye reinforcedBlocks — antes de que
     // Scrap los rompa son sólidos para cualquiera, así que cuentan como suelo normal aquí.
+    // BIDIRECCIONAL: el hueco horizontal se mide simétrico (la física del salto no distingue
+    // izquierda de derecha) — necesario desde la Torre de Vigía, cuyo piso 2 se recorre de
+    // derecha a izquierda; la versión original descartaba cualquier salto hacia la izquierda.
     function levelReachableWithSimpleJump(level, maxReach) {
         const plats = level.platforms.map(p => ({ x: p[0], y: p[1], w: p[2] }));
         (level.reinforcedBlocks || []).forEach(b => plats.push({ x: b[0], y: b[1], w: b[2] }));
@@ -562,8 +565,8 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
             const a = queue.shift();
             maxX = Math.max(maxX, a.x + a.w);
             for (const b of plats) {
-                if (visited.has(b) || b === a || b.x + b.w < a.x) continue;
-                const gap = Math.max(0, b.x - (a.x + a.w));
+                if (visited.has(b) || b === a) continue;
+                const gap = Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w));
                 const dy = b.y - a.y;
                 if (gap <= maxReach(dy)) { visited.add(b); queue.push(b); }
             }
@@ -611,13 +614,65 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
         expect(finalGap).toBeGreaterThan(island[0] - (runway[0] + runway[2]));
     });
 
-    test('los 12 niveles se pueden completar solo con salto simple — y por tanto con cualquier piloto', () => {
+    test('todos los niveles (12 del mapa + Extra) se completan solo con salto simple — y por tanto con cualquier piloto', () => {
         const { LEVELS, Player } = loadGame();
         const maxReach = makeMaxReach(Player);
         const failing = LEVELS
             .map((lvl, i) => ({ i, name: lvl.name, ok: levelReachableWithSimpleJump(lvl, maxReach) }))
             .filter(r => !r.ok);
         expect(failing).toEqual([]); // si esto falla, el mensaje lista qué niveles quedaron inalcanzables
+    });
+
+    test('Torre de Vigía: el serpentín es obligatorio — sin subir al piso 3 no hay meta, ni en pleno salto', () => {
+        const { LEVELS, Player } = loadGame();
+        const maxReach = makeMaxReach(Player);
+        const torre = LEVELS.find(l => l.extra);
+        expect(torre).toBeDefined();
+        // Todo tramo por debajo del piso 3 (y > 100: suelo, recogida, peldaños bajos, piso 2)
+        // debe quedarse corto de la meta INCLUSO saltando desde su extremo derecho.
+        const flight = maxReach(0); // alcance horizontal del salto simple en llano (~42)
+        torre.platforms
+            .filter(p => p[1] > 100)
+            .forEach(p => expect(p[0] + p[2] + flight).toBeLessThan(torre.goal));
+        // Y la separación entre pisos (45) supera lo que sube un salto simple + su ventana de
+        // aterrizaje: de piso a piso solo se sube por los peldaños de las escaleras.
+        const pl = new Player(0, 0, 'scrap');
+        pl.onGround = true;
+        let jumped = false, minY = 0;
+        for (let f = 0; f < 60; f++) {
+            pl.update({ Space: !jumped }, [], { burst() {} });
+            jumped = true;
+            minY = Math.min(minY, pl.y);
+        }
+        expect(45).toBeGreaterThan(-minY + 10); // 45 > ápice (~27) + snap (10)
+    });
+
+    test('Torre de Vigía: un nivel sin nodo de mapa no rompe nada al cargarlo ni al completarlo', () => {
+        const { game, LEVELS } = loadGame();
+        const idx = LEVELS.findIndex(l => l.extra);
+        game.gameStarted = true;
+        expect(() => game.loadLevel(idx)).not.toThrow(); // sin nodo, XP entera y carga limpia
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        const nodesBefore = game.worldMap.nodes.map(n => ({ completed: n.completed, unlocked: n.unlocked }));
+        game.player.x = LEVELS[idx].goal; game.player.y = 47; game.player.vy = 0;
+        expect(() => game.update()).not.toThrow();
+        expect(game.levelCompleting).toBe(true); // se completa como cualquier nivel...
+        expect(game.gameStarted).toBe(true);     // ...pero NO dispara la victoria del juego
+        expect(game.worldMap.nodes.map(n => ({ completed: n.completed, unlocked: n.unlocked }))).toEqual(nodesBefore); // y el mapa ni se entera
+    });
+
+    test('regresión: la victoria del juego la dispara Nodo Cero (final: true), no el último índice de LEVELS', () => {
+        const { game, LEVELS, window } = loadGame();
+        const nodoCero = LEVELS.findIndex(l => l.final);
+        expect(nodoCero).toBe(11); // el 12º nivel del mapa, no el Extra
+        game.gameStarted = true;
+        game.loadLevel(nodoCero);
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        game.enemies.forEach(e => { e.alive = false; }); // jefe fuera: la meta se puede cruzar
+        game.player.x = LEVELS[nodoCero].goal; game.player.y = 137; game.player.vy = 0;
+        game.update();
+        expect(game.gameStarted).toBe(false); // fin del juego de verdad
+        expect(window.document.getElementById('startScreen').innerHTML).toContain('MISIÓN CUMPLIDA');
     });
 });
 

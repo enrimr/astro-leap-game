@@ -224,6 +224,18 @@ Huecos largos estilo Tormenta de Iones, con piedras de paso para la ruta baja �
 
 9 enemigos de todo el bestiario en escalada hasta [Nodo Cero](#-nodo-cero--nodo-cero-nivel-12-jefe-final), con el examen final del terreno: dos islotes **frágiles**, una **móvil**, una **cinta** en contra y una **doble puerta desfasada en la propia arena**, el último control antes del jefe. Pisotea todo lo que puedas para llegar con la Energía llena: el duelo final premia poder encadenar Habilidades.
 
+### Nivel Extra · Torre de Vigía — VERTICAL
+
+![Mapa del nivel extra](guia/nivel-13.png)
+
+El primer nivel **vertical** del juego: tres pisos (suelo, y=105 y y=60) recorridos en **serpentín** — derecha por el suelo, escalera al fondo derecho, izquierda por el piso 2, escalera en zigzag al fondo izquierdo, y derecha por el piso 3 hasta la BASE, que espera arriba del todo. La separación entre pisos (45) no la sube ningún salto simple: solo por los peldaños (el doble salto/vuelo compra el atajo vertical, como siempre).
+
+- **Caerse de un piso cuesta tiempo, no vidas**: cada hueco de los pisos 2-3 tiene suelo debajo (incluido un suelo de recogida bajo la escalera derecha). Los únicos huecos letales son los dos del suelo.
+- El piso 2 se cruza de derecha a izquierda sobre **dos frágiles seguidas** — el peaje del serpentín: crúzalas de una pasada, cada una con su propia cuenta atrás. Si caen contigo, aterrizas en el suelo firme de abajo y a re-subir.
+- Una **puerta de energía** corta el corredor del suelo, y en cada piso patrulla su fauna (reptante y erizo abajo, magnetita y hoverbot en el 2, espectro y erizo guardián arriba).
+- **♥ Cápsula**: flotando entre pisos bajo las frágiles — un salto deliberado desde el corredor del suelo la roza en el ápice.
+- **Todavía sin nodo en el mapa estelar**: de momento se entra con `?level=13` (pendiente de enlazar desde otro nivel). Completarlo no desbloquea nada — es un desafío aparte, rejugable.
+
 ---
 
 ## 7. Reto Diario
