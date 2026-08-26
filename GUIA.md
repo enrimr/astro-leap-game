@@ -294,6 +294,15 @@ El mismo desafío para todo el mundo cada día: nivel (rota entre los sectores 1
 
 Se puede reintentar sin límite; queda tu mejor tiempo del día, con botón de compartir.
 
+### Duelos a distancia ⚔️
+
+Al completar un reto, el botón **«Retar a un amigo con este tiempo»** comparte una URL con un token (`?duelo=...`) que codifica **la fecha del reto, tu tiempo y tu nombre** (se pide una vez, opcional). Quien la abra verá un botón de duelo en el menú y jugará **exactamente el mismo desafío** — el reto es determinista por fecha, así que el enlace reproduce ese nivel, piloto, dificultad y azar aunque se abra días después — contra tu **fantasma de ritmo**: una silueta translúcida de tu piloto que recorre el nivel al ritmo exacto para llegar a la meta en tu tiempo, con un delta en el HUD (`−1.2s` verde / `+2.3s` rojo) según vaya la carrera.
+
+- Al terminar: veredicto (**¡DUELO GANADO!** / **DUELO PERDIDO** y por cuántos segundos) y botón de **revancha** con tu nuevo tiempo.
+- Un duelo de otra fecha **no toca tu mejor tiempo de hoy**; si el duelo es del día de hoy, sí cuenta.
+- El fantasma marca el ritmo, no la ruta (ignora el terreno) — y no consume el azar sembrado: la comparación es justa.
+- El token lleva checksum: un enlace truncado o manipulado se ignora en silencio. Si pierdes, el duelo se puede reintentar desde el menú sin recargar.
+
 ## 8. Reglas de la sesión (vidas y farmeo)
 
 - Morir (caída, duelo perdido, muro) = −1 vida y de vuelta al inicio del nivel con HP/EN llenos. Con 0 vidas, Game Over: todo el progreso se reinicia.

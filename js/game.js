@@ -160,6 +160,36 @@ function dailyDifficultyFor(dateStr) {
     return DAILY_DIFFICULTIES[Math.abs(seed) % DAILY_DIFFICULTIES.length];
 }
 
+// ---- Duelo a distancia: reta a un amigo con tu tiempo del Reto Diario. El token viaja en la
+// URL (?duelo=...) y codifica versión|fecha|tiempo|nombre; quien lo abre juega EXACTAMENTE el
+// mismo desafío (el reto ya es determinista por fecha: nivel, piloto, dificultad y azar
+// sembrado) contra un fantasma de ritmo con ese tiempo. base64url para sobrevivir a las URLs,
+// y checksum con el hashStringToSeed existente — no es criptografía, es integridad ante
+// truncados/typos del enlace compartido.
+function sanitizeDuelName(name) {
+    return String(name || '').replace(/[^0-9A-Za-zÀ-öø-ÿÑñ _-]/g, '').trim().slice(0, 14);
+}
+function encodeDuelToken(dateStr, timeMs, name = '') {
+    const payload = `v1|${dateStr}|${Math.round(timeMs)}|${sanitizeDuelName(name)}`;
+    const b64 = btoa(unescape(encodeURIComponent(payload))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const check = (hashStringToSeed(payload) >>> 0).toString(36);
+    return `${b64}.${check}`;
+}
+function decodeDuelToken(token) {
+    try {
+        const [b64, check] = String(token).split('.');
+        if (!b64 || !check) return null;
+        const payload = decodeURIComponent(escape(atob(b64.replace(/-/g, '+').replace(/_/g, '/'))));
+        if (((hashStringToSeed(payload) >>> 0).toString(36)) !== check) return null;
+        const [v, date, timeRaw, name] = payload.split('|');
+        if (v !== 'v1' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+        const time = parseInt(timeRaw, 10);
+        // 5s–30min: fuera de ese rango, o el token llegó roto o alguien está trolleando
+        if (!Number.isFinite(time) || time < 5000 || time > 30 * 60000) return null;
+        return { date, time, name: sanitizeDuelName(name) };
+    } catch (e) { return null; }
+}
+
 // Objetivo secundario (Cristales de Señal ◆, ver SignalCrystal en entities.js): umbrales que
 // destapan las puertas de las torres Extra en el mapa estelar. Hay 36 cristales (TRES por nivel
 // del mapa — con uno por nivel la primera puerta no podía abrirse antes del sector 5) y los
@@ -227,6 +257,8 @@ class Game {
         this.hintsSeen = this.loadHintsSeen();
         this.dailyMode = false; // true durante un intento del Reto Diario — ver startDailyChallenge()
         this.dailyRecord = this.loadDailyRecord();
+        this.pendingDuel = null; // {date, time, name} decodificado de ?duelo= — el menú ofrece el duelo
+        this.duelRival = null; this.duelGhost = null; // rival y su fantasma durante un duelo en marcha
         this.loadProgress();
         this.setupInput();
         this.setupTouchControls();
@@ -364,6 +396,9 @@ class Game {
             ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
             ${resultHTML}
             <div class="menu-panel" id="menuMain">
+                ${this.pendingDuel ? `
+                <button class="menu-btn daily-btn" data-action="duel">⚔️ DUELO: ganar a ${this.pendingDuel.name || 'tu rival'} — ${formatTime(this.pendingDuel.time)}</button>
+                <p class="daily-note">Reto del ${this.pendingDuel.date}: ${LEVELS[dailyLevelFor(this.pendingDuel.date)].name} · dificultad ${dailyDifficultyFor(this.pendingDuel.date).label} · piloto ${HEROES[dailyHeroFor(this.pendingDuel.date)].name}</p>` : ''}
                 <button class="menu-btn" data-action="play">${hasSave ? 'CONTINUAR PARTIDA' : 'JUGAR'}</button>
                 ${hasSave ? '<button class="menu-btn" data-action="newgame">NUEVA PARTIDA</button>' : ''}
                 <button class="menu-btn daily-btn" data-action="daily">RETO DIARIO${playedToday ? ' ✓' : ''}</button>
@@ -429,11 +464,34 @@ class Game {
         if (action === 'play') this.startGame();
         else if (action === 'newgame') this.startNewGame();
         else if (action === 'daily') this.startDailyChallenge();
+        else if (action === 'duel') this.startDailyChallenge(this.pendingDuel);
         else if (action === 'times') this.showMenuPanel('menuTimes');
         else if (action === 'help') this.showMenuPanel('menuHelp');
         else if (action === 'back') this.showMenuPanel('menuMain');
         else if (action === 'menu') this.showMainMenu();
         else if (action === 'share') this.shareRun(btn.dataset.shareText);
+        else if (action === 'challenge') this.shareDuelChallenge(btn.dataset.date, parseFloat(btn.dataset.time));
+    }
+    // Comparte una URL de duelo con TU tiempo como fantasma a batir. El nombre se pide una vez
+    // (prompt, opcional) y se recuerda — es lo que verá el rival en su menú y sobre el fantasma.
+    shareDuelChallenge(dateStr, timeMs) {
+        let name = '';
+        try { name = localStorage.getItem('astroLeapDuelName') || ''; } catch (e) { /* noop */ }
+        if (!name) {
+            try {
+                name = sanitizeDuelName(window.prompt('Tu nombre para el duelo (opcional):') || '');
+                if (name) localStorage.setItem('astroLeapDuelName', name);
+            } catch (e) { /* prompt bloqueado o sin almacenamiento: duelo anónimo */ }
+        }
+        const url = `${location.origin}${location.pathname}?duelo=${encodeDuelToken(dateStr, timeMs, name)}`;
+        const text = `⚔️ Te reto en ASTRO LEAP: el Reto Diario del ${dateStr} en ${formatTime(timeMs)}. Mi fantasma te espera — ¿me ganas?`;
+        if (navigator.share) {
+            navigator.share({ title: 'Astro Leap — Duelo', text, url }).catch(() => { /* cancelado: no pasa nada */ });
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(`${text} ${url}`).then(() => window.alert('Enlace del duelo copiado — pégaselo a tu rival.')).catch(() => window.prompt('Copia el enlace del duelo:', url));
+        } else {
+            window.prompt('Copia el enlace del duelo:', url);
+        }
     }
     // Botón nativo de compartir (X, Facebook, WhatsApp, Instagram... lo que tenga instalado el
     // sistema); solo se renderiza cuando existe soporte, ver buildShareHTML().
@@ -475,7 +533,10 @@ class Game {
     // en instancias de player/worldMap APARTE de las reales (guardadas en this._real*), para que
     // nada de esto pueda tocar la partida guardada — ni al ganar, ni al morir, ni si el jugador
     // sale a media partida.
-    startDailyChallenge() {
+    // duel (opcional, {date, time, name} de decodeDuelToken): juega el reto DE ESA FECHA — no
+    // el de hoy — contra el fantasma de ritmo del rival. Misma tubería determinista: la fecha
+    // decide nivel/piloto/dificultad/semilla, se abra el enlace el día que se abra.
+    startDailyChallenge(duel = null) {
         if (this.gameStarted) return;
         this._realPlayer = this.player;
         this._realWorldMap = this.worldMap;
@@ -483,13 +544,17 @@ class Game {
         this._realPickups = this.collectedPickups;
         this._realSignals = this.signalCrystals; // los cristales del reto se descartan, como todo lo demás
 
-        const dateStr = todayDateString();
+        const dateStr = duel ? duel.date : todayDateString();
         const hero = dailyHeroFor(dateStr);
         const levelIdx = dailyLevelFor(dateStr);
         const difficulty = dailyDifficultyFor(dateStr);
         RNG = mulberry32(hashStringToSeed(dateStr));
         this.dailyMode = true; this.dailyDate = dateStr; this.dailyHero = hero;
         this.dailyLevelIdx = levelIdx; this.dailyDifficulty = difficulty;
+        // Duelo: rival + su fantasma de ritmo (una instancia de Player SOLO para dibujar — no
+        // consume RNG ni toca físicas: la comparación de tiempos sigue siendo justa).
+        this.duelRival = duel ? { time: duel.time, name: duel.name || 'RIVAL' } : null;
+        this.duelGhost = duel ? new Player(20, 137, hero) : null;
 
         this.player = new Player(20, 100, hero);
         this.unlockedCharacters = new Set([hero]);
@@ -517,6 +582,7 @@ class Game {
     restoreAfterDaily() {
         RNG = Math.random;
         this.dailyMode = false;
+        this.duelRival = null; this.duelGhost = null; // pendingDuel se conserva: el duelo se puede reintentar desde el menú
         if (this._realPlayer) {
             this.player = this._realPlayer; this.worldMap = this._realWorldMap;
             this.unlockedCharacters = this._realUnlocked; this.collectedPickups = this._realPickups;
@@ -539,10 +605,13 @@ class Game {
     dailyChallengeFailed() {
         if (window.SFX) { SFX.music.stop(); SFX.gameOver(); }
         this.gameStarted = false;
+        const wasDuel = !!this.duelRival; // antes de restoreAfterDaily(), que lo anula
         this.restoreAfterDaily();
         startScreen.innerHTML = this.buildMenuScreen({
-            title: 'RETO FALLIDO',
-            subtitle: 'Sin vidas — el reto de hoy sigue disponible, inténtalo otra vez cuando quieras.'
+            title: wasDuel ? 'DUELO FALLIDO' : 'RETO FALLIDO',
+            subtitle: wasDuel
+                ? 'Sin vidas — el fantasma sigue esperando: el duelo se puede reintentar desde el menú.'
+                : 'Sin vidas — el reto de hoy sigue disponible, inténtalo otra vez cuando quieras.'
         });
         openMenuOverlay();
         this.inLevel = false; this.inWorldMap = false; this.combat = null;
@@ -1641,29 +1710,48 @@ class Game {
                 if (this.dailyMode) {
                     this.levelCompleting = false; this.gameStarted = false;
                     const finalTime = performance.now() - this.runStartTime;
-                    const isRecord = this.saveDailyRecord(this.dailyDate, finalTime, this.dailyHero);
+                    // Un duelo puede ser de OTRA fecha: solo el reto de HOY toca tu registro
+                    // diario — el fantasma de un amigo no debe pisar tu mejor tiempo de hoy.
+                    const isToday = this.dailyDate === todayDateString();
+                    const isRecord = isToday ? this.saveDailyRecord(this.dailyDate, finalTime, this.dailyHero) : false;
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
                     const heroName = HEROES[this.dailyHero].name;
                     const levelName = LEVELS[this.dailyLevelIdx].name;
                     const diffLabel = this.dailyDifficulty.label;
+                    const rival = this.duelRival; // capturado ANTES de restoreAfterDaily(), que lo anula
+                    const duelDate = this.dailyDate;
+                    // Veredicto del duelo, si lo hay: gana el tiempo menor.
+                    let title = '¡RETO SUPERADO!';
+                    let duelLine = '';
+                    if (rival) {
+                        const secs = (Math.abs(finalTime - rival.time) / 1000).toFixed(1);
+                        const rname = rival.name || 'tu rival';
+                        if (finalTime < rival.time) { title = '¡DUELO GANADO!'; duelLine = `<p class="run-time">⚔️ Ganaste a ${rname} por ${secs}s (su tiempo: ${formatTime(rival.time)})</p>`; }
+                        else if (finalTime > rival.time) { title = 'DUELO PERDIDO'; duelLine = `<p class="run-time">⚔️ ${rname} te ganó por ${secs}s (su tiempo: ${formatTime(rival.time)})</p>`; }
+                        else { title = 'EMPATE EXACTO'; duelLine = `<p class="run-time">⚔️ Empate al milisegundo con ${rname}: ${formatTime(rival.time)}</p>`; }
+                    }
                     // Formato compacto en 3 líneas, estilo Wordle: cabecera con la fecha, el
-                    // desafío de hoy de un vistazo, y el tiempo con el reto al receptor. Los
-                    // saltos de línea sobreviven tanto a navigator.share como a los enlaces de
-                    // respaldo de buildShareHTML (encodeURIComponent los convierte en %0A).
+                    // desafío de un vistazo, y el tiempo con el reto al receptor. Los saltos de
+                    // línea sobreviven tanto a navigator.share como a los enlaces de respaldo
+                    // de buildShareHTML (encodeURIComponent los convierte en %0A).
                     const shareText = [
-                        `🛰️ ASTRO LEAP — Reto Diario ${this.dailyDate}`,
+                        `🛰️ ASTRO LEAP — Reto Diario ${duelDate}`,
                         `📍 ${levelName} · ${this.dailyDifficulty.emoji} ${diffLabel} · 🧑‍🚀 ${heroName}`,
                         `⏱️ ${formatTime(finalTime)} — ¿lo superas?`
                     ].join('\n');
-                    const bestToday = this.dailyRecord.time; // ya actualizado por saveDailyRecord()
+                    const recordLine = isToday
+                        ? `<p class="run-time">${isRecord ? '¡Nuevo mejor tiempo de hoy!' : `Tu mejor tiempo de hoy: ${formatTime(this.dailyRecord.time)}`}</p>`
+                        : '';
                     this.restoreAfterDaily();
                     startScreen.innerHTML = this.buildDailyResultScreen({
-                        title: '¡RETO SUPERADO!',
-                        subtitle: `Reto del ${this.dailyDate} — ${levelName} · dificultad ${diffLabel} — piloto: ${heroName}`,
+                        title,
+                        subtitle: `Reto del ${duelDate} — ${levelName} · dificultad ${diffLabel} — piloto: ${heroName}`,
                         resultHTML: `
                             <p class="run-time">Tiempo: ${formatTime(finalTime)}</p>
-                            <p class="run-time">${isRecord ? '¡Nuevo mejor tiempo de hoy!' : `Tu mejor tiempo de hoy: ${formatTime(bestToday)}`}</p>
+                            ${duelLine}
+                            ${recordLine}
                             ${this.buildShareHTML(shareText)}
+                            <button class="menu-btn share-btn" data-action="challenge" data-date="${duelDate}" data-time="${finalTime}">${rival ? '⚔️ Revancha: reta con tu tiempo' : '⚔️ Retar a un amigo con este tiempo'}</button>
                         `
                     });
                     openMenuOverlay();
@@ -1811,6 +1899,37 @@ class Game {
             }
 
             const level = LEVELS[this.currentLevel];
+
+            // Fantasma de ritmo del duelo: recorre el nivel a la velocidad exacta para llegar a
+            // la meta EN el tiempo del rival (ignora el terreno — marca ritmo, no ruta). El
+            // delta bajo el cronómetro compara tu posición con el tiempo al que él pasó por ahí.
+            if (this.dailyMode && this.duelRival && this.duelGhost) {
+                const progress = Math.min(1, this.runElapsed / this.duelRival.time);
+                this.duelGhost.x = 20 + progress * (level.goal - 20);
+                this.duelGhost.y = 137;
+                this.duelGhost.facing = 1;
+                this.duelGhost.animT += 0.35; // camina siempre, incansable
+                ctx.save();
+                ctx.globalAlpha = 0.35;
+                this.duelGhost.draw(ctx, this.cameraX);
+                ctx.restore();
+                const gx = this.duelGhost.x - this.cameraX;
+                if (gx > -40 && gx < GAME_WIDTH + 40) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.75; ctx.fillStyle = PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
+                    ctx.fillText(this.duelRival.name, gx + 4, 130);
+                    ctx.textAlign = 'left';
+                    ctx.restore();
+                }
+                const rivalTimeAtMyX = (Math.max(0, this.player.x - 20) / Math.max(1, level.goal - 20)) * this.duelRival.time;
+                const delta = (this.runElapsed - rivalTimeAtMyX) / 1000;
+                ctx.fillStyle = 'rgba(11,6,32,0.7)'; ctx.fillRect(GAME_WIDTH - 42, 62, 42, 12);
+                ctx.fillStyle = delta <= 0 ? PALETTE.hp : PALETTE.hpLow;
+                ctx.font = '8px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
+                ctx.fillText(`${delta <= 0 ? '' : '+'}${delta.toFixed(1)}s`, GAME_WIDTH - 4, 71);
+                ctx.textAlign = 'left';
+            }
+
             if (level.forcedScroll) {
                 // Con reduceEffects, un valor fijo en vez del pulso rojo oscilante junto al borde
                 // izquierdo de la pantalla (la luz que más se acerca a un parpadeo real del juego).
@@ -2034,6 +2153,16 @@ if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => wind
 // Combinables: ?level=1&char=scrap&unlock=all para entrar al nivel 1 pilotando a Scrap, por ejemplo.
 (function setupDebugMode() {
     const params = new URLSearchParams(location.search);
+    // ?duelo=TOKEN -> duelo a distancia: el menú ofrece jugar el reto de la fecha del token
+    // contra el fantasma del rival. Token inválido (corrupto/troll) → se ignora en silencio.
+    const duelToken = params.get('duelo');
+    if (duelToken) {
+        const duel = decodeDuelToken(duelToken);
+        if (duel) {
+            game.pendingDuel = duel;
+            game.showMainMenu(); // reconstruye el menú, ya con el botón del duelo delante
+        }
+    }
     if (params.get('unlock') === 'all') {
         game.worldMap.nodes.forEach(n => { n.unlocked = true; });
     }

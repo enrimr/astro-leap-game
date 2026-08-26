@@ -379,3 +379,14 @@ El nivel 6 era el de menos peso respecto a su posición: un pasillo estándar co
 - **Coberturas cada ≤93** (lo andable durante el aviso de 60 frames, fijado por test muestreando toda la zona): el aviso siempre da tiempo de llegar a una — o de retirarse por la izquierda, fuera del dominio. Dos coberturas son frágiles: tu refugio puede desmoronarse contigo encima en plena onda, el toque de crueldad del ecuador del juego.
 - **La zona se apaga al ganar el duelo** (`boss.alive` como interruptor): rejugar el nivel ya conquistado es un paseo — la mecánica cuenta la historia (el dominio ERA suyo) sin una línea de diálogo.
 - Primera calibración: calma 4s/onda 0,8s/tregua 50 dejaba cruzar toda la zona ignorando el barrido por UN golpe — no obligaba a nada. Con calma 3s/onda 1s/tregua 40, el bot que lo ignora paga 7 golpes (~media vida) y encima tarda más que el que usa coberturas: ahora la mecánica manda.
+
+
+### 2.27 Duelos a distancia: el Reto Diario como carrera contra un fantasma
+
+El Reto Diario comparaba tiempos por texto («¿lo superas?»); el duelo lo convierte en carrera visible sin servidor: una URL con token (`?duelo=`, `encodeDuelToken`/`decodeDuelToken` en `game.js`) codifica `v1|fecha|tiempoMs|nombre` en base64url + checksum (`hashStringToSeed` reutilizado — integridad ante enlaces truncados, no criptografía; el juego es cliente puro y quien quiera hacerse trampas a sí mismo, puede).
+
+- **La fecha viaja en el token** y `startDailyChallenge(duel)` juega el reto DE ESA FECHA: el Reto Diario ya era determinista por fecha (nivel, piloto, dificultad, semilla — la misma tubería de `?dailyDate=`), así que el duelo reproduce exactamente el desafío del retador aunque el enlace se abra días después.
+- **Fantasma de ritmo, no replay**: una instancia de `Player` translúcida (α 0.35) con el piloto del reto avanza `x = 20 + min(1, t/T_rival) × (goal−20)` — llega a la meta EXACTAMENTE en el tiempo del rival. Grabar la ruta real exigiría infraestructura de grabación y URLs de KBs (que las apps de mensajería truncan); el ritmo cabe en ~40 caracteres y da la misma tensión. El fantasma ignora el terreno (marca ritmo, no ruta) y NO consume `RNG()`: la comparación sigue siendo justa.
+- **El duelo de otra fecha no pisa tu récord de hoy**: `saveDailyRecord` solo se llama si `dailyDate === hoy` — el registro diario es "tu mejor tiempo DE HOY", no un cajón de duelos.
+- El nombre del token se sanea a `[letras/números/espacio/_-]` y 14 caracteres ANTES de codificar y también al decodificar: entra en `innerHTML` del menú y en texto de canvas, así que jamás debe llegar un `<` vivo. Token inválido → se ignora en silencio (menú normal, sin error).
+- La revancha es el mismo botón de retar con tu tiempo recién hecho: el bucle social se cierra solo — reto → duelo → revancha → duelo...

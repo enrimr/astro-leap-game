@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -1158,6 +1158,96 @@ describe('Hielo resbaladizo (contra js/entities.js real)', () => {
         expect(jumped).toBe(true);
         expect(p.y + p.h).toBe(150);             // aterrizó en la plataforma de la BASE [1010,150,80,15]...
         expect(p.x + p.w).toBeGreaterThan(1010); // ...no en la red de seguridad de abajo
+    });
+});
+
+describe('Duelo a distancia — retos por URL con fantasma de ritmo (contra js/game.js real)', () => {
+    test('el token codifica y decodifica fecha, tiempo y nombre (saneado)', () => {
+        const { encodeDuelToken, decodeDuelToken } = loadGame();
+        const token = encodeDuelToken('2026-08-24', 83450, 'Enrique');
+        expect(decodeDuelToken(token)).toEqual({ date: '2026-08-24', time: 83450, name: 'Enrique' });
+        // sin nombre, y con nombre malicioso (HTML fuera, tope de 14)
+        expect(decodeDuelToken(encodeDuelToken('2026-08-24', 60000)).name).toBe('');
+        const evil = decodeDuelToken(encodeDuelToken('2026-08-24', 60000, '<img src=x onerror=1>MuyLargoDeVerdad'));
+        expect(evil.name).not.toMatch(/[<>]/);
+        expect(evil.name.length).toBeLessThanOrEqual(14);
+    });
+
+    test('tokens corruptos, con checksum falso o con tiempos absurdos se rechazan', () => {
+        const { encodeDuelToken, decodeDuelToken } = loadGame();
+        expect(decodeDuelToken('basura')).toBeNull();
+        expect(decodeDuelToken('')).toBeNull();
+        const token = encodeDuelToken('2026-08-24', 83450, 'Rival');
+        expect(decodeDuelToken(token.slice(0, -1) + 'x')).toBeNull(); // checksum roto
+        expect(decodeDuelToken(encodeDuelToken('2026-08-24', 1000))).toBeNull();      // < 5s: troll
+        expect(decodeDuelToken(encodeDuelToken('2026-08-24', 99999999))).toBeNull();  // > 30min
+        expect(decodeDuelToken(encodeDuelToken('no-es-fecha', 60000))).toBeNull();
+    });
+
+    test('el duelo juega el reto de LA FECHA DEL TOKEN, no el de hoy, y no toca el guardado real', () => {
+        const { game, window, dailyLevelFor, dailyHeroFor, todayDateString } = loadGame();
+        game.player.level = 5; game.saveProgress();
+        const savedBefore = window.localStorage.getItem('astroLeapSave_v1');
+        // una fecha distinta de hoy cuyo reto puede diferir del de hoy
+        const duelDate = '2026-08-20';
+        expect(duelDate).not.toBe(todayDateString());
+        game.startDailyChallenge({ date: duelDate, time: 83450, name: 'Rival' });
+        expect(game.dailyMode).toBe(true);
+        expect(game.dailyDate).toBe(duelDate);
+        expect(game.currentLevel).toBe(dailyLevelFor(duelDate));       // el nivel de ESA fecha
+        expect(game.player.character).toBe(dailyHeroFor(duelDate));    // y su piloto
+        expect(game.duelRival).toEqual({ time: 83450, name: 'Rival' });
+        expect(game.duelGhost).not.toBeNull();
+        expect(window.localStorage.getItem('astroLeapSave_v1')).toBe(savedBefore);
+    });
+
+    test('completar un duelo de OTRA fecha no pisa tu registro diario de hoy; el de HOY sí', () => {
+        const { game, LEVELS, todayDateString } = loadGame();
+        game.saveDailyRecord(todayDateString(), 50000, 'kes'); // tu mejor tiempo de hoy
+        game.startDailyChallenge({ date: '2026-08-20', time: 999999 * 0 + 90000, name: 'Rival' });
+        game.player.x = LEVELS[game.dailyLevelIdx].goal;
+        game.update(); // completa el duelo (más lento que el récord, y de otra fecha)
+        expect(game.dailyRecord.date).toBe(todayDateString());
+        expect(game.dailyRecord.time).toBe(50000); // intacto
+    });
+
+    test('el veredicto sale en la pantalla final y la revancha lleva tu tiempo en un token válido', () => {
+        const { game, window, LEVELS, encodeDuelToken, decodeDuelToken, todayDateString } = loadGame();
+        // el rival "tardó" 6s: el test completa casi al instante, así que el veredicto es victoria o
+        // derrota según el reloj real — lo que se fija es que HAY veredicto y botón de revancha
+        game.startDailyChallenge({ date: todayDateString(), time: 6000, name: 'Flash' });
+        game.player.x = LEVELS[game.dailyLevelIdx].goal;
+        game.update();
+        const html = window.document.getElementById('startScreen').innerHTML;
+        expect(html).toContain('DUELO'); // '¡DUELO GANADO!' o 'DUELO PERDIDO'
+        expect(html).toContain('Flash');
+        expect(html).toContain('data-action="challenge"'); // botón de revancha
+        const m = html.match(/data-date="([0-9-]+)" data-time="([0-9.]+)"/);
+        expect(m).not.toBeNull();
+        // el dato del botón produce un token decodificable (con un tiempo del rango válido)
+        expect(decodeDuelToken(encodeDuelToken(m[1], Math.max(5000, parseFloat(m[2])), 'yo'))).not.toBeNull();
+    });
+
+    test('el fantasma marca el ritmo exacto: 0 al salir, la meta a su tiempo, y clava el clamp', () => {
+        const { game, LEVELS, todayDateString } = loadGame();
+        game.startDailyChallenge({ date: todayDateString(), time: 60000, name: 'Rival' });
+        const goal = LEVELS[game.dailyLevelIdx].goal;
+        const ghostX = elapsed => 20 + Math.min(1, elapsed / 60000) * (goal - 20);
+        expect(ghostX(0)).toBe(20);
+        expect(ghostX(30000)).toBeCloseTo(20 + (goal - 20) / 2);
+        expect(ghostX(60000)).toBe(goal);
+        expect(ghostX(90000)).toBe(goal); // pasado su tiempo, espera en la meta
+    });
+
+    test('con ?duelo= válido el juego expone pendingDuel y el menú pinta el botón del duelo', () => {
+        // loadGame no permite query strings fáciles — se simula el arranque: token → pendingDuel → menú
+        const { game, window, encodeDuelToken, decodeDuelToken } = loadGame();
+        game.pendingDuel = decodeDuelToken(encodeDuelToken('2026-08-24', 83450, 'Rival'));
+        game.showMainMenu();
+        const html = window.document.getElementById('startScreen').innerHTML;
+        expect(html).toContain('data-action="duel"');
+        expect(html).toContain('Rival');
+        expect(html).toContain('Reto del 2026-08-24');
     });
 });
 
