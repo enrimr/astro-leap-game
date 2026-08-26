@@ -35,6 +35,38 @@ const HEROES = {
              desc: 'Sin salto extra, pero camina sobre plataformas de franjas ámbar para romperlas y colarse.' }
 };
 
+// Árbol de mejoras (DESIGN.md §2.22): 1 punto por subida de nivel, 3 ramas × 3 nodos con
+// prerrequisito lineal (el nodo 2 de una rama exige su nodo 1, etc.). Encima de las subidas
+// automáticas de gainXP, no en su lugar — el árbol es expresión del jugador, no reequilibrio.
+// NINGÚN nodo toca la geometría del movimiento (salto/dash/velocidad): los invariantes de level
+// design (BFS, puertas de 40, huecos de hielo) están protegidos por tests justo para eso.
+const SKILL_TREE = {
+    combate: {
+        name: 'COMBATE', color: PALETTE.accent2,
+        nodes: [
+            { id: 'crit', name: 'Punto débil', desc: 'Atacar tiene un 25% de probabilidad de crítico: daño ×1.5.' },
+            { id: 'guardia', name: 'Guardia férrea', desc: 'Defender reduce el golpe al 35% en vez de al 50%.' },
+            { id: 'ejecutor', name: 'Ejecutor', desc: 'La Habilidad de tu piloto hace daño ×2 en vez de ×1.5.' }
+        ]
+    },
+    energia: {
+        name: 'ENERGÍA', color: PALETTE.en,
+        nodes: [
+            { id: 'reciclador', name: 'Reciclador', desc: 'Cada enemigo derrotado da +3 de Energía en vez de +2.' },
+            { id: 'eficiente', name: 'Habilidad eficiente', desc: 'La Habilidad en combate cuesta 2 de Energía en vez de 3.' },
+            { id: 'nucleo', name: 'Núcleo amplio', desc: '+4 de Energía máxima, al instante y para siempre.' }
+        ]
+    },
+    supervivencia: {
+        name: 'SUPERVIVENCIA', color: PALETTE.hp,
+        nodes: [
+            { id: 'blindaje', name: 'Blindaje', desc: '+6 de HP máximo, al instante y para siempre.' },
+            { id: 'aislante', name: 'Aislante', desc: 'Los peligros del terreno (puertas, tormenta, muro) hacen la mitad de daño.' },
+            { id: 'emergencia', name: 'Sistema de emergencia', desc: 'Una vez por nivel, un golpe letal te deja a 1 HP en vez de matarte.' }
+        ]
+    }
+};
+
 // Retratos de los héroes reutilizables por id, sin depender de una instancia de
 // Player — así el selector de personaje del mapa puede dibujar los 4 sin tener
 // que crear jugadores de mentira. Player.drawPortrait() delega aquí con this.character.
@@ -156,8 +188,21 @@ class Player {
             prevJumpKey: false, squash: 1, animT: 0, blinkTimer: 90 + Math.random() * 120,
             level: 1, maxHp: 22, hp: 22, maxEnergy: 10, energy: 10,
             xp: 0, xpToNextLevel: 10, attack: 5, defense: 2,
-            lives: MAX_LIVES, maxLives: MAX_LIVES
+            lives: MAX_LIVES, maxLives: MAX_LIVES,
+            // Árbol de mejoras: puntos sin gastar, nodos desbloqueados, y el "ya usé el sistema
+            // de emergencia en este nivel" (se rearma en Game.loadLevel).
+            skillPoints: 0, skills: new Set(), emergencyUsed: false
         });
+    }
+    hasSkill(id) { return this.skills.has(id); }
+    // Sistema de emergencia (árbol): una vez por nivel, un golpe letal deja a 1 HP. Método
+    // aparte de takeDamage porque la rama "defendiendo" del combate resta HP directamente
+    // sin pasar por takeDamage — ambas rutas deben poder salvarte.
+    checkEmergency() {
+        if (this.hp <= 0 && this.hasSkill('emergencia') && !this.emergencyUsed) {
+            this.hp = 1;
+            this.emergencyUsed = true;
+        }
     }
     update(keys, platforms, particles) {
         const left = keys.ArrowLeft || keys.KeyA;
@@ -256,10 +301,16 @@ class Player {
             this.level++; this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5);
             this.maxHp += 5; this.hp = this.maxHp; this.maxEnergy += 2; this.energy = this.maxEnergy;
             this.attack += 2; this.defense += 1; leveled = true;
+            this.skillPoints++; // árbol de mejoras: cada subida da un punto que se gasta en el mapa
         }
         return leveled;
     }
-    takeDamage(amt) { const dmg = Math.max(1, amt - this.defense); this.hp -= dmg; return dmg; }
+    takeDamage(amt) {
+        const dmg = Math.max(1, amt - this.defense);
+        this.hp -= dmg;
+        this.checkEmergency();
+        return dmg;
+    }
     draw(ctx, cx) {
         if (this.character === 'bolt') return this.drawBoltChar(ctx, cx);
         if (this.character === 'shade') return this.drawShadeChar(ctx, cx);
@@ -1001,13 +1052,22 @@ class CombatSystem {
         this.defending = false;
         if (window.SFX) SFX.confirm();
         if (action === 0) {
-            const dealt = this.enemy.takeDamage(Math.floor(this.player.attack * (0.8 + RNG() * 0.4)));
-            this.message = `Disparaste! Daño: ${dealt}`; this.shake = 6;
+            let raw = Math.floor(this.player.attack * (0.8 + RNG() * 0.4));
+            // Punto débil (árbol): 25% de crítico sobre Atacar. RNG y no Math.random a
+            // propósito: en el Reto Diario los críticos caen igual para todo el mundo.
+            const crit = this.player.hasSkill('crit') && RNG() < 0.25;
+            if (crit) raw = Math.floor(raw * 1.5);
+            const dealt = this.enemy.takeDamage(raw);
+            this.message = crit ? `¡CRÍTICO! Daño: ${dealt}` : `Disparaste! Daño: ${dealt}`;
+            this.shake = crit ? 9 : 6;
             if (window.SFX) SFX.hitEnemy();
         } else if (action === 1) {
-            if (this.player.energy >= 3) {
-                const dealt = this.enemy.takeDamage(Math.floor(this.player.attack * 1.5));
-                this.player.energy -= 3; this.message = `¡${HEROES[this.player.character].combatName}! Daño: ${dealt}`; this.shake = 9;
+            // Habilidad eficiente / Ejecutor (árbol): coste 3→2 y multiplicador ×1.5→×2.
+            const cost = this.player.hasSkill('eficiente') ? 2 : 3;
+            const mult = this.player.hasSkill('ejecutor') ? 2 : 1.5;
+            if (this.player.energy >= cost) {
+                const dealt = this.enemy.takeDamage(Math.floor(this.player.attack * mult));
+                this.player.energy -= cost; this.message = `¡${HEROES[this.player.character].combatName}! Daño: ${dealt}`; this.shake = 9;
                 if (window.SFX) SFX.hitEnemy();
             } else { this.message = 'Energía insuficiente!'; if (window.SFX) SFX.select(); return; }
         } else if (action === 2) {
@@ -1087,8 +1147,13 @@ class CombatSystem {
     enemyStrikeTurn({ multiplier = 1, ignoreDefense = false, verb = null } = {}) {
         const dmg = Math.floor(this.enemy.attack * multiplier * (0.8 + RNG() * 0.4));
         let rec;
-        if (this.defending && !ignoreDefense) { rec = Math.max(1, Math.floor(dmg * 0.5)); this.player.hp -= rec; }
-        else { rec = this.player.takeDamage(dmg); }
+        if (this.defending && !ignoreDefense) {
+            // Guardia férrea (árbol): Defender pasa de reducir al 50% a reducir al 35%.
+            const reduction = this.player.hasSkill('guardia') ? 0.35 : 0.5;
+            rec = Math.max(1, Math.floor(dmg * reduction));
+            this.player.hp -= rec;
+            this.player.checkEmergency(); // esta ruta no pasa por takeDamage — el sistema de emergencia debe cubrirla igual
+        } else { rec = this.player.takeDamage(dmg); }
         this.message = verb ? `${verb} Daño: ${rec}` : `${this.enemy.type} ataca! Daño: ${rec}`;
         this.messageTimer = 60; this.shake = multiplier > 1 ? 10 : 6;
         if (window.SFX) SFX.hitPlayer();

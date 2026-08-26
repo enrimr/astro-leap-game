@@ -228,6 +228,154 @@ describe('CombatSystem — patrones de jefe (contra js/entities.js real)', () =>
     });
 });
 
+describe('Árbol de mejoras (contra el código real)', () => {
+    test('cada subida de nivel da +1 punto de mejora', () => {
+        const { Player } = loadGame();
+        const p = new Player(0, 0, 'kes');
+        expect(p.skillPoints).toBe(0);
+        p.gainXP(10); // Lv2
+        expect(p.skillPoints).toBe(1);
+        p.gainXP(15 + 22); // Lv3 y Lv4 de una tacada
+        expect(p.skillPoints).toBe(3);
+    });
+
+    test('desbloquear exige punto y prerrequisito de rama, y descuenta el punto', () => {
+        const { game } = loadGame();
+        expect(game.unlockSkill('crit')).toBe(false); // sin puntos
+        game.player.skillPoints = 2;
+        expect(game.unlockSkill('guardia')).toBe(false); // nodo 2 sin su nodo 1
+        expect(game.unlockSkill('crit')).toBe(true);
+        expect(game.player.skillPoints).toBe(1);
+        expect(game.unlockSkill('crit')).toBe(false); // no se re-desbloquea (ni re-cobra)
+        expect(game.unlockSkill('guardia')).toBe(true); // con el prerrequisito, sí
+        expect(game.player.skillPoints).toBe(0);
+        expect(game.unlockSkill('ejecutor')).toBe(false); // sin puntos otra vez
+    });
+
+    test('los bonos instantáneos (blindaje) se aplican una sola vez y sobreviven al guardado', () => {
+        const { game, window } = loadGame();
+        game.player.skillPoints = 1;
+        const hp0 = game.player.maxHp;
+        game.unlockSkill('blindaje');
+        expect(game.player.maxHp).toBe(hp0 + 6);
+        game.saveProgress();
+        expect(JSON.parse(window.localStorage.getItem('astroLeapSave_v1')).skills).toContain('blindaje');
+        game.player.skills = new Set(); // simula arrancar la sesión de cero
+        game.loadProgress();
+        expect(game.player.skills.has('blindaje')).toBe(true);
+        expect(game.player.maxHp).toBe(hp0 + 6); // el +6 vive en el maxHp guardado — NO se re-aplica
+    });
+
+    test('Punto débil: crítico ×1.5 en Atacar, con el azar sembrado (RNG, no Math.random)', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        const player = new Player(0, 0, 'kes');
+        player.skills.add('crit');
+        // RNG=0.5: variación ×1.0 y 0.5 ≥ 0.25 → sin crítico
+        let enemy = new Enemy(0, 0, 'drone'); enemy.maxHp = 999; enemy.hp = 999;
+        let combat = new CombatSystem(player, enemy);
+        setRNG(() => 0.5);
+        combat.executePlayerAction(0);
+        expect(999 - enemy.hp).toBe(Math.max(1, Math.floor(player.attack * 1.0) - enemy.defense));
+        expect(combat.message).not.toMatch(/CRÍTICO/);
+        // RNG=0.1: variación ×0.84 y 0.1 < 0.25 → crítico ×1.5
+        enemy = new Enemy(0, 0, 'drone'); enemy.maxHp = 999; enemy.hp = 999;
+        combat = new CombatSystem(player, enemy);
+        setRNG(() => 0.1);
+        combat.executePlayerAction(0);
+        setRNG(Math.random);
+        const raw = Math.floor(Math.floor(player.attack * (0.8 + 0.1 * 0.4)) * 1.5);
+        expect(999 - enemy.hp).toBe(Math.max(1, raw - enemy.defense));
+        expect(combat.message).toMatch(/CRÍTICO/);
+    });
+
+    test('Ejecutor y Habilidad eficiente: la Habilidad hace ×2 y cuesta 2 EN', () => {
+        const { Player, Enemy, CombatSystem } = loadGame();
+        const player = new Player(0, 0, 'kes');
+        player.skills.add('eficiente');
+        player.skills.add('ejecutor');
+        const enemy = new Enemy(0, 0, 'drone'); enemy.maxHp = 999; enemy.hp = 999;
+        const combat = new CombatSystem(player, enemy);
+        player.energy = 2; // con el coste base (3) ni siquiera podría usarla
+        combat.executePlayerAction(1);
+        expect(player.energy).toBe(0);
+        expect(999 - enemy.hp).toBe(Math.max(1, Math.floor(player.attack * 2) - enemy.defense));
+    });
+
+    test('Guardia férrea: Defender reduce al 35% en vez de al 50%', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        const player = new Player(0, 0, 'kes'); player.maxHp = 9999; player.hp = 9999;
+        player.skills.add('guardia');
+        const enemy = new Enemy(0, 0, 'magnetite');
+        const combat = new CombatSystem(player, enemy);
+        setRNG(() => 0.5);
+        combat.defending = true;
+        combat.resolveEnemyTurn();
+        setRNG(Math.random);
+        expect(9999 - player.hp).toBe(Math.max(1, Math.floor(Math.floor(enemy.attack * 1.0) * 0.35)));
+    });
+
+    test('Reciclador: el pisotón da +3 de Energía en vez de +2', () => {
+        const { game } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(0);
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        const enemy = game.enemies[0];
+        game.player.skills.add('reciclador');
+        game.player.level = enemy.level + 1;
+        game.player.xpToNextLevel = 9999;
+        game.player.x = enemy.x; game.player.y = enemy.y - 12; game.player.vy = 0.5;
+        game.player.onGround = false; game.playerInvulnerable = 0;
+        game.player.energy = 5;
+        game.update();
+        expect(enemy.defeated).toBe(true);
+        expect(game.player.energy).toBe(8);
+    });
+
+    test('Aislante: una puerta de energía activa hace la mitad de daño', () => {
+        const { game } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(6); // Muelle de Carga, primer nivel con puertas
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        game.enemies.forEach(e => { e.x = -500; e.initialX = -500; });
+        game.player.skills.add('aislante');
+        const beam = game.beams[0];
+        beam.t = beam.PERIOD - beam.ON;
+        game.player.x = beam.x - 6; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
+        const hp0 = game.player.hp;
+        game.update();
+        expect(game.player.hp).toBe(hp0 - Math.max(1, Math.ceil(4 / 2) - game.player.defense));
+    });
+
+    test('Sistema de emergencia: un golpe letal deja a 1 HP, y solo una vez', () => {
+        const { Player } = loadGame();
+        const p = new Player(0, 0, 'kes');
+        p.skills.add('emergencia');
+        p.hp = 3;
+        p.takeDamage(99);
+        expect(p.hp).toBe(1); // salvado in extremis
+        p.takeDamage(99);
+        expect(p.hp).toBeLessThanOrEqual(0); // la segunda vez, no
+    });
+
+    test('el sistema de emergencia también cubre el golpe recibido Defendiendo, y se rearma al recargar nivel', () => {
+        const { Player, Enemy, CombatSystem, setRNG, game } = loadGame();
+        const player = new Player(0, 0, 'kes');
+        player.skills.add('emergencia');
+        player.hp = 1;
+        const combat = new CombatSystem(player, new Enemy(0, 0, 'magnetite'));
+        setRNG(() => 0.5);
+        combat.defending = true;
+        combat.resolveEnemyTurn(); // la rama "defendiendo" resta HP sin pasar por takeDamage
+        setRNG(Math.random);
+        expect(player.hp).toBe(1);
+        expect(player.emergencyUsed).toBe(true);
+        game.player.skills.add('emergencia');
+        game.player.emergencyUsed = true;
+        game.loadLevel(0);
+        expect(game.player.emergencyUsed).toBe(false); // rearmado con la (re)carga
+    });
+});
+
 describe('Game — avisos contextuales (hintScreen, contra js/game.js real)', () => {
     test('showHint() abre el diálogo y marca el id como visto', () => {
         const { game } = loadGame();

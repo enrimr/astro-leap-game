@@ -21,13 +21,30 @@ Todo lo que hay en el juego: pilotos, fórmulas de combate, bestiario, estrategi
 
 Empiezas cada partida con: **HP 22 · Energía 10 · Ataque 5 · Defensa 2 · 3 vidas**.
 
-Cada subida de nivel **cura del todo, rellena la Energía** y da **+5 HP máx, +2 EN máx, +2 ATQ, +1 DEF**.
+Cada subida de nivel **cura del todo, rellena la Energía** y da **+5 HP máx, +2 EN máx, +2 ATQ, +1 DEF** — y además **+1 punto de mejora** para el árbol (ver 1b).
 
 | Subir a Lv | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
 |---|---|---|---|---|---|---|---|---|
 | XP necesaria | 10 | 15 | 22 | 33 | 50 | 75 | 112 | 168 |
 
 La **Energía** es un recurso único: paga tu habilidad aérea en plataformas Y la Habilidad en combate. Solo se recupera derrotando enemigos (**+2 por derrota**, pisotón o duelo), al subir de nivel (rellena todo) o al empezar/reiniciar un nivel. Nunca con el tiempo.
+
+## 1b. El árbol de mejoras
+
+Cada subida de nivel da **1 punto de mejora**. Se gastan en el **árbol de mejoras**: en el mapa estelar, toca la chapa **MEJORAS** (bajo la del piloto — brilla cuando tienes puntos) o pulsa **T**. Tres ramas de 3 nodos; cada nodo cuesta 1 punto y **exige el anterior de su rama**. Una partida completa da ~8-9 puntos: no puedes tenerlo todo — elegir es el juego.
+
+| Rama | Nodo 1 | Nodo 2 | Nodo 3 |
+|---|---|---|---|
+| 🩷 **COMBATE** | **Punto débil** — Atacar tiene un 25% de crítico (daño ×1.5) | **Guardia férrea** — Defender reduce al 35% (en vez de al 50%) | **Ejecutor** — la Habilidad hace ×2 (en vez de ×1.5) |
+| 🩵 **ENERGÍA** | **Reciclador** — +3 EN por derrota (en vez de +2) | **Habilidad eficiente** — la Habilidad cuesta 2 EN (en vez de 3) | **Núcleo amplio** — +4 EN máx, al instante |
+| 💚 **SUPERVIVENCIA** | **Blindaje** — +6 HP máx, al instante | **Aislante** — puertas, tormenta y muro hacen la mitad de daño | **Sistema de emergencia** — 1 vez por nivel, un golpe letal te deja a 1 HP |
+
+Detalles finos:
+
+- Las mejoras son **de la partida**, como el resto de la progresión: se guardan al continuar, y se pierden todas con un Game Over o al terminar el juego.
+- Ninguna mejora toca el salto ni la velocidad — el traversal es sagrado (los secretos y las rutas seguirían midiendo lo mismo).
+- El crítico de Punto débil usa el azar sembrado: en el **Reto Diario** los críticos caen igual para todo el mundo. Eso sí, en el reto los puntos que ganes no se pueden gastar (no hay mapa) — el reto se juega con el piloto pelado.
+- El Sistema de emergencia se rearma al reaparecer o recargar el nivel, y no salva de las caídas al vacío (no son un «golpe»).
 
 ## 2. Los 4 pilotos
 

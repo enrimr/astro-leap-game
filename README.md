@@ -83,6 +83,7 @@ El jugador arranca con HP 22 · EN 10 · ATQ 5 · DEF 2 y 3 vidas (`♥` en el H
 - **Cápsulas de vida ♥** (+1 vida): una escondida por mundo, fuera del camino directo. Basta rozarla en pleno salto.
 - **Células de energía ⚡** (+1 Energía máxima, para siempre): otras tres, en niveles distintos a los de las cápsulas; dos exigen un doble salto bien cronometrado cerca del ápice.
 - Todo pickup se recoge **una sola vez por partida** — salir y reentrar al nivel no lo hace reaparecer.
+- **Árbol de mejoras** 🌳: cada subida de nivel da 1 punto; se gasta en el árbol del mapa estelar (chapa MEJORAS o tecla `T`) — 3 ramas × 3 nodos (críticos, economía de Energía, resistencias y un salvavidas de emergencia), con prerrequisito por rama. Una partida da ~8-9 puntos: elegir duele, como en un roguelike. Se pierde todo con el Game Over.
 
 ## Reto Diario
 

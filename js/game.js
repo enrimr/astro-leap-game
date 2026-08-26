@@ -192,6 +192,7 @@ class Game {
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
         this.charSelectOpen = false; this.charSelectIndex = 0; // hangar de selección de personaje (pausa el juego)
+        this.skillTreeOpen = false; this.skillCursor = { branch: 0, node: 0 }; // árbol de mejoras (pausa el juego, como el hangar)
         this.collectedPickups = new Set(); // "life-N" / "energy-N" / "reinforced-N-N" por nivel, para no poder re-recoger/re-romper saliendo y entrando
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
         this.levelCompleting = false; this.levelCompleteTimeout = null; this.playerInvulnerable = 0;
@@ -372,6 +373,7 @@ class Game {
                     <b>Combate</b> — ↑↓ + ESPACIO, o las teclas 1-4<br>
                     <b>Pilotos</b> — Kes dobla salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos.
                     Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C.<br>
+                    <b>Mejoras</b> — cada subida de nivel da 1 punto para el árbol de mejoras (chapa MEJORAS del mapa, o tecla T)<br>
                     <b>Salir de un nivel</b> — ESC o el botón ✕<br>
                     <b>Accesibilidad</b> — el tercer botón de la esquina (junto a música/sonido) reduce el temblor de pantalla y el parpadeo de invulnerabilidad
                 </p>
@@ -558,7 +560,11 @@ class Game {
                     attack: this.player.attack, defense: this.player.defense
                 },
                 unlockedCharacters: Array.from(this.unlockedCharacters),
-                selectedCharacter: this.player.character
+                selectedCharacter: this.player.character,
+                // Árbol de mejoras: fuera de data.player a propósito — loadProgress hace
+                // Object.assign sobre el jugador y pisaría el Set con un Array crudo.
+                skills: Array.from(this.player.skills),
+                skillPoints: this.player.skillPoints
             };
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         } catch (e) { /* almacenamiento no disponible: seguimos sin guardar */ }
@@ -572,6 +578,10 @@ class Game {
             if (data.player) Object.assign(this.player, data.player, { hp: data.player.maxHp, energy: data.player.maxEnergy });
             if (Array.isArray(data.unlockedCharacters)) this.unlockedCharacters = new Set(data.unlockedCharacters);
             if (data.selectedCharacter && this.unlockedCharacters.has(data.selectedCharacter)) this.player.character = data.selectedCharacter;
+            // Los bonos instantáneos (blindaje/núcleo) NO se re-aplican al cargar: ya viven en
+            // los maxHp/maxEnergy guardados dentro de data.player.
+            if (Array.isArray(data.skills)) this.player.skills = new Set(data.skills);
+            if (typeof data.skillPoints === 'number') this.player.skillPoints = data.skillPoints;
         } catch (e) { /* save corrupto: ignorar */ }
     }
     clearProgress() {
@@ -643,6 +653,17 @@ class Game {
         // Tormenta iónica (ver ionStorm en levels.js): el reloj arranca en calma SIEMPRE —
         // también al reaparecer tras morir, para que nunca respawnees bajo una descarga.
         this.stormT = 0;
+        // Sistema de emergencia (árbol de mejoras): se rearma con cada (re)carga de nivel.
+        this.player.emergencyUsed = false;
+    }
+
+    // Energía por derrota, con el nodo Reciclador del árbol (+1 sobre ENERGY_PER_KILL).
+    energyPerKill() {
+        return ENERGY_PER_KILL + (this.player.hasSkill('reciclador') ? 1 : 0);
+    }
+    // Daño de los peligros del terreno (puertas, tormenta, muro), con el nodo Aislante (mitad).
+    hazardDamage(base) {
+        return this.player.hasSkill('aislante') ? Math.ceil(base / 2) : base;
     }
 
     // Fase del ciclo de la tormenta iónica según this.stormT: calma (se puede correr) → aviso
@@ -786,6 +807,144 @@ class Game {
         }
         ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
         ctx.fillText('← → elegir · ESPACIO confirmar · ESC salir', GAME_WIDTH / 2, GAME_HEIGHT - 8);
+        ctx.textAlign = 'left';
+    }
+
+    // ---- Árbol de mejoras (SKILL_TREE en entities.js, DESIGN.md §2.22) ----
+    // Desbloquea un nodo: exige un punto disponible y el nodo anterior de su rama. Los bonos
+    // instantáneos (blindaje/núcleo) se aplican aquí UNA sola vez — como maxHp/maxEnergy se
+    // guardan ya subidos, cargar la partida no los re-aplica.
+    unlockSkill(id) {
+        const p = this.player;
+        if (p.skills.has(id) || p.skillPoints <= 0) return false;
+        for (const branch of Object.values(SKILL_TREE)) {
+            const idx = branch.nodes.findIndex(n => n.id === id);
+            if (idx === -1) continue;
+            if (idx > 0 && !p.skills.has(branch.nodes[idx - 1].id)) return false;
+            p.skills.add(id);
+            p.skillPoints--;
+            if (id === 'blindaje') { p.maxHp += 6; p.hp += 6; }
+            if (id === 'nucleo') { p.maxEnergy += 4; p.energy += 4; }
+            if (window.SFX) SFX.levelUp();
+            this.saveProgress();
+            return true;
+        }
+        return false;
+    }
+    openSkillTree() {
+        this.skillTreeOpen = true;
+        this.skillCursor = { branch: 0, node: 0 };
+        if (window.SFX) SFX.confirm();
+    }
+    closeSkillTree() {
+        this.skillTreeOpen = false;
+        if (window.SFX) SFX.select();
+    }
+    updateSkillTreeScreen(keys) {
+        const branches = Object.values(SKILL_TREE);
+        const c = this.skillCursor;
+        if (keys.ArrowRight || keys.KeyD) {
+            c.branch = Math.min(branches.length - 1, c.branch + 1);
+            if (window.SFX) SFX.select();
+            keys.ArrowRight = false; keys.KeyD = false;
+        } else if (keys.ArrowLeft || keys.KeyA) {
+            c.branch = Math.max(0, c.branch - 1);
+            if (window.SFX) SFX.select();
+            keys.ArrowLeft = false; keys.KeyA = false;
+        } else if (keys.ArrowDown || keys.KeyS) {
+            c.node = Math.min(branches[c.branch].nodes.length - 1, c.node + 1);
+            if (window.SFX) SFX.select();
+            keys.ArrowDown = false; keys.KeyS = false;
+        } else if (keys.ArrowUp || keys.KeyW) {
+            c.node = Math.max(0, c.node - 1);
+            if (window.SFX) SFX.select();
+            keys.ArrowUp = false; keys.KeyW = false;
+        } else if (keys.Space || keys.Enter) {
+            const node = branches[c.branch].nodes[c.node];
+            if (!this.unlockSkill(node.id) && window.SFX) SFX.select(); // el fallo suena distinto que el desbloqueo
+            keys.Space = false; keys.Enter = false;
+        } else if (keys.Escape || keys.KeyT) {
+            this.closeSkillTree();
+            keys.Escape = false; keys.KeyT = false;
+        }
+    }
+    // Pantalla del árbol: 3 columnas (ramas) × 3 nodos con línea de prerrequisito entre ellos.
+    // Estados de nodo: desbloqueado (relleno del color de la rama), disponible (borde cian),
+    // bloqueado por prerrequisito o sin puntos (atenuado). Mismo patrón modal que el hangar.
+    drawSkillTreeScreen(ctx) {
+        const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+        grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 13px "Orbitron", sans-serif';
+        ctx.fillText('ÁRBOL DE MEJORAS', GAME_WIDTH / 2, 16);
+        const pts = this.player.skillPoints;
+        ctx.fillStyle = pts > 0 ? PALETTE.accent3 : PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
+        ctx.fillText(pts > 0 ? `Puntos disponibles: ${pts}` : 'Sin puntos — sube de nivel para ganar más', GAME_WIDTH / 2, 28);
+
+        const branches = Object.values(SKILL_TREE);
+        const colW = 96, gap = 8;
+        const startX = (GAME_WIDTH - (colW * branches.length + gap * (branches.length - 1))) / 2;
+        const nodeH = 22, nodeGap = 9, topY = 48;
+        this.skillNodeRects = [];
+        branches.forEach((branch, bi) => {
+            const bx = startX + bi * (colW + gap);
+            ctx.fillStyle = branch.color; ctx.font = 'bold 8px "Rajdhani", sans-serif';
+            ctx.fillText(branch.name, bx + colW / 2, topY - 6);
+            branch.nodes.forEach((node, ni) => {
+                const ny = topY + ni * (nodeH + nodeGap);
+                const unlocked = this.player.skills.has(node.id);
+                const prereqOk = ni === 0 || this.player.skills.has(branch.nodes[ni - 1].id);
+                const available = !unlocked && prereqOk && pts > 0;
+                const focused = this.skillCursor.branch === bi && this.skillCursor.node === ni;
+                this.skillNodeRects.push({ id: node.id, branch: bi, node: ni, x: bx, y: ny, w: colW, h: nodeH });
+                // línea de prerrequisito hacia el nodo anterior
+                if (ni > 0) {
+                    ctx.strokeStyle = unlocked || prereqOk ? branch.color : PALETTE.panelLight;
+                    ctx.globalAlpha = 0.6; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(bx + colW / 2, ny - nodeGap); ctx.lineTo(bx + colW / 2, ny); ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+                ctx.save();
+                ctx.fillStyle = unlocked ? branch.color : (focused ? 'rgba(124,245,255,0.12)' : 'rgba(28,17,64,0.7)');
+                if (unlocked) ctx.globalAlpha = 0.32;
+                ctx.fillRect(bx, ny, colW, nodeH);
+                ctx.restore();
+                ctx.strokeStyle = focused ? PALETTE.accent : (unlocked ? branch.color : (available ? PALETTE.dim : 'rgba(168,158,224,0.25)'));
+                ctx.lineWidth = focused ? 1.6 : 1;
+                if (focused && available) { ctx.save(); ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 7; ctx.strokeRect(bx + 0.5, ny + 0.5, colW - 1, nodeH - 1); ctx.restore(); }
+                ctx.strokeRect(bx + 0.5, ny + 0.5, colW - 1, nodeH - 1);
+                ctx.fillStyle = unlocked ? PALETTE.ink : (prereqOk ? PALETTE.ink : PALETTE.dim);
+                ctx.font = '8px "Rajdhani", sans-serif';
+                ctx.fillText(node.name, bx + colW / 2, ny + 10);
+                ctx.fillStyle = unlocked ? branch.color : PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif';
+                ctx.fillText(unlocked ? '✓ desbloqueada' : (prereqOk ? (pts > 0 ? '1 punto' : 'sin puntos') : 'requiere la anterior'), bx + colW / 2, ny + 18);
+            });
+        });
+
+        const focusedNode = branches[this.skillCursor.branch].nodes[this.skillCursor.node];
+        ctx.fillStyle = PALETTE.dim; ctx.font = '8.5px "Rajdhani", sans-serif';
+        wrapText(ctx, focusedNode.desc, GAME_WIDTH / 2, 148, 290, 10);
+        ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
+        ctx.fillText('← → ↑ ↓ elegir · ESPACIO desbloquear · ESC salir', GAME_WIDTH / 2, GAME_HEIGHT - 6);
+        ctx.textAlign = 'left';
+    }
+    // Chapa del árbol en el mapa, debajo de la del piloto — brilla cuando hay puntos que gastar.
+    drawSkillChip(ctx) {
+        const x = 8, y = 64, w = 90, h = 16;
+        this.skillChipRect = { x, y, w, h };
+        const pts = this.player.skillPoints;
+        ctx.save();
+        ctx.fillStyle = 'rgba(11,6,32,0.75)';
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 3); ctx.fill(); } else ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = pts > 0 ? PALETTE.accent3 : PALETTE.dim; ctx.globalAlpha = pts > 0 ? 0.9 : 0.6; ctx.lineWidth = 1;
+        if (pts > 0) { ctx.shadowColor = PALETTE.accent3; ctx.shadowBlur = 5; }
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, 3); ctx.stroke(); }
+        ctx.restore();
+        ctx.fillStyle = PALETTE.ink; ctx.font = '8px "Rajdhani", sans-serif';
+        ctx.fillText('MEJORAS', x + 5, y + h / 2 + 3);
+        ctx.fillStyle = pts > 0 ? PALETTE.accent3 : PALETTE.dim; ctx.textAlign = 'right';
+        ctx.fillText(pts > 0 ? `${pts} pts ▸` : '▸', x + w - 5, y + h / 2 + 3);
         ctx.textAlign = 'left';
     }
 
@@ -1072,11 +1231,27 @@ class Game {
                 }
                 return;
             }
+            if (this.skillTreeOpen) {
+                e.preventDefault();
+                const nodeHit = (this.skillNodeRects || []).find(r => gx >= r.x && gx <= r.x + r.w && gy >= r.y && gy <= r.y + r.h);
+                if (nodeHit) {
+                    this.skillCursor = { branch: nodeHit.branch, node: nodeHit.node };
+                    if (!this.unlockSkill(nodeHit.id) && window.SFX) SFX.select();
+                } else {
+                    this.closeSkillTree();
+                }
+                return;
+            }
             if (!this.inWorldMap) return;
             e.preventDefault();
             const chip = this.pilotChipRect;
             if (chip && gx >= chip.x && gx <= chip.x + chip.w && gy >= chip.y && gy <= chip.y + chip.h) {
                 this.openCharSelect();
+                return;
+            }
+            const sChip = this.skillChipRect;
+            if (sChip && gx >= sChip.x && gx <= sChip.x + sChip.w && gy >= sChip.y && gy <= sChip.y + sChip.h) {
+                this.openSkillTree();
                 return;
             }
             let closest = null, closestDist = Infinity;
@@ -1100,7 +1275,7 @@ class Game {
 
     updateTouchUI() {
         const inCombat = !!(this.combat && this.combat.active);
-        const paused = this.unlockScreen || this.charSelectOpen || this.hintScreen || this.combatTransition;
+        const paused = this.unlockScreen || this.charSelectOpen || this.skillTreeOpen || this.hintScreen || this.combatTransition;
         if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !paused);
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat && !paused);
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
@@ -1123,6 +1298,7 @@ class Game {
             return;
         }
         if (this.charSelectOpen) { this.updateCharSelectScreen(this.keys); return; }
+        if (this.skillTreeOpen) { this.updateSkillTreeScreen(this.keys); return; }
         // Aviso contextual (ver showHint()): congela el resto del juego —igual que unlockScreen—
         // pero SIN sustituir el frame dibujado, para que se note oscurecido detrás en vez de
         // desaparecer del todo. El cierre NO se sondea aquí (a diferencia de unlockScreen) —
@@ -1137,6 +1313,7 @@ class Game {
 
         if (this.inWorldMap) {
             if (this.keys.KeyC) { this.openCharSelect(); this.keys.KeyC = false; }
+            if (this.keys.KeyT) { this.openSkillTree(); this.keys.KeyT = false; }
             const selected = this.worldMap.update(this.keys);
             if (selected !== null) {
                 this.currentLevel = selected; this.loadLevel(selected);
@@ -1164,9 +1341,10 @@ class Game {
             if (!this.combat.active) {
                 if (this.combat.result === 'win') {
                     const leveled = this.player.gainXP(this.combat.enemy.xpReward);
-                    this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + ENERGY_PER_KILL);
+                    this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + this.energyPerKill());
                     if (this.combat.enemy.xpKey) this.collectedPickups.add(this.combat.enemy.xpKey);
                     this.levelUpMessage = leveled ? 100 : 0;
+                    if (leveled) this.showHint('skill-point', 'Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o tecla T.');
                     if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     if (this.combat.enemy.isBoss) this.unlockCharacterForBoss(this.combat.enemy.type);
@@ -1214,7 +1392,7 @@ class Game {
                     if (this.player.x < leftEdge) {
                         this.player.x = leftEdge;
                         if (this.playerInvulnerable === 0) {
-                            this.player.takeDamage(3);
+                            this.player.takeDamage(this.hazardDamage(3));
                             this.playerInvulnerable = 40;
                             this.shake = Math.max(this.shake, 4);
                             if (window.SFX) SFX.hitPlayer();
@@ -1234,11 +1412,12 @@ class Game {
                     if (this.player.collidesFromAbove(enemy) && enemy.level < this.player.level) {
                         enemy.alive = false; enemy.defeated = true;
                         const leveled = this.player.gainXP(enemy.xpReward);
-                        this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + ENERGY_PER_KILL);
+                        this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + this.energyPerKill());
                         if (enemy.xpKey) this.collectedPickups.add(enemy.xpKey);
                         // El cartel de subida de nivel solo si de verdad subiste — antes se
                         // mostraba en CADA pisotón, hubiera nivel o no.
                         this.player.vy = -3; this.levelUpMessage = leveled ? 80 : 0;
+                        if (leveled) this.showHint('skill-point', 'Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o tecla T.');
                         if (window.SFX) SFX.stomp();
                         this.particles.burst(enemy.x + enemy.w / 2, enemy.y, enemy.color, 10, { speed: 1.8, life: 20, size: 2.5 });
                     } else {
@@ -1277,7 +1456,7 @@ class Game {
             for (const beam of this.beams) {
                 beam.update();
                 if (this.playerInvulnerable === 0 && beam.collides(this.player)) {
-                    this.player.takeDamage(4);
+                    this.player.takeDamage(this.hazardDamage(4));
                     this.playerInvulnerable = 50;
                     this.player.x += this.player.x + this.player.w / 2 < beam.x ? -10 : 10;
                     this.player.vy = Math.min(this.player.vy, -1.5);
@@ -1301,7 +1480,7 @@ class Game {
                     this.showHint('ion-storm', 'La tormenta va a descargar: ponte a cubierto BAJO una plataforma antes de que caiga, o corre al siguiente refugio.');
                 }
                 if (phase === 'strike' && this.playerInvulnerable === 0 && !this.playerSheltered()) {
-                    this.player.takeDamage(5);
+                    this.player.takeDamage(this.hazardDamage(5));
                     this.playerInvulnerable = 45;
                     this.shake = Math.max(this.shake, 5);
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 12, { speed: 2, life: 20, size: 2.5 });
@@ -1450,6 +1629,10 @@ class Game {
             this.drawHangarScreen(ctx);
             return;
         }
+        if (this.skillTreeOpen) {
+            this.drawSkillTreeScreen(ctx);
+            return;
+        }
 
         const shakeMag = this.reduceEffects ? 0 : this.shake;
         const shakeX = shakeMag ? (Math.random() - 0.5) * shakeMag : 0;
@@ -1461,6 +1644,7 @@ class Game {
             this.drawStars(this.mapStars, 0);
             this.worldMap.draw(ctx);
             this.drawPilotChip(ctx);
+            this.drawSkillChip(ctx);
             ctx.fillStyle = PALETTE.accent2; ctx.font = '10px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
             ctx.fillText(`♥×${this.player.lives}`, 308, 16);
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
@@ -1599,6 +1783,8 @@ class Game {
             if (this.levelUpMessage > 0) {
                 ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 14px "Orbitron", sans-serif';
                 ctx.fillText('¡SUBISTE DE NIVEL!', 55, 70);
+                ctx.fillStyle = PALETTE.accent; ctx.font = '10px "Rajdhani", sans-serif';
+                ctx.fillText('+1 punto de mejora (árbol en el mapa · tecla T)', 55, 84);
             }
             if (this.levelCompleteMessage > 0) {
                 ctx.fillStyle = PALETTE.accent; ctx.font = 'bold 14px "Orbitron", sans-serif';
