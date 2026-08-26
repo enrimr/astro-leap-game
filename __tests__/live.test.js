@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -538,12 +538,53 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
                 const keys = { ArrowRight: true, Space: !jumped };
                 jumped = true;
                 p.update(keys, noPlatforms, particles);
-                if (dy < 0) { if (p.y <= dy) crossings.push(p.x); }
+                // dy<0 (plataforma más arriba): el aterrizaje real es el snap del motor — pies
+                // DESCENDIENDO (vy>0) dentro de la banda (top, top+10]. Medir solo "cruzó la
+                // altura exacta" ignoraba esa ventana de 10 y daba por imposibles subidas de
+                // 27-36 que el juego permite de verdad (la ♥ del arranque del nivel 2, p.ej.).
+                if (dy < 0) { if (p.vy > 0 && p.y > dy && p.y <= dy + 10) crossings.push(p.x); }
                 else { if (p.y >= dy) { result = p.x; break; } }
             }
-            // dy<0 (plataforma más arriba): se cruza esa altura dos veces (subiendo y bajando tras
-            // el ápice) — el último cruce es el de bajada, que es el que de verdad se puede aterrizar.
-            if (dy < 0) result = crossings.length ? crossings[crossings.length - 1] : 0;
+            // El último punto de la banda es el aterrizaje más lejano posible. Inalcanzable en
+            // altura = -1, NO 0: con 0, una plataforma que solapa en horizontal (gap=0) pasaba
+            // el `gap <= reach` y el BFS "subía" pisos enteros sin escalera — inofensivo en los
+            // niveles horizontales, letal al validar torres.
+            if (dy < 0) result = crossings.length ? crossings[crossings.length - 1] : -1;
+            cache.set(dy, result);
+            return result;
+        };
+    }
+    // Alcance del salto CON carrerilla de hielo, medido con la física real (mismo convenio de
+    // desplazamiento relativo que makeMaxReach): 90 frames acelerando sobre una pista de hielo
+    // real y despegue manteniendo la dirección. Scrap puede — la carrerilla no gasta Energía ni
+    // exige habilidad aérea (es el set piece del nivel 2), así que sigue siendo "salto simple".
+    function makeMaxIceReach(Player, Platform) {
+        const cache = new Map();
+        return function maxIceReach(dy) {
+            dy = Math.round(dy);
+            if (cache.has(dy)) return cache.get(dy);
+            // Pista en coordenadas POSITIVAS: Player.update clampa x>=0, y una pista en
+            // negativas teleporta al corredor fuera de ella en el primer frame (medía un
+            // salto normal en vez de uno con carrerilla).
+            const runway = new Platform(0, 13, 400, 15, 'ice');
+            const p = new Player(20, 0, 'scrap');
+            p.onGround = true; p.groundPlatform = runway;
+            const particles = { burst() {} };
+            for (let f = 0; f < 90; f++) p.update({ ArrowRight: true }, [runway], particles);
+            // al borde de despegue, con la velocidad de carrerilla puesta y en el convenio
+            // relativo de makeMaxReach (x=0, y=0 en el despegue)
+            p.x = 0; p.y = 0; p.vy = 0; p.onGround = true; p.prevJumpKey = false;
+            let jumped = false;
+            const crossings = [];
+            let result = 0;
+            for (let f = 0; f < 300; f++) {
+                p.update({ ArrowRight: true, Space: !jumped }, [], particles);
+                jumped = true;
+                // misma banda de aterrizaje (snap de 10) y mismo -1 de "inalcanzable" que makeMaxReach
+                if (dy < 0) { if (p.vy > 0 && p.y > dy && p.y <= dy + 10) crossings.push(p.x); }
+                else if (p.y >= dy) { result = p.x; break; }
+            }
+            if (dy < 0) result = crossings.length ? crossings[crossings.length - 1] : -1;
             cache.set(dy, result);
             return result;
         };
@@ -554,9 +595,23 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
     // BIDIRECCIONAL: el hueco horizontal se mide simétrico (la física del salto no distingue
     // izquierda de derecha) — necesario desde la Torre de Vigía, cuyo piso 2 se recorre de
     // derecha a izquierda; la versión original descartaba cualquier salto hacia la izquierda.
-    function levelReachableWithSimpleJump(level, maxReach) {
-        const plats = level.platforms.map(p => ({ x: p[0], y: p[1], w: p[2] }));
+    // Dos extensiones ACOTADAS A NIVELES EXTRA (Aguja Glacial):
+    //  - ascensores: cada movingPlatform aporta dos nodos gemelos (punto bajo y alto) unidos
+    //    gratis — abordas abajo, te bajas arriba. En los 12 niveles del mapa las móviles SIGUEN
+    //    sin contar: ahí la regla es que son atajos opcionales.
+    //  - carrerilla: si la plataforma de salida es hielo ANCHO (≥100, aceleración garantizada),
+    //    se usa el alcance con carrerilla en vez del salto en frío.
+    function levelReachableWithSimpleJump(level, maxReach, maxIceReach) {
+        const plats = level.platforms.map(p => ({ x: p[0], y: p[1], w: p[2], variant: p[4] }));
         (level.reinforcedBlocks || []).forEach(b => plats.push({ x: b[0], y: b[1], w: b[2] }));
+        if (level.extra) {
+            (level.movingPlatforms || []).forEach(([mx, my, mw, mh, amp]) => {
+                const bottom = { x: mx, y: my + amp, w: mw };
+                const top = { x: mx, y: my - amp, w: mw };
+                bottom.twin = top; top.twin = bottom;
+                plats.push(bottom, top);
+            });
+        }
         const start = plats.filter(p => p.x <= 20 && p.x + p.w >= 20).sort((a, b) => a.y - b.y)[0];
         const visited = new Set([start]);
         const queue = [start];
@@ -564,11 +619,13 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
         while (queue.length) {
             const a = queue.shift();
             maxX = Math.max(maxX, a.x + a.w);
+            if (a.twin && !visited.has(a.twin)) { visited.add(a.twin); queue.push(a.twin); }
             for (const b of plats) {
                 if (visited.has(b) || b === a) continue;
                 const gap = Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w));
                 const dy = b.y - a.y;
-                if (gap <= maxReach(dy)) { visited.add(b); queue.push(b); }
+                const reach = (a.variant === 'ice' && a.w >= 100 && maxIceReach) ? maxIceReach(dy) : maxReach(dy);
+                if (gap <= reach) { visited.add(b); queue.push(b); }
             }
         }
         return maxX >= level.goal;
@@ -614,13 +671,66 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
         expect(finalGap).toBeGreaterThan(island[0] - (runway[0] + runway[2]));
     });
 
-    test('todos los niveles (12 del mapa + Extra) se completan solo con salto simple — y por tanto con cualquier piloto', () => {
-        const { LEVELS, Player } = loadGame();
+    test('todos los niveles (12 del mapa + Extras) se completan solo con salto simple — y por tanto con cualquier piloto', () => {
+        const { LEVELS, Player, Platform } = loadGame();
         const maxReach = makeMaxReach(Player);
+        const maxIceReach = makeMaxIceReach(Player, Platform);
         const failing = LEVELS
-            .map((lvl, i) => ({ i, name: lvl.name, ok: levelReachableWithSimpleJump(lvl, maxReach) }))
+            .map((lvl, i) => ({ i, name: lvl.name, ok: levelReachableWithSimpleJump(lvl, maxReach, maxIceReach) }))
             .filter(r => !r.ok);
         expect(failing).toEqual([]); // si esto falla, el mensaje lista qué niveles quedaron inalcanzables
+    });
+
+    test('Aguja Glacial: los ascensores son obligatorios y la meta solo se alcanza desde la cumbre', () => {
+        const { LEVELS, Player, Platform, ICE_MAX_SPEED } = loadGame();
+        const aguja = LEVELS.find(l => l.name === 'Aguja Glacial');
+        expect(aguja).toBeDefined();
+        const maxReach = makeMaxReach(Player);
+        const maxIceReach = makeMaxIceReach(Player, Platform);
+        // 1) sin los ascensores el nivel es imposible (la versión sin movingPlatforms no llega)
+        const sinAscensores = { ...aguja, movingPlatforms: [] };
+        expect(levelReachableWithSimpleJump(sinAscensores, maxReach, maxIceReach)).toBe(false);
+        // 2) gating: ningún tramo bajo la cumbre (y > 65) alcanza la meta ni en pleno vuelo —
+        //    contando ~70 de vuelo si el tramo es de hielo (deslizón) y ~42 si no
+        const flight = maxReach(0);
+        const iceFlight = maxIceReach(0);
+        expect(iceFlight).toBeGreaterThan(flight); // sanity: la carrerilla de verdad alarga el salto
+        aguja.platforms
+            .filter(p => p[1] > 65)
+            .forEach(p => {
+                const reach = p[4] === 'ice' ? iceFlight : flight;
+                expect(p[0] + p[2] + reach).toBeLessThan(aguja.goal);
+            });
+        // ...los ascensores tampoco (desde su punto alto, salto normal: son metal)
+        aguja.movingPlatforms.forEach(m => expect(m[0] + m[2] + flight).toBeLessThan(aguja.goal));
+        // 3) el hueco de la cumbre exige carrerilla: mayor que el salto en frío, cruzable deslizando
+        const runway = aguja.platforms.find(p => p[0] === 303 && p[1] === 60);
+        const summit = aguja.platforms.find(p => p[0] === 483 && p[1] === 60);
+        const gap = summit[0] - (runway[0] + runway[2]);
+        expect(gap).toBeGreaterThan(flight);
+        expect(gap).toBeLessThanOrEqual(iceFlight);
+        // 4) la velocidad de carrerilla que asume el diseño sigue siendo la real
+        expect(ICE_MAX_SPEED).toBe(2.6);
+    });
+
+    test('un ascensor (móvil de amplitud 22 / omega 0.012) sube al jugador un piso entero sin perderlo', () => {
+        // Regresión del límite documentado: velocidad vertical máx (amp × omega = 0.264) por
+        // debajo de la gravedad (0.32) — si algún ascensor lo supera, el snap pierde al pasajero.
+        const { MovingPlatform, Player } = loadGame();
+        const lift = new MovingPlatform(100, 128, 34, 6, 22, 0.012);
+        while (lift.y < 149.9) lift.update(); // baja hasta su punto de abordaje
+        const p = new Player(110, lift.y - 13, 'kes');
+        p.onGround = true;
+        const particles = { burst() {} };
+        let lost = false, minFeet = 999;
+        for (let f = 0; f < 600; f++) { // más de medio ciclo: de abajo a arriba del todo
+            lift.update();
+            p.update({}, [lift], particles);
+            if (!p.onGround) lost = true;
+            minFeet = Math.min(minFeet, p.y + p.h);
+        }
+        expect(lost).toBe(false);
+        expect(minFeet).toBeLessThan(107); // llegó al punto alto (128−22=106)
     });
 
     test('Torre de Vigía: el serpentín es obligatorio — sin subir al piso 3 no hay meta, ni en pleno salto', () => {

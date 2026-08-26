@@ -1844,7 +1844,7 @@ const game = new Game();
 if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => window.scrollTo(0, 1), 50));
 
 // ---- Modo depuración vía URL, sin tocar la consola ----
-// ?level=N        -> entra directo al nivel N (1-13, el 13 es el Extra), con vida/energía llenas, saltándose el mapa.
+// ?level=N        -> entra directo al nivel N (1-14; 13 y 14 son los Extra), con vida/energía llenas, saltándose el mapa.
 // ?unlock=all     -> desbloquea todos los nodos del mapa para poder elegir cualquiera a mano.
 // ?char=bolt|shade|scrap -> pilota ese héroe directamente (se da por desbloqueado).
 // ?dailyDate=YYYY-MM-DD -> simula "hoy" para el Reto Diario (piloto, semilla y el registro

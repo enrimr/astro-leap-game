@@ -96,7 +96,7 @@ El Mundo 1 estrena el terreno con un solo giro (el hielo del nivel 2 — que ade
 |---|---|---|---|
 | **Hielo resbaladizo** (suelo azul hielo) | Mundo 1 (nivel 2) | Todo el suelo del nivel tiene inercia: acelera con carrerilla hasta **superar tu velocidad normal** (1.55 → 2.6), frenas y giras despacio, y al soltar la dirección sigues deslizándote (~25u hasta pararte). **El impulso se conserva al saltar**: un salto con carrerilla llega a ~68u en llano frente a los ~42 del salto normal | Es el único "peligro" que también es un regalo: usa la carrerilla para los dos saltos largos del tramo final (el del islote de la ♥ y el salto final a la BASE). El peligro real es frenar tarde junto a un borde o un enemigo — suelta la dirección con antelación o pulsa la contraria |
 | **Plataforma frágil** (agrietada) | Mundo 2 (nivel 4) | Al pisarla tiembla y se desmorona a los ~0,8s. **Reaparece a los 3s** — nunca te deja encerrado | No te pares encima: cruza de una pasada. Si cae, espera a que reaparezca |
-| **Plataforma móvil** (raíl punteado) | Mundo 2 (nivel 4) | Sube y baja en ciclo constante. Te lleva encima sin resbalar | Son atajos de ruta alta — el camino obligatorio nunca depende de ellas |
+| **Plataforma móvil** (raíl punteado) | Mundo 2 (nivel 4) | Sube y baja en ciclo constante. Te lleva encima sin resbalar | Son atajos de ruta alta — el camino obligatorio nunca depende de ellas en los 12 niveles del mapa. **Excepción**: en los niveles Extra pueden ser **ascensores obligatorios** (Aguja Glacial) — espera a que baje, súbete y viaja |
 | **Tormenta iónica** (ciclo de cielo) | Mundo 2 (nivel 5) | Ciclo global de 8,5s: **5s de calma** → **1,5s de aviso** (tinte ámbar, «⚠ TORMENTA INMINENTE») → **2s de descarga** (tinte violeta y rayos). Durante la descarga, estar **al raso** hace 5 de daño con tregua de invulnerabilidad (~hasta 3 golpes si aguantas fuera la descarga entera) | La regla del techo: estás a salvo con **cualquier plataforma sólida encima de la cabeza** — el resplandor cian bajo las plataformas te marca dónde. Corre de refugio en refugio durante la calma; si el aviso te pilla a medias, métete bajo la flotante más cercana o paga el peaje en HP |
 | **Puerta de energía** (columna vertical entre emisores) | Mundo 3 (nivel 7) | Bloquea el paso a ras de suelo con ciclo fijo de 2,5s: 1,5s apagada → 0,25s de aviso (chisporroteo) → 0,75s activa. Activa hace **4 de daño** y te empuja hacia atrás, con tregua de invulnerabilidad | Tres opciones: **esperar** el ciclo (el chisporroteo es tu semáforo), **saltarla por arriba** con habilidad aérea (40 de alto: el salto simple no llega, el doble salto/vuelo/dash sí — la Energía compra tiempo), o **atravesarla pagando** los 4 de daño y aprovechando la tregua. Las puertas de un mismo nivel van desfasadas |
 | **Cinta magnética** (chevrones) | Mundo 3 (nivel 9) | Te arrastra ~30% de tu velocidad en la dirección de los chevrones — siempre en contra | Camina sin pararte (avanzas igual, más despacio) y no te detengas cerca de un borde |
@@ -235,6 +235,18 @@ El primer nivel **vertical** del juego: tres pisos (suelo, y=105 y y=60) recorri
 - Una **puerta de energía** corta el corredor del suelo, y en cada piso patrulla su fauna (reptante y erizo abajo, magnetita y hoverbot en el 2, espectro y erizo guardián arriba).
 - **♥ Cápsula**: flotando entre pisos bajo las frágiles — un salto deliberado desde el corredor del suelo la roza en el ápice.
 - **Todavía sin nodo en el mapa estelar**: de momento se entra con `?level=13` (pendiente de enlazar desde otro nivel). Completarlo no desbloquea nada — es un desafío aparte, rejugable.
+
+### Nivel Extra 2 · Aguja Glacial — VERTICAL + HIELO + ASCENSORES
+
+![Mapa del nivel extra 2](guia/nivel-14.png)
+
+La torre difícil de verdad: el mismo serpentín de tres pisos que la Torre de Vigía, pero **el suelo resbala** y las escaleras son **ascensores** — dos plataformas móviles verticales que recorren un piso entero (viaje de ~4,4s) y hay que esperar a que bajen y abordarlas. Fallar el abordaje del 1º te deja en un bolsillo de recogida (reintenta desde ahí); fallar el 2º te devuelve al piso 1.
+
+- **Piso 1**: todo hielo, con huecos letales y **dos puertas de energía desfasadas** — frenar sobre hielo ante una puerta es el examen del piso. Recuerda: suelta la dirección con ~40 de antelación o pulsa la contraria.
+- **Piso 2** (derecha→izquierda): mixto — metal, hielo y **dos frágiles seguidas**. El borde izquierdo es hielo: llega frenado o te caerás al piso 1 esperando el ascensor.
+- **Piso 3, la cumbre**: hielo de punta a punta y el final por todo lo alto: pista de 130 → **hueco de 50 que SOLO cruza el salto con carrerilla** (con un espectro patrullando el aire del hueco) → la BASE. Fallar el salto te deja en el piso 2: a re-subir.
+- **♥ Cápsula**: flotando en el hueco del ascensor 1 — se recoge durante el viaje.
+- 8 enemigos de fauna alta (Lv3-6). Entrada: `?level=14` (también sin nodo en el mapa, de momento).
 
 ---
 

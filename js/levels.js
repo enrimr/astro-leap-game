@@ -238,7 +238,11 @@ const LEVELS = [
             // Camino bajo con salto simple (ver Grietas de Hielo) — incluso el nivel del jefe final
             // de la zona 3 debe poder cruzarse sin doble salto.
             [95, 150, 20, 6], [193, 125, 20, 6], [308, 140, 20, 6],
-            [410, 150, 20, 6], [590, 150, 20, 6], [673, 135, 20, 6]
+            // La piedra [455,150,28] tapa un agujero REAL del camino bajo: entre [410,150,20] y
+            // [510,150,55] había 80 de hueco y solo la frágil a y=110 (subida de 40 — imposible
+            // sin habilidad aérea). El BFS antiguo lo daba por bueno por un bug (solape
+            // horizontal con altura inalcanzable contaba como salto) y Scrap se atascaba aquí.
+            [410, 150, 20, 6], [455, 150, 28, 6], [590, 150, 20, 6], [673, 135, 20, 6]
         ],
         beams: [[795, 110, 40, 0], [1000, 110, 40, 75]],
         enemies: [[145, 138, 'magnetite'], [250, 118, 'ionwisp', 40], [340, 138, 'spiker'], [430, 98, 'hoverbot', 45], [520, 138, 'crawler'], [615, 113, 'ionwisp', 50], [785, 138, 'magnetite'], [860, 120, 'ionwisp', 45], [1070, 130, 'overlord']],
@@ -294,6 +298,10 @@ const LEVELS = [
             [95, 150, 20, 6], [140, 150, 20, 6],
             [261, 150, 20, 6], [306, 150, 20, 6],
             [393, 135, 20, 6], [441, 145, 20, 6],
+            // [485,135,20] tapa el mismo tipo de agujero real que en Núcleo del Reactor/Nodo
+            // Cero: de [441,145,20] a la frágil [523,115] había 62 de hueco — incruzable con
+            // salto simple, y el camino bajo de este nivel existe justo para eso.
+            [485, 135, 20, 6],
             [523, 115, 20, 6, 'fragile'], [653, 135, 20, 6],
             [781, 150, 20, 6], [826, 150, 14, 6],
             // Tramo final añadido al alargar el nivel (huecos ≤25, subida suave de 5).
@@ -321,7 +329,10 @@ const LEVELS = [
             // Camino bajo con salto simple (ver Grietas de Hielo) — hasta el nivel del jefe final
             // absoluto debe poder cruzarse con cualquier piloto, Scrap incluido.
             [105, 150, 20, 6], [230, 150, 20, 6], [328, 140, 20, 6],
-            [430, 150, 20, 6], [610, 150, 20, 6], [693, 135, 20, 6]
+            // [478,150,28] tapa un agujero real del camino bajo (80 de hueco entre [430,150,20]
+            // y [530,150,55], con solo un flotante a subida de 40) — mismo bug de BFS que en
+            // Núcleo del Reactor; hasta el nivel del jefe final tenía a Scrap atascado aquí.
+            [430, 150, 20, 6], [478, 150, 28, 6], [610, 150, 20, 6], [693, 135, 20, 6]
         ],
         movingPlatforms: [[905, 100, 40, 6, 16, 0.02]],
         // Doble puerta desfasada en la arena, el último control antes de Nodo Cero.
@@ -379,5 +390,50 @@ const LEVELS = [
         // 650 y no 640: el suelo de recogida acaba en 590 y un salto desde su borde plantaba al
         // jugador en x≈630 en el aire — a 12 de la meta. Con 650 el margen sube a ~20.
         goal: 650
+    },
+    {
+        name: 'Aguja Glacial', world: 5, variant: 'metal', extra: true,
+        // Nivel Extra 2, la torre "difícil de verdad": mismo serpentín de tres pisos que la
+        // Torre de Vigía, pero con HIELO por tramos (el 5º elemento 'ice' pisa el variant del
+        // nivel — resbalar junto a huecos letales, y un salto con carrerilla como examen final
+        // en la cumbre) y ASCENSORES en vez de peldaños: dos móviles verticales de amplitud 22
+        // (un piso entero por viaje, velocidad máx 0.264 < gravedad — el snap no pierde al
+        // pasajero) que hay que esperar y abordar. Es la excepción consciente a la regla "las
+        // móviles nunca son obligatorias": vale SOLO en niveles extra, y el BFS de los tests
+        // las modela aquí como nodos abordables por sus extremos.
+        goalY: 38,
+        platforms: [
+            // Piso 1 (→), todo hielo, con dos puertas desfasadas: frenar sobre hielo ante una
+            // puerta es el plato fuerte del piso. Huecos de 23-25, aquí sí letales.
+            [0, 150, 110, 15, 'ice'], [135, 150, 110, 15, 'ice'], [270, 150, 80, 15, 'ice'], [373, 150, 90, 15, 'ice'],
+            // Bolsillo de recogida bajo el hueco del ascensor 1: fallar el abordaje no mata —
+            // caes, esperas a que baje (o saltas de vuelta al piso 1) y reintentas. Acaba en 507
+            // (507+42 < goal): ni de un salto desde el bolsillo se alcanza la meta.
+            [463, 172, 44, 6],
+            // Piso 2 (←), mixto. El tramo derecho es metal A PROPÓSITO: de hielo, un deslizón
+            // desde su borde (extremo + ~70 de vuelo con carrerilla) alcanzaría la meta en el
+            // aire sin pisar la cumbre. Después, hielo y dos frágiles cortas.
+            [415, 105, 70, 8], [305, 105, 80, 8, 'ice'],
+            [237, 105, 40, 8, 'fragile'], [163, 105, 44, 8, 'fragile'],
+            [60, 105, 78, 8, 'ice'],
+            // Piso 3 (→): la cumbre helada. Pista de 130 → hueco de 50 SOLO-carrerilla (el
+            // salto normal llega a ~42) → tramo de la BASE. Fallar el salto cae al tramo metal
+            // del piso 2: castigo de re-subida, no de vidas.
+            [40, 60, 120, 8, 'ice'], [185, 60, 90, 8, 'ice'],
+            [303, 60, 130, 8, 'ice'],
+            [483, 60, 90, 8, 'ice']
+        ],
+        // Los ascensores: baseY a medio camino entre pisos, amplitud 22 = recorrido 44 (un piso).
+        // El 2º arranca en x=22 y no en el borde para no pisar el x=20 del spawn (que el BFS de
+        // los tests usa para elegir la plataforma de salida). Debajo de cada hueco de ascensor
+        // hay suelo (bolsillo / piso 1): fallar el abordaje cuesta tiempo.
+        movingPlatforms: [[473, 128, 34, 6, 22, 0.012], [22, 83, 34, 6, 22, 0.012]],
+        beams: [[200, 110, 40, 0], [300, 110, 40, 75]],
+        // Fauna alta (mundos 3-4), 8 unidades — incluido un espectro patrullando EL AIRE del
+        // hueco final: esquivarlo en pleno salto con carrerilla es el último examen.
+        enemies: [[60, 138, 'spiker', 20], [320, 138, 'magnetite'], [340, 93, 'ionwisp', 40], [100, 93, 'hoverbot', 35], [90, 48, 'magnetite'], [220, 48, 'ionwisp', 35], [450, 40, 'ionwisp', 30], [520, 48, 'spiker', 18]],
+        // Cápsula flotando en el hueco del ascensor 1: se recoge durante el viaje.
+        capsules: [[482, 88]],
+        goal: 560
     }
 ];
