@@ -841,6 +841,144 @@ describe('Peligros: frágiles, móviles, rayos y cintas (contra el código real)
     });
 });
 
+describe('Tormenta iónica — nivel 5 (contra js/game.js real)', () => {
+    function inStormLevel() {
+        const { game, LEVELS, Player } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(4); // Tormenta de Iones
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        game.enemies.forEach(e => { e.x = -1500; e.initialX = -1500; });
+        game.hintsSeen.add('ion-storm'); // sin diálogo de aviso por medio (se testea aparte)
+        return { game, storm: LEVELS[4].ionStorm, LEVELS, Player };
+    }
+    function standAt(game, x) {
+        game.player.x = x; game.player.y = 137;
+        game.player.vx = 0; game.player.vy = 0; game.player.onGround = true;
+    }
+
+    test('el ciclo calma → aviso → descarga es determinista por frames', () => {
+        const { game, storm } = inStormLevel();
+        game.stormT = 0;
+        expect(game.stormPhase(storm)).toBe('calm');
+        game.stormT = storm.calm;
+        expect(game.stormPhase(storm)).toBe('warn');
+        game.stormT = storm.calm + storm.warn;
+        expect(game.stormPhase(storm)).toBe('strike');
+        game.stormT = storm.calm + storm.warn + storm.strike; // ciclo nuevo
+        expect(game.stormPhase(storm)).toBe('calm');
+    });
+
+    test('en plena descarga, al raso: daño con tregua de invulnerabilidad (no re-golpea cada frame)', () => {
+        const { game, storm } = inStormLevel();
+        standAt(game, 110); // sobre una piedra de la carrera 1, sin ningún techo encima
+        game.stormT = storm.calm + storm.warn; // al borde de la descarga
+        const hp0 = game.player.hp;
+        game.update();
+        expect(game.player.hp).toBe(hp0 - Math.max(1, 5 - game.player.defense));
+        expect(game.playerInvulnerable).toBe(45);
+        const hp1 = game.player.hp;
+        for (let i = 0; i < 20; i++) game.update();
+        expect(game.player.hp).toBe(hp1); // la tregua aguanta: nada de daño por frame
+    });
+
+    test('bajo el techo de un refugio, la descarga entera no hace nada', () => {
+        const { game, storm } = inStormLevel();
+        standAt(game, 350); // refugio B: isla [330,150,70,15] con techo [336,112,58,8]
+        game.stormT = storm.calm + storm.warn;
+        const hp0 = game.player.hp;
+        for (let i = 0; i < storm.strike; i++) game.update();
+        expect(game.player.hp).toBe(hp0);
+    });
+
+    test('en calma no pasa nada aunque estés al raso', () => {
+        const { game } = inStormLevel();
+        standAt(game, 110);
+        game.stormT = 0;
+        const hp0 = game.player.hp;
+        for (let i = 0; i < 60; i++) game.update();
+        expect(game.player.hp).toBe(hp0);
+    });
+
+    test('el primer aviso de tormenta dispara su hint (una sola vez por navegador)', () => {
+        const { game, storm } = inStormLevel();
+        game.hintsSeen.delete('ion-storm');
+        standAt(game, 350);
+        game.stormT = storm.calm - 1; // el próximo update cruza a fase de aviso
+        game.update();
+        expect(game.hintScreen).not.toBeNull();
+        expect(game.hintScreen.text).toMatch(/cubierto/);
+    });
+
+    test('con la física real, cada carrera entre refugios se cruza dentro de una ventana de calma', () => {
+        // No solo distancia en llano (eso lo cubre el test de abajo): un corredor de verdad
+        // salta piedras. Bot mínimo — correr a la derecha y salto simple al borde de cada hueco —
+        // de refugio a refugio, contando frames. Si alguna carrera no cabe en la calma, el nivel
+        // se volvió injusto (te obliga a comerte una descarga sí o sí).
+        const { LEVELS, Player, Platform } = loadGame();
+        const lvl = LEVELS[4];
+        const plats = lvl.platforms.map(pp => new Platform(...pp, lvl.variant));
+        const roofs = lvl.platforms.filter(p => p[3] === 8).sort((a, b) => a[0] - b[0]);
+        const particles = { burst() {} };
+        for (let i = 0; i < roofs.length - 1; i++) {
+            const from = roofs[i], to = roofs[i + 1];
+            const p = new Player(from[0] + from[2] - 12, 137, 'scrap'); // sale del borde del techo i
+            p.onGround = true;
+            let frames = 0;
+            while (p.x + p.w < to[0] + 4 && frames < 1000) {
+                // ¿hay suelo a ras (y≥145) justo delante? si no, toca saltar el hueco
+                const ahead = lvl.platforms.some(q => q[1] >= 145 && p.x + 24 > q[0] && p.x + 14 < q[0] + q[2]);
+                p.update({ ArrowRight: true, Space: p.onGround && !ahead }, plats, particles);
+                frames++;
+                if (p.y > 180) break; // cayó a un hueco: la carrera no se puede correr
+            }
+            expect(p.y).toBeLessThanOrEqual(180);
+            expect(p.x + p.w).toBeGreaterThanOrEqual(to[0] + 4); // llegó bajo el siguiente techo
+            expect(frames).toBeLessThan(lvl.ionStorm.calm);      // ...dentro de una sola calma
+        }
+    });
+
+    test('regla de diseño: el secreto del nivel 5 queda fuera del alcance del salto simple desde la frágil', () => {
+        // Regresión de un agujero real: con la secreta a y=72, el salto simple desde la flotante
+        // frágil (ápice ~79 + ventana de aterrizaje de 10) llegaba, y la cadena flotante → móvil →
+        // frágil → secreta abría el "secreto de doble salto" sin gastar Energía.
+        const { LEVELS, Player } = inStormLevel();
+        const lvl = LEVELS[4];
+        const fragile = lvl.platforms.find(p => p[4] === 'fragile' && p[0] === 860);
+        const secret = lvl.platforms.find(p => p[0] === 875 && p[2] === 28);
+        expect(fragile).toBeDefined();
+        expect(secret).toBeDefined();
+        // Altura del salto simple, medida con la física real (mismo método que makeMaxReach):
+        const p = new Player(0, 0, 'scrap');
+        p.onGround = true;
+        let jumped = false, minY = 0;
+        for (let f = 0; f < 60; f++) {
+            p.update({ Space: !jumped }, [], { burst() {} });
+            jumped = true;
+            minY = Math.min(minY, p.y);
+        }
+        const simpleJumpRise = -minY; // ~27 con la física actual
+        const rise = fragile[1] - secret[1]; // cuánto hay que subir hasta la secreta
+        expect(rise).toBeGreaterThan(simpleJumpRise + 10); // +10: la ventana de snap de aterrizaje
+    });
+
+    test('regla de diseño: ningún tramo abierto entre techos supera lo andable en una ventana de calma', () => {
+        const { LEVELS, Player } = inStormLevel();
+        const lvl = LEVELS[4];
+        const speed = new Player(0, 0, 'kes').speed;
+        const calmDistance = lvl.ionStorm.calm * speed;
+        // Los techos de los refugios son las únicas plataformas con h=8 del nivel.
+        const roofs = lvl.platforms.filter(p => p[3] === 8).sort((a, b) => a[0] - b[0]);
+        expect(roofs.length).toBeGreaterThanOrEqual(4);
+        for (let i = 1; i < roofs.length; i++) {
+            const gap = roofs[i][0] - (roofs[i - 1][0] + roofs[i - 1][2]);
+            expect(gap).toBeLessThan(calmDistance);
+        }
+        // y la meta queda al alcance de una calma desde el último refugio
+        const last = roofs[roofs.length - 1];
+        expect(lvl.goal).toBeLessThanOrEqual(last[0] + last[2] + calmDistance);
+    });
+});
+
 describe('Túnel de Escape — cuenta atrás del scroll forzado (contra js/game.js real)', () => {
     function inTunnel() {
         const { game } = loadGame();

@@ -51,7 +51,7 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 | | 2 | Grietas de Hielo | **Hielo resbaladizo**: carrerilla con inercia y salto largo del set piece; secreto de vuelo de Bolt |
 | | 3 | Nido de la Reina Larva | **Jefe: Reina Larva** — se regenera cada 3 turnos; hueco de dash de Shade |
 | 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores; **debutan las plataformas frágiles y las móviles** |
-| | 5 | Tormenta de Iones | Huecos largos, la ruta alta exige habilidad aérea |
+| | 5 | Tormenta de Iones | **Tormenta iónica con presión temporal**: corre en la calma, cobíjate bajo techo en la descarga |
 | | 6 | Núcleo del Centinela | **Jefe: Centinela** — carga un turno y golpea el doble (ventana para Defender) |
 | 3 · Estación Colapsada | 7 | Muelle de Carga | **Debutan las puertas de energía** (columnas cíclicas que bloquean el paso); despierta el núcleo |
 | | 8 | Túnel de Escape | **Scroll forzado**: tras 5s de cuenta atrás, un muro de energía avanza solo — con islotes frágiles bajo presión |

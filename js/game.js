@@ -640,6 +640,26 @@ class Game {
         this.player.energy = this.player.maxEnergy; this.cameraX = 0;
         this.autoScrollX = 0;
         this.forcedScrollDelay = level.forcedScroll ? level.forcedScroll.startDelay : 0;
+        // Tormenta iónica (ver ionStorm en levels.js): el reloj arranca en calma SIEMPRE —
+        // también al reaparecer tras morir, para que nunca respawnees bajo una descarga.
+        this.stormT = 0;
+    }
+
+    // Fase del ciclo de la tormenta iónica según this.stormT: calma (se puede correr) → aviso
+    // (tinte y sonido: busca techo) → descarga (estar al raso duele). Frames, no tiempo real:
+    // determinista en cualquier máquina, como el resto de peligros con ciclo.
+    stormPhase(storm) {
+        const c = this.stormT % (storm.calm + storm.warn + storm.strike);
+        if (c < storm.calm) return 'calm';
+        if (c < storm.calm + storm.warn) return 'warn';
+        return 'strike';
+    }
+    // Regla de refugio: a salvo si hay CUALQUIER plataforma sólida encima de la cabeza ("bajo
+    // techo"). Emergente a propósito — sin zonas marcadas aparte: el propio level design (islas
+    // con techo, flotantes de la ruta alta) es lo que da o niega cobijo.
+    playerSheltered() {
+        return this.platforms.some(p => p.solid && p.y + p.h <= this.player.y
+            && p.x < this.player.x + this.player.w && p.x + p.w > this.player.x);
     }
 
     // Piloto actual: una chapa pequeña y discreta en el mapa (no una fila de iconos permanente).
@@ -1268,6 +1288,28 @@ class Game {
                 }
             }
 
+            // Tormenta iónica: avanza el ciclo y, en plena descarga, golpea a quien esté al
+            // raso — mismo patrón de golpe+tregua que las puertas de energía. El combate y los
+            // diálogos congelan update() antes de llegar aquí, así que la tormenta no corre
+            // mientras lees un aviso ni durante un duelo.
+            if (level.ionStorm) {
+                const prevPhase = this.stormPhase(level.ionStorm);
+                this.stormT++;
+                const phase = this.stormPhase(level.ionStorm);
+                if (phase === 'warn' && prevPhase === 'calm') {
+                    if (window.SFX) SFX.bossCharge();
+                    this.showHint('ion-storm', 'La tormenta va a descargar: ponte a cubierto BAJO una plataforma antes de que caiga, o corre al siguiente refugio.');
+                }
+                if (phase === 'strike' && this.playerInvulnerable === 0 && !this.playerSheltered()) {
+                    this.player.takeDamage(5);
+                    this.playerInvulnerable = 45;
+                    this.shake = Math.max(this.shake, 5);
+                    this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 12, { speed: 2, life: 20, size: 2.5 });
+                    if (window.SFX) SFX.zap();
+                    if (this.player.hp <= 0) { this.loseLife(); return; }
+                }
+            }
+
             for (const cap of this.capsules) {
                 if (cap.collected) continue;
                 cap.update();
@@ -1484,6 +1526,53 @@ class Game {
                     ctx.fillText(secs > 0 ? String(secs) : '¡CORRE!', GAME_WIDTH / 2, GAME_HEIGHT / 2);
                     ctx.font = '10px "Rajdhani", sans-serif'; ctx.fillStyle = PALETTE.dim;
                     ctx.fillText('EL NÚCLEO VA A COLAPSAR', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 18);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            // Tormenta iónica: capa visual del ciclo (la lógica de daño vive en update()).
+            // Aviso: tinte ámbar pulsante + cartel. Descarga: tinte violeta + rayos verticales
+            // (visual puro: Math.random, no RNG). En ambas fases, un resplandor cian bajo cada
+            // plataforma elevada señala dónde hay techo — la regla de refugio, dibujada.
+            // Con reduceEffects: tintes fijos, sin pulso ni rayos (nada que parpadee).
+            if (level.ionStorm) {
+                const phase = this.stormPhase(level.ionStorm);
+                if (phase !== 'calm') {
+                    for (const p of this.platforms) {
+                        if (!p.solid || p.y >= 150) continue; // solo lo elevado da techo útil
+                        const sx = p.x - this.cameraX;
+                        if (sx > GAME_WIDTH || sx + p.w < 0) continue;
+                        const shelterGrad = ctx.createLinearGradient(0, p.y + p.h, 0, p.y + p.h + 22);
+                        shelterGrad.addColorStop(0, 'rgba(124,245,255,0.16)');
+                        shelterGrad.addColorStop(1, 'rgba(124,245,255,0)');
+                        ctx.fillStyle = shelterGrad;
+                        ctx.fillRect(sx, p.y + p.h, p.w, 22);
+                    }
+                    const pulse = this.reduceEffects ? 0.7 : 0.55 + Math.sin(Date.now() * 0.02) * 0.45;
+                    ctx.textAlign = 'center';
+                    ctx.font = 'bold 8px "Rajdhani", sans-serif';
+                    if (phase === 'warn') {
+                        ctx.fillStyle = `rgba(255,210,63,${0.05 + 0.06 * pulse})`;
+                        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                        ctx.fillStyle = `rgba(255,210,63,${0.6 + pulse * 0.4})`;
+                        ctx.fillText('⚠ TORMENTA INMINENTE', GAME_WIDTH / 2, 28);
+                    } else {
+                        ctx.fillStyle = `rgba(181,139,255,${this.reduceEffects ? 0.12 : 0.06 + 0.08 * pulse})`;
+                        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                        if (!this.reduceEffects) {
+                            ctx.save();
+                            ctx.strokeStyle = 'rgba(124,245,255,0.7)'; ctx.lineWidth = 1;
+                            for (let i = 0; i < 3; i++) {
+                                if (Math.random() < 0.3) {
+                                    const bx = Math.random() * GAME_WIDTH;
+                                    ctx.beginPath(); ctx.moveTo(bx, 20); ctx.lineTo(bx + (Math.random() - 0.5) * 10, 150); ctx.stroke();
+                                }
+                            }
+                            ctx.restore();
+                        }
+                        ctx.fillStyle = 'rgba(200,170,255,0.95)';
+                        ctx.fillText('⚡ DESCARGA — A CUBIERTO', GAME_WIDTH / 2, 28);
+                    }
                     ctx.textAlign = 'left';
                 }
             }

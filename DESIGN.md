@@ -113,7 +113,7 @@ Esto crea una decisión constante que no existía en el original: *¿gasto energ
 | | 2 | Grietas de Hielo | **Hielo resbaladizo** (§2.20): inercia + set piece de salto con carrerilla; primeros huecos que premian el doble salto |
 | | 3 | Nido de la Reina Larva | Jefe: Reina Larva |
 | 2 · Luna Ferrosa | 4 | Chatarral Magnético | Enemigos voladores, plataformas más separadas |
-| | 5 | Tormenta de Iones | Huecos largos, uso obligatorio del doble salto |
+| | 5 | Tormenta de Iones | **Tormenta iónica** (§2.21): presión temporal por ciclo de refugios; ruta alta con habilidad aérea |
 | | 6 | Núcleo del Centinela | Jefe: Centinela de Núcleo |
 | 3 · Estación Colapsada | 7 | Muelle de Carga | Introduce la zona 3, enemigos mixtos |
 | | 8 | Túnel de Escape | **Scroll forzado** — ver §2.6 |
@@ -296,7 +296,7 @@ Antes, tocar a un enemigo cortaba a la pantalla de duelo en el mismo frame — f
 
 ### 2.19 Peligros del terreno: rampa de dificultad por mundos
 
-Hasta aquí la dificultad crecía solo por stats de enemigos y anchura de huecos. Estos cuatro peligros hacen que el propio terreno escale: el Mundo 1 solo tiene el hielo del sector 2 (§2.20 — más herramienta que peligro, y sin reloj: el pool del Reto Diario, sectores 1-2, sigue determinista), el 2 introduce dos, el 3 otros dos, y el 4 los combina todos.
+Hasta aquí la dificultad crecía solo por stats de enemigos y anchura de huecos. Estos peligros hacen que el propio terreno escale: el Mundo 1 solo tiene el hielo del sector 2 (§2.20 — más herramienta que peligro, y sin reloj: el pool del Reto Diario, sectores 1-2, sigue determinista), el 2 introduce tres (frágiles, móviles y la tormenta iónica del sector 5, §2.21), el 3 otros dos, y el 4 los combina.
 
 - **Plataformas frágiles** (5º elemento `'fragile'` en `platforms`): al pisarlas arranca una cuenta atrás de 50 frames (tiemblan; con `reduceEffects`, parpadean en alfa en vez de temblar) y desaparecen... pero **reaparecen a los 180 frames**. Reaparecer es la decisión clave: un nivel nunca queda bloqueado sin salida, así que pueden estar en el camino obligatorio y el test BFS puede contarlas como suelo.
 - **Plataformas móviles** (`MovingPlatform`, array `movingPlatforms` aparte): senoide vertical sobre su Y base. El motor ya "lleva" al jugador gratis (gravedad + snap de aterrizaje cada frame), con la condición de que su velocidad vertical máxima (`amplitud × omega`) quede por debajo de la gravedad (0.32) o el snap lo pierde. Van en un array que el **BFS no cuenta a propósito**: son atajos/ruta alta, el camino obligatorio funciona sin ellas — nunca dependes de cazar una plataforma en movimiento.
@@ -318,3 +318,13 @@ Grietas de Hielo (sector 2) era "un nivel normal con estética helada": el varia
 3. Fallar el salto no es muerte ni softlock: caes a la red, pierdes el premio del primer intento, y desde la meseta final (también hielo) se puede reintentar el islote con carrerilla hacia atrás — castigo de tiempo, no de vidas.
 
 Es la primera vez que un "peligro" del terreno es a la vez la herramienta que abre un premio — el hielo enseña su propio dominio, igual que el nivel 5 entrena el doble salto que su cápsula exige. Aviso contextual de una sola vez (`showHint('ice-slide')`, mismo patrón que el de Scrap) al pisar hielo por primera vez, porque la inercia no se anuncia sola hasta que ya te ha tirado a un hueco.
+
+### 2.21 Tormenta iónica: el primer nivel con presión temporal
+
+Tormenta de Iones (sector 5) tenía la tormenta solo en el nombre: su identidad era geometría ("EL nivel de huecos largos"), jugablemente idéntico a cualquier otro pero más ancho. La revisión convierte la tormenta en un **ciclo global de presión temporal** (`ionStorm: { calm: 300, warn: 90, strike: 120 }` en `levels.js`, lógica en `Game.update`/`Game.stormPhase`): 5s de calma → 1,5s de aviso → 2s de descarga, y vuelta a empezar. Durante la descarga, estar al raso cuesta 5 de daño con tregua de invulnerabilidad de 45 frames — el mismo patrón golpe+tregua de las puertas de energía: presión real (hasta ~3 golpes por descarga), nunca muerte instantánea.
+
+- **La regla del techo** (`Game.playerSheltered`): estás a salvo si hay cualquier plataforma sólida encima de la cabeza. Emergente a propósito, sin zonas marcadas en datos: el propio level design da o niega cobijo, así que los refugios (isla + techo) y las flotantes de la ruta alta cumplen doble función — el techo del refugio es también plataforma alta pisable, y una flotante cualquiera es paraguas de emergencia para quien va por el camino bajo. La contrapartida elegante: estar DE PIE sobre un techo durante la descarga te deja al raso.
+- **El nivel es el reloj hecho geometría**: 5 refugios separados por 4 carreras de ~210-250, cruzables dentro de una ventana de calma (300f × 1.55 ≈ 465 en llano — margen para saltos y titubeos). Un test fija ese invariante (ningún tramo entre techos supera lo andable en una calma) para que el nivel no pueda crecer hasta volverse injusto sin que un test avise.
+- **El ciclo arranca en calma al (re)cargar el nivel** (`stormT = 0` en `loadLevel`): nunca reapareces bajo una descarga — morir ya cuesta una vida, no debe costar además el primer golpe del respawn. Y como el combate y los diálogos congelan `update()`, la tormenta no corre mientras lees un aviso ni durante un duelo.
+- **Legibilidad antes que sorpresa**: fase de aviso con tinte ámbar + cartel + sonido de carga (reutiliza `SFX.bossCharge`), resplandor cian bajo cada plataforma elevada durante aviso/descarga (la regla del techo, dibujada), y aviso contextual de una sola vez (`showHint('ion-storm')`) en el primer aviso. La primera descarga puede pillarte igual — pero informado, no emboscado. Con `reduceEffects`, tintes fijos sin pulso ni rayos.
+- Frames y no tiempo real, como todos los peligros con ciclo: determinista en cualquier máquina (el nivel 5 no está en el pool del Reto Diario, pero la regla se mantiene por coherencia).

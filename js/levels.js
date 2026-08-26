@@ -115,28 +115,51 @@ const LEVELS = [
     },
     {
         name: 'Tormenta de Iones', world: 2, variant: 'metal',
+        // La tormenta es MECÁNICA, no ambientación: ciclo global de frames (calma 5s → aviso
+        // 1,5s → descarga 2s, ver la lógica en Game.update) — durante la descarga, estar al
+        // raso duele; estar BAJO cualquier plataforma sólida te protege. El nivel se estructura
+        // alrededor de ese reloj: 5 refugios (isla + techo) separados por carreras abiertas que
+        // se cruzan dentro de una ventana de calma. Primer nivel con presión temporal del juego.
+        ionStorm: { calm: 300, warn: 90, strike: 120 },
         platforms: [
-            [0, 150, 70, 15], [200, 145, 45, 6], [340, 125, 45, 6],
-            [480, 105, 45, 6, 'fragile'], [620, 125, 45, 6], [760, 145, 45, 6], [900, 150, 100, 15],
-            [635, 88, 28, 6], // plataforma secreta: solo se alcanza con doble salto desde [620,125,45,6]
-            // Camino bajo: este nivel es EL ejemplo de "doble salto obligatorio" del diseño original
-            // (huecos de 95-130u, muy por encima de lo que llega un salto simple), así que necesita
-            // varias piedras seguidas en vez de una sola — el desvío más largo de los 9 niveles.
-            [95, 150, 20, 6], [140, 150, 20, 6], [185, 150, 15, 6],
-            [271, 150, 20, 6], [316, 150, 20, 6],
-            [413, 135, 20, 6], [461, 145, 20, 6],
-            [553, 115, 20, 6], [601, 125, 19, 6],
-            [691, 98, 20, 6], [739, 108, 20, 6],
-            [831, 150, 20, 6], [876, 150, 20, 6],
-            // Tramo final añadido al alargar el nivel: mismo estilo del nivel (plataforma alta
-            // + piedras de paso bajas para el salto simple).
-            [1025, 150, 20, 6], [1070, 150, 20, 6],
-            [1105, 140, 45, 6], [1175, 150, 100, 15]
+            // Refugio A (salida). El techo empieza en x=34 a propósito: el spawn (x=20) cae al
+            // suelo del refugio, no encima del techo — y el test BFS encuentra el suelo como
+            // plataforma de salida, no el techo.
+            [0, 150, 80, 15], [34, 112, 42, 8],
+            // Carrera 1 (80→330): piedras de paso llanas (huecos ≤25, salto simple) + ruta alta.
+            [105, 150, 20, 6], [150, 150, 20, 6], [195, 150, 20, 6], [240, 150, 20, 6], [285, 150, 20, 6],
+            [140, 122, 45, 6], [240, 110, 45, 6],
+            // Refugio B.
+            [330, 150, 70, 15], [336, 112, 58, 8],
+            // Carrera 2 (400→640).
+            [425, 150, 20, 6], [470, 150, 20, 6], [515, 150, 20, 6], [560, 150, 20, 6], [605, 150, 15, 6],
+            [450, 118, 45, 6, 'fragile'], [550, 104, 45, 6],
+            // Refugio C.
+            [640, 150, 70, 15], [646, 110, 58, 8],
+            // Carrera 3 (710→950), la del secreto: la plataforma altísima [875,64] con la ♥
+            // exige doble salto cronometrado DOS veces (flotante → frágil → secreta). A y=64 y
+            // no 72 a propósito: a 72, el salto simple desde la frágil (ápice ~79) llegaba por
+            // la ventana de aterrizaje y el "secreto" se abría sin habilidad aérea.
+            [735, 150, 20, 6], [780, 150, 20, 6], [825, 150, 20, 6], [870, 150, 20, 6], [915, 150, 15, 6],
+            [760, 120, 45, 6], [860, 108, 45, 6, 'fragile'],
+            [875, 64, 28, 6],
+            // Refugio D.
+            [950, 150, 80, 15], [958, 112, 64, 8],
+            // Carrera 4 (1030→1240).
+            [1055, 150, 20, 6], [1100, 150, 20, 6], [1145, 150, 20, 6], [1190, 150, 20, 6],
+            [1080, 120, 45, 6], [1170, 110, 45, 6],
+            // Refugio E: la isla de la meta.
+            [1240, 150, 90, 15], [1248, 112, 58, 8]
         ],
-        movingPlatforms: [[697, 70, 36, 6, 12, 0.025]],
-        enemies: [[210, 133, 'ionwisp', 65], [350, 113, 'spiker'], [490, 93, 'ionwisp', 70], [630, 113, 'hoverbot', 60], [770, 133, 'ionwisp', 65], [1115, 128, 'ionwisp', 60]],
-        capsules: [[645, 78]],
-        goal: 1240
+        // La móvil, en la carrera 4 y LEJOS del secreto a propósito: colocada en la carrera 3
+        // (su primera versión, x=815) hacía de escalera involuntaria — flotante → móvil →
+        // frágil → secreta, todo con salto simple — y el secreto dejaba de serlo.
+        movingPlatforms: [[1085, 90, 36, 6, 12, 0.025]],
+        // Espectros iónicos patrullando las carreras (la fauna de la tormenta), reptante en las
+        // piedras, hoverbot en la carrera del secreto y erizo con rango corto guardando la meta.
+        enemies: [[150, 132, 'ionwisp', 60], [480, 130, 'ionwisp', 65], [565, 139, 'crawler'], [790, 130, 'hoverbot', 55], [880, 96, 'ionwisp', 50], [1110, 130, 'ionwisp', 65], [1270, 138, 'spiker', 20]],
+        capsules: [[885, 52]],
+        goal: 1300
     },
     {
         name: 'Núcleo del Centinela', world: 2, variant: 'metal',
