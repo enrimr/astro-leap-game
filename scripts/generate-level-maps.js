@@ -51,6 +51,7 @@ const OUT_DIR = path.join(ROOT, 'guia');
             (level.beams || []).forEach(([bx, by, len, off]) => { const beam = new EnergyBeam(bx, by, len, off); beam.t = beam.PERIOD - beam.ON; beam.draw(g, 0); });
             (level.capsules || []).forEach(([x, y]) => { const cp = new LifeCapsule(x, y); cp.t = 0; cp.draw(g, 0); });
             (level.energyCells || []).forEach(([x, y]) => { const ce = new EnergyCell(x, y); ce.t = 0; ce.draw(g, 0); });
+            (level.crystals || []).forEach(([x, y]) => { const cr = new SignalCrystal(x, y); cr.t = 0; cr.draw(g, 0); });
             level.enemies.forEach(e => new Enemy(...e).draw(g, 0)); // dibuja también su "LvN" (y "JEFE")
             new GoalFlag(level.goal, level.goalY ?? 128).draw(g, 0); // goalY: niveles verticales (Torre de Vigía)
 

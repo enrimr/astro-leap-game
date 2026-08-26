@@ -160,6 +160,15 @@ function dailyDifficultyFor(dateStr) {
     return DAILY_DIFFICULTIES[Math.abs(seed) % DAILY_DIFFICULTIES.length];
 }
 
+// Objetivo secundario (Cristales de Señal ◆, ver SignalCrystal en entities.js): umbrales que
+// destapan las puertas de las torres Extra en el mapa estelar. Hay 12 cristales (uno por nivel
+// del mapa) y los umbrales son 5 y 10 — dos de margen para que no haga falta el pleno.
+const SIGNAL_GATES = [
+    { level: 12, count: 5, name: 'Torre de Vigía' },
+    { level: 13, count: 10, name: 'Aguja Glacial' }
+];
+const TOTAL_CRYSTALS = LEVELS.reduce((n, l) => n + (l.crystals || []).length, 0);
+
 // Texto centrado partido en líneas para que quepa en un ancho máximo (px). Usado por la
 // pantalla de desbloqueo de personaje, la única con un párrafo en vez de una línea suelta.
 function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
@@ -188,8 +197,11 @@ class Game {
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null; this.capsules = []; this.energyCells = []; this.beams = [];
+        this.crystals = []; // instancias de SignalCrystal del nivel actual
+        this.signalCrystals = new Set(); // índices de nivel cuyo cristal ya se recogió — persiste con el guardado, se pierde en Game Over
         this.combat = null; this.combatTransition = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
+        this.crystalMessage = 0; this.signalUnlockMessage = 0; this.signalUnlockText = '';
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
         this.charSelectOpen = false; this.charSelectIndex = 0; // hangar de selección de personaje (pausa el juego)
         this.skillTreeOpen = false; this.skillCursor = { branch: 0, node: 0 }; // árbol de mejoras (pausa el juego, como el hangar)
@@ -451,6 +463,7 @@ class Game {
         this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
         this.collectedPickups = new Set();
+        this.signalCrystals = new Set();
         this.startGame();
     }
 
@@ -466,6 +479,7 @@ class Game {
         this._realWorldMap = this.worldMap;
         this._realUnlocked = this.unlockedCharacters;
         this._realPickups = this.collectedPickups;
+        this._realSignals = this.signalCrystals; // los cristales del reto se descartan, como todo lo demás
 
         const dateStr = todayDateString();
         const hero = dailyHeroFor(dateStr);
@@ -479,6 +493,7 @@ class Game {
         this.unlockedCharacters = new Set([hero]);
         this.worldMap = new WorldMap();
         this.collectedPickups = new Set();
+        this.signalCrystals = new Set();
 
         if (window.SFX) { SFX.unlock(); SFX.boot(); SFX.music.playExplore(); }
         this.gameStarted = true;
@@ -503,7 +518,8 @@ class Game {
         if (this._realPlayer) {
             this.player = this._realPlayer; this.worldMap = this._realWorldMap;
             this.unlockedCharacters = this._realUnlocked; this.collectedPickups = this._realPickups;
-            this._realPlayer = null; this._realWorldMap = null; this._realUnlocked = null; this._realPickups = null;
+            this.signalCrystals = this._realSignals;
+            this._realPlayer = null; this._realWorldMap = null; this._realUnlocked = null; this._realPickups = null; this._realSignals = null;
         }
     }
     // Salir a medias (ESC/botón ✕) durante el Reto Diario: no hay mapa al que volver (es un
@@ -564,7 +580,8 @@ class Game {
                 // Árbol de mejoras: fuera de data.player a propósito — loadProgress hace
                 // Object.assign sobre el jugador y pisaría el Set con un Array crudo.
                 skills: Array.from(this.player.skills),
-                skillPoints: this.player.skillPoints
+                skillPoints: this.player.skillPoints,
+                signalCrystals: Array.from(this.signalCrystals)
             };
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         } catch (e) { /* almacenamiento no disponible: seguimos sin guardar */ }
@@ -582,6 +599,10 @@ class Game {
             // los maxHp/maxEnergy guardados dentro de data.player.
             if (Array.isArray(data.skills)) this.player.skills = new Set(data.skills);
             if (typeof data.skillPoints === 'number') this.player.skillPoints = data.skillPoints;
+            if (Array.isArray(data.signalCrystals)) this.signalCrystals = new Set(data.signalCrystals);
+            // Sincroniza las puertas de las torres con la cuenta cargada (también arregla saves
+            // de antes de que las torres tuvieran nodo).
+            this.applySignalUnlocks();
         } catch (e) { /* save corrupto: ignorar */ }
     }
     clearProgress() {
@@ -651,6 +672,14 @@ class Game {
             if (this.collectedPickups.has(`energy-${lvl}`)) cell.collected = true;
             return cell;
         });
+        // Cristales de Señal: el set signalCrystals hace de anti-refarmeo Y de persistencia a
+        // la vez (se guarda con la partida, a diferencia de collectedPickups que es de sesión —
+        // los cristales abren contenido y no deben "des-recogerse" al recargar el navegador).
+        this.crystals = (level.crystals || []).map(([cx, cy]) => {
+            const cry = new SignalCrystal(cx, cy);
+            if (this.signalCrystals.has(lvl)) cry.collected = true;
+            return cry;
+        });
         this.player.x = 20; this.player.y = 100; this.player.vx = 0; this.player.vy = 0;
         this.player.energy = this.player.maxEnergy; this.cameraX = 0;
         this.autoScrollX = 0;
@@ -660,6 +689,23 @@ class Game {
         this.stormT = 0;
         // Sistema de emergencia (árbol de mejoras): se rearma con cada (re)carga de nivel.
         this.player.emergencyUsed = false;
+    }
+
+    // Destapa en el mapa las puertas de las torres cuyo umbral de cristales ya se cumple.
+    // announce=true (al recoger un cristal): mensaje grande + fanfarria si alguna acaba de
+    // aparecer. Sin announce (tras cargar partida): solo sincroniza el estado.
+    applySignalUnlocks(announce = false) {
+        for (const gate of SIGNAL_GATES) {
+            const node = this.worldMap.nodes[gate.level];
+            if (!node || node.unlocked || this.signalCrystals.size < gate.count) continue;
+            node.unlocked = true;
+            if (announce) {
+                this.signalUnlockMessage = 200;
+                this.signalUnlockText = gate.name;
+                this.crystalMessage = 0;
+                if (window.SFX) SFX.levelUp();
+            }
+        }
     }
 
     // Energía por derrota, con el nodo Reciclador del árbol (+1 sobre ENERGY_PER_KILL).
@@ -1077,21 +1123,22 @@ class Game {
         const levelReached = LEVELS[this.currentLevel];
         const elapsed = performance.now() - this.runStartTime;
         const pilotName = HEROES[this.player.character].name; // antes del reset del jugador, unas líneas más abajo
-        // Sector N/12 contra los nodos del mapa (el nivel Extra no cuenta en el marcador); si
-        // caíste justo en el Extra, se nombra sin numerar — no es un sector del recorrido.
-        const isExtra = !this.worldMap.nodes[this.currentLevel];
-        const sectorLabel = isExtra ? `el nivel extra (${levelReached.name})` : `el sector ${this.currentLevel + 1}/${this.worldMap.nodes.length} (${levelReached.name})`;
+        // Sector N/12 contra los sectores del recorrido (los nodos extra no cuentan); si
+        // caíste en una torre Extra, se nombra sin numerar — no es un sector del recorrido.
+        const isExtra = !!levelReached.extra;
+        const sectorLabel = isExtra ? `el nivel extra (${levelReached.name})` : `el sector ${this.currentLevel + 1}/${this.worldMap.mainCount} (${levelReached.name})`;
         const shareText = `☠️ Caí en ${sectorLabel} de ASTRO LEAP, pilotando a ${pilotName} — ${formatTime(elapsed)} de misión. ¿Llegas más lejos? 🚀`;
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
         this.collectedPickups = new Set();
+        this.signalCrystals = new Set(); // los cristales son progresión: se pierden con todo lo demás
         this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
         startScreen.innerHTML = this.buildMenuScreen({
             title: 'GAME OVER',
             subtitle: 'Sin vidas restantes — vuelves a empezar.',
             resultHTML: `
-                <p class="run-time">Llegaste hasta ${isExtra ? `el nivel extra — ${levelReached.name}` : `el sector ${this.currentLevel + 1}/${this.worldMap.nodes.length} — ${levelReached.name}`}</p>
+                <p class="run-time">Llegaste hasta ${isExtra ? `el nivel extra — ${levelReached.name}` : `el sector ${this.currentLevel + 1}/${this.worldMap.mainCount} — ${levelReached.name}`}</p>
                 <p class="run-time">Tiempo: ${formatTime(elapsed)}</p>
                 ${this.buildShareHTML(shareText)}
             `
@@ -1525,6 +1572,20 @@ class Game {
                 }
             }
 
+            for (const cry of this.crystals) {
+                if (cry.collected) continue;
+                cry.update();
+                if (this.player.collides(cry)) {
+                    cry.collected = true;
+                    this.signalCrystals.add(this.currentLevel);
+                    this.crystalMessage = 110; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
+                    this.applySignalUnlocks(true); // si cruza un umbral, el cartel de triangulación pisa al de cristal
+                    this.saveProgress();
+                    if (window.SFX) SFX.extraEnergy();
+                    this.particles.burst(cry.x + cry.w / 2, cry.y, PALETTE.accent3, 16, { speed: 2, life: 32, size: 3 });
+                }
+            }
+
             if (this.player.x >= level.goal && !this.levelCompleting) {
                 if (level.boss) {
                     const boss = this.enemies.find(e => e.isBoss);
@@ -1579,12 +1640,13 @@ class Game {
                     const finalTime = performance.now() - this.runStartTime;
                     const isRecord = this.saveBestTime(finalTime);
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
-                    const sectors = this.worldMap.nodes.length; // los 12 del mapa — el Extra no cuenta en el marcador
+                    const sectors = this.worldMap.mainCount; // los 12 del recorrido — las torres Extra no cuentan en el marcador
                     const shareText = `🏆 ASTRO LEAP completado: ${sectors}/${sectors} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal! ⏱️' : ''}. ¿Me bajas el tiempo? 🚀`;
                     this.unlockedCharacters = new Set(['kes']);
                     this.player = new Player(20, 100, 'kes');
                     this.worldMap = new WorldMap();
                     this.collectedPickups = new Set();
+                    this.signalCrystals = new Set();
                     this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
                     startScreen.innerHTML = this.buildMenuScreen({
                         title: '¡MISIÓN CUMPLIDA!',
@@ -1603,9 +1665,11 @@ class Game {
                     this.levelCompleteTimeout = setTimeout(() => {
                         this.levelCompleteTimeout = null;
                         this.levelCompleting = false; this.inLevel = false; this.inWorldMap = true;
-                        // Clamp a los nodos del MAPA, no a LEVELS: al volver del nivel Extra
-                        // (sin nodo propio) el cursor debe caer en un nodo que exista.
-                        this.worldMap.currentNodeIndex = Math.min(this.currentLevel + 1, this.worldMap.nodes.length - 1);
+                        // El cursor del mapa va al siguiente nodo solo si existe Y está a la
+                        // vista (los nodos extra pueden seguir ocultos) — si no, se queda en el
+                        // nodo del nivel recién completado.
+                        const nextNode = this.worldMap.nodes[this.currentLevel + 1];
+                        this.worldMap.currentNodeIndex = nextNode && nextNode.unlocked ? this.currentLevel + 1 : this.currentLevel;
                         this.player.hp = this.player.maxHp; this.player.energy = this.player.maxEnergy;
                     }, 1800);
                 }
@@ -1616,6 +1680,8 @@ class Game {
             if (this.livesLostMessage > 0) this.livesLostMessage--;
             if (this.extraLifeMessage > 0) this.extraLifeMessage--;
             if (this.extraEnergyMessage > 0) this.extraEnergyMessage--;
+            if (this.crystalMessage > 0) this.crystalMessage--;
+            if (this.signalUnlockMessage > 0) this.signalUnlockMessage--;
         }
     }
 
@@ -1659,6 +1725,9 @@ class Game {
             this.worldMap.draw(ctx);
             this.drawPilotChip(ctx);
             this.drawSkillChip(ctx);
+            // Progreso del objetivo secundario, bajo las chapas.
+            ctx.fillStyle = PALETTE.accent3; ctx.font = '8px "Rajdhani", sans-serif';
+            ctx.fillText(`◆ Señal: ${this.signalCrystals.size}/${TOTAL_CRYSTALS}`, 10, 92);
             ctx.fillStyle = PALETTE.accent2; ctx.font = '10px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
             ctx.fillText(`♥×${this.player.lives}`, 308, 16);
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
@@ -1686,6 +1755,7 @@ class Game {
             if (this.goalFlag) this.goalFlag.draw(ctx, this.cameraX);
             for (const cap of this.capsules) cap.draw(ctx, this.cameraX);
             for (const cell of this.energyCells) cell.draw(ctx, this.cameraX);
+            for (const cry of this.crystals) cry.draw(ctx, this.cameraX);
             for (const e of this.enemies) e.draw(ctx, this.cameraX);
             this.particles.draw(ctx, this.cameraX);
             // Parpadeo de invulnerabilidad: con reduceEffects, en vez de destello on/off se dibuja
@@ -1792,6 +1862,10 @@ class Game {
             ctx.fillStyle = 'rgba(11,6,32,0.7)'; ctx.fillRect(GAME_WIDTH - 42, 34, 42, 12);
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
             ctx.fillText(formatTime(this.runElapsed), GAME_WIDTH - 4, 43);
+            // Contador del objetivo secundario, bajo el cronómetro.
+            ctx.fillStyle = 'rgba(11,6,32,0.7)'; ctx.fillRect(GAME_WIDTH - 42, 48, 42, 12);
+            ctx.fillStyle = PALETTE.accent3;
+            ctx.fillText(`◆ ${this.signalCrystals.size}/${TOTAL_CRYSTALS}`, GAME_WIDTH - 4, 57);
             ctx.textAlign = 'left';
 
             if (this.levelUpMessage > 0) {
@@ -1826,6 +1900,22 @@ class Game {
                 ctx.fillText('¡ENERGÍA EXTRA!', GAME_WIDTH / 2, 70);
                 ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
                 ctx.fillText(`Máximo ahora: ${this.player.maxEnergy}`, GAME_WIDTH / 2, 86);
+                ctx.textAlign = 'left';
+            }
+            if (this.crystalMessage > 0) {
+                ctx.textAlign = 'center';
+                ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 14px "Orbitron", sans-serif';
+                ctx.fillText('◆ CRISTAL DE SEÑAL', GAME_WIDTH / 2, 70);
+                ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
+                ctx.fillText(`Señal reunida: ${this.signalCrystals.size}/${TOTAL_CRYSTALS}`, GAME_WIDTH / 2, 86);
+                ctx.textAlign = 'left';
+            }
+            if (this.signalUnlockMessage > 0) {
+                ctx.textAlign = 'center';
+                ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 14px "Orbitron", sans-serif';
+                ctx.fillText('¡SEÑAL TRIANGULADA!', GAME_WIDTH / 2, 70);
+                ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
+                ctx.fillText(`Nueva puerta en el mapa estelar: ${this.signalUnlockText}`, GAME_WIDTH / 2, 86);
                 ctx.textAlign = 'left';
             }
             // La última capa del nivel: la transición de encuentro tapa también el HUD

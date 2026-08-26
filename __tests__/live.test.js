@@ -376,6 +376,119 @@ describe('Árbol de mejoras (contra el código real)', () => {
     });
 });
 
+describe('Cristales de Señal — objetivo secundario y puertas de las torres (contra el código real)', () => {
+    function inLevelWithCrystal(idx) {
+        const { game, LEVELS, window } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(idx);
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        game.enemies.forEach(e => { e.x = -2500; e.initialX = -2500; });
+        game.hintsSeen.add('ice-slide'); game.hintsSeen.add('ion-storm');
+        return { game, LEVELS, window };
+    }
+
+    test('recoger un cristal suma, se guarda, y no se puede re-recoger al recargar el nivel', () => {
+        const { game, LEVELS, window } = inLevelWithCrystal(0);
+        const [cx, cy] = LEVELS[0].crystals[0];
+        game.player.x = cx; game.player.y = cy; game.player.vy = 0;
+        game.update();
+        expect(game.signalCrystals.has(0)).toBe(true);
+        expect(game.crystals[0].collected).toBe(true);
+        // persiste en el guardado...
+        expect(JSON.parse(window.localStorage.getItem('astroLeapSave_v1')).signalCrystals).toContain(0);
+        // ...y al recargar el nivel ya viene recogido
+        game.loadLevel(0);
+        expect(game.crystals[0].collected).toBe(true);
+    });
+
+    test('con 5 cristales aparece la Torre de Vigía; con 10, la Aguja Glacial; antes, ocultas', () => {
+        const { game } = loadGame();
+        const torre = game.worldMap.nodes[12], aguja = game.worldMap.nodes[13];
+        expect(torre.extra).toBe(true);
+        expect(torre.unlocked).toBe(false);
+        game.signalCrystals = new Set([0, 1, 2, 3]);
+        game.applySignalUnlocks();
+        expect(torre.unlocked).toBe(false); // 4 no bastan
+        game.signalCrystals.add(4);
+        game.applySignalUnlocks();
+        expect(torre.unlocked).toBe(true);  // 5: primera puerta
+        expect(aguja.unlocked).toBe(false); // la segunda aún no
+        [5, 6, 7, 8, 9].forEach(i => game.signalCrystals.add(i));
+        game.applySignalUnlocks();
+        expect(aguja.unlocked).toBe(true);  // 10: segunda puerta
+    });
+
+    test('el desbloqueo en cadena de completar niveles nunca destapa las torres', () => {
+        const { game } = loadGame();
+        for (let i = 0; i < 12; i++) game.worldMap.completeLevel(i); // recorrido entero, Nodo Cero incluido
+        expect(game.worldMap.nodes[12].unlocked).toBe(false);
+        expect(game.worldMap.nodes[13].unlocked).toBe(false);
+        // y completar una torre marca su ✓ sin destapar la siguiente
+        game.worldMap.nodes[12].unlocked = true;
+        game.worldMap.completeLevel(12);
+        expect(game.worldMap.nodes[12].completed).toBe(true);
+        expect(game.worldMap.nodes[13].unlocked).toBe(false);
+    });
+
+    test('cargar la partida restaura la cuenta y vuelve a destapar las puertas ganadas', () => {
+        const { game } = loadGame();
+        game.signalCrystals = new Set([0, 1, 2, 3, 4]);
+        game.applySignalUnlocks();
+        game.saveProgress();
+        game.signalCrystals = new Set();
+        game.worldMap = new (game.worldMap.constructor)(); // mapa fresco, torres ocultas
+        game.loadProgress();
+        expect(game.signalCrystals.size).toBe(5);
+        expect(game.worldMap.nodes[12].unlocked).toBe(true);
+    });
+
+    test('el Game Over resetea los cristales y vuelve a ocultar las torres (roguelike)', () => {
+        const { game } = loadGame();
+        game.gameStarted = true;
+        game.signalCrystals = new Set([0, 1, 2, 3, 4]);
+        game.applySignalUnlocks();
+        expect(game.worldMap.nodes[12].unlocked).toBe(true);
+        game.player.lives = 1;
+        game.loseLife();
+        expect(game.signalCrystals.size).toBe(0);
+        expect(game.worldMap.nodes[12].unlocked).toBe(false);
+    });
+
+    test('el Reto Diario no toca los cristales reales aunque el nivel del día tenga uno', () => {
+        const { game, LEVELS } = loadGame();
+        game.signalCrystals = new Set([3]);
+        game.startDailyChallenge();
+        expect(game.signalCrystals.size).toBe(0); // set aparte durante el reto
+        game.player.x = LEVELS[game.dailyLevelIdx].goal;
+        game.update(); // completa el reto y restaura
+        expect(game.signalCrystals.size).toBe(1);
+        expect(game.signalCrystals.has(3)).toBe(true);
+    });
+
+    test('los marcadores de sectores siguen contando 12 (las torres no cuentan)', () => {
+        const { game } = loadGame();
+        expect(game.worldMap.nodes.length).toBe(14);
+        expect(game.worldMap.mainCount).toBe(12);
+    });
+
+    test('invariante: un cristal por nivel del mapa, ninguno en las torres, y siempre a un salto de algo', () => {
+        const { LEVELS } = loadGame();
+        LEVELS.forEach(lvl => {
+            expect({ nivel: lvl.name, cristales: (lvl.crystals || []).length })
+                .toEqual({ nivel: lvl.name, cristales: lvl.extra ? 0 : 1 });
+            (lvl.crystals || []).forEach(([cx, cy]) => {
+                // percha válida: una plataforma (o el punto ALTO de una móvil) 8-42 por debajo
+                // del cristal y con solape horizontal de sobra — es decir, se roza saltando.
+                const perches = lvl.platforms.map(p => ({ x: p[0], y: p[1], w: p[2] }))
+                    .concat((lvl.movingPlatforms || []).map(m => ({ x: m[0], y: m[1] - m[4], w: m[2] })));
+                const ok = perches.some(p => cx >= p.x - 12 && cx <= p.x + p.w + 12 && (p.y - cy) >= 8 && (p.y - cy) <= 42);
+                expect({ nivel: lvl.name, cx, cy, alcanzable: ok })
+                    .toEqual({ nivel: lvl.name, cx, cy, alcanzable: true });
+            });
+        });
+    });
+});
+
 describe('Game — avisos contextuales (hintScreen, contra js/game.js real)', () => {
     test('showHint() abre el diálogo y marca el id como visto', () => {
         const { game } = loadGame();
@@ -757,18 +870,18 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
         expect(45).toBeGreaterThan(-minY + 10); // 45 > ápice (~27) + snap (10)
     });
 
-    test('Torre de Vigía: un nivel sin nodo de mapa no rompe nada al cargarlo ni al completarlo', () => {
+    test('Torre de Vigía: completarla marca su nodo sin destapar la Aguja ni disparar la victoria', () => {
         const { game, LEVELS } = loadGame();
         const idx = LEVELS.findIndex(l => l.extra);
         game.gameStarted = true;
-        expect(() => game.loadLevel(idx)).not.toThrow(); // sin nodo, XP entera y carga limpia
+        expect(() => game.loadLevel(idx)).not.toThrow();
         game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
-        const nodesBefore = game.worldMap.nodes.map(n => ({ completed: n.completed, unlocked: n.unlocked }));
         game.player.x = LEVELS[idx].goal; game.player.y = 47; game.player.vy = 0;
         expect(() => game.update()).not.toThrow();
-        expect(game.levelCompleting).toBe(true); // se completa como cualquier nivel...
-        expect(game.gameStarted).toBe(true);     // ...pero NO dispara la victoria del juego
-        expect(game.worldMap.nodes.map(n => ({ completed: n.completed, unlocked: n.unlocked }))).toEqual(nodesBefore); // y el mapa ni se entera
+        expect(game.levelCompleting).toBe(true);              // se completa como cualquier nivel...
+        expect(game.gameStarted).toBe(true);                  // ...sin disparar la victoria del juego
+        expect(game.worldMap.nodes[idx].completed).toBe(true); // su nodo-portal luce el ✓
+        expect(game.worldMap.nodes[idx + 1].unlocked).toBe(false); // y la Aguja sigue tras su umbral de cristales
     });
 
     test('regresión: la victoria del juego la dispara Nodo Cero (final: true), no el último índice de LEVELS', () => {

@@ -19,6 +19,8 @@ const LEVELS = [
         // Célula de energía sobre la plataforma flotante más alta [320,95,40,6], puramente decorativa/opcional
         energyCells: [[335, 85]],
         capsules: [[312, 162]],
+        // Cristal de Señal (objetivo secundario): sobre la plataforma alta del tramo final [620,118,35,6] — un salto desde ella.
+        crystals: [[630, 98]],
         goal: 730
     },
     {
@@ -70,6 +72,8 @@ const LEVELS = [
         // la flotante del arranque [70,118,30,6], un salto simple trivial que no premiaba nada.
         capsules: [[794, 118]],
         energyCells: [[447, 27]],
+        // Cristal de Señal (objetivo secundario): flotando en la grieta del set piece, sobre la red de seguridad: bucear a por él.
+        crystals: [[790, 155]],
         goal: 1055
     },
     {
@@ -87,6 +91,8 @@ const LEVELS = [
         ],
         enemies: [[135, 138, 'drone'], [230, 128, 'crawler'], [485, 138, 'crawler'], [720, 130, 'queen_larva']],
         capsules: [[420, 86]],
+        // Cristal de Señal (objetivo secundario): sobre la antesala [470,150,55,15], antes de la arena de la Reina.
+        crystals: [[485, 125]],
         goal: 810, boss: 'queen_larva'
     },
 
@@ -111,6 +117,8 @@ const LEVELS = [
         movingPlatforms: [[460, 92, 40, 6, 14, 0.02]],
         enemies: [[150, 138, 'magnetite'], [250, 118, 'hoverbot', 55], [340, 138, 'crawler'], [435, 103, 'hoverbot', 60], [615, 118, 'magnetite'], [860, 138, 'crawler'], [890, 103, 'hoverbot', 50]],
         energyCells: [[345, 100]],
+        // Cristal de Señal (objetivo secundario): sobre el punto ALTO de la plataforma móvil — súbete y salta.
+        crystals: [[478, 68]],
         goal: 965
     },
     {
@@ -159,6 +167,8 @@ const LEVELS = [
         // piedras, hoverbot en la carrera del secreto y erizo con rango corto guardando la meta.
         enemies: [[150, 132, 'ionwisp', 60], [480, 130, 'ionwisp', 65], [565, 139, 'crawler'], [790, 130, 'hoverbot', 55], [880, 96, 'ionwisp', 50], [1110, 130, 'ionwisp', 65], [1270, 138, 'spiker', 20]],
         capsules: [[885, 52]],
+        // Cristal de Señal (objetivo secundario): sobre el TECHO del refugio D: hay que subirse al techo (habilidad aérea) y quedar expuesto a la tormenta.
+        crystals: [[975, 95]],
         goal: 1300
     },
     {
@@ -175,6 +185,8 @@ const LEVELS = [
         ],
         movingPlatforms: [[540, 95, 40, 6, 14, 0.02]],
         enemies: [[160, 138, 'magnetite'], [270, 118, 'hoverbot', 40], [365, 138, 'ionwisp', 50], [700, 138, 'magnetite'], [790, 138, 'ionwisp', 45], [970, 130, 'sentinel']],
+        // Cristal de Señal (objetivo secundario): sobre el punto alto de la móvil de la antesala del Centinela.
+        crystals: [[560, 72]],
         goal: 1090, boss: 'sentinel'
     },
 
@@ -201,6 +213,8 @@ const LEVELS = [
         beams: [[525, 110, 40, 0], [740, 110, 40, 75]],
         enemies: [[150, 138, 'crawler'], [240, 118, 'hoverbot', 50], [330, 138, 'spiker'], [420, 103, 'ionwisp', 55], [600, 118, 'magnetite'], [865, 138, 'spiker'], [900, 106, 'hoverbot', 45]],
         capsules: [[254, 94]],
+        // Cristal de Señal (objetivo secundario): muy por encima de la flotante [590,130,45,6] — se roza en el ápice del salto.
+        crystals: [[600, 88]],
         goal: 965
     },
     {
@@ -222,6 +236,8 @@ const LEVELS = [
             [1085, 150, 55, 15], [1165, 140, 45, 6], [1235, 150, 60, 15]
         ],
         enemies: [[100, 138, 'spiker'], [250, 138, 'magnetite'], [410, 138, 'crawler'], [575, 138, 'hoverbot', 40], [735, 138, 'spiker'], [900, 138, 'ionwisp', 50], [1095, 138, 'crawler'], [1180, 128, 'spiker']],
+        // Cristal de Señal (objetivo secundario): sobre la frágil [650,140,45,6], con el muro pisándote los talones.
+        crystals: [[660, 118]],
         goal: 1260
     },
     {
@@ -247,6 +263,8 @@ const LEVELS = [
         beams: [[795, 110, 40, 0], [1000, 110, 40, 75]],
         enemies: [[145, 138, 'magnetite'], [250, 118, 'ionwisp', 40], [340, 138, 'spiker'], [430, 98, 'hoverbot', 45], [520, 138, 'crawler'], [615, 113, 'ionwisp', 50], [785, 138, 'magnetite'], [860, 120, 'ionwisp', 45], [1070, 130, 'overlord']],
         energyCells: [[149, 105]],
+        // Cristal de Señal (objetivo secundario): sobre la cinta magnética: saltar mientras te arrastra.
+        crystals: [[875, 128]],
         goal: 1220, boss: 'overlord'
     },
 
@@ -284,6 +302,8 @@ const LEVELS = [
         reinforcedBlocks: [[700, 150, 20, 8]],
         enemies: [[150, 138, 'magnetite'], [240, 118, 'hoverbot', 50], [330, 138, 'spiker'], [420, 103, 'ionwisp', 55], [510, 138, 'magnetite'], [600, 118, 'hoverbot', 45], [895, 138, 'spiker'], [925, 106, 'hoverbot', 45]],
         capsules: [[707, 162]],
+        // Cristal de Señal (objetivo secundario): sobre la plataforma alta del tramo final [915,118,40,6].
+        crystals: [[913, 96]],
         goal: 995
     },
     {
@@ -314,6 +334,8 @@ const LEVELS = [
         reinforcedBlocks: [[945, 150, 20, 8]],
         enemies: [[200, 133, 'ionwisp', 60], [330, 113, 'spiker'], [460, 93, 'ionwisp', 65], [590, 113, 'hoverbot', 55], [720, 133, 'magnetite'], [850, 138, 'spiker'], [1120, 138, 'magnetite'], [1195, 133, 'spiker']],
         energyCells: [[952, 162]],
+        // Cristal de Señal (objetivo secundario): sobre el punto alto de la segunda móvil.
+        crystals: [[712, 69]],
         goal: 1290
     },
     {
@@ -340,6 +362,8 @@ const LEVELS = [
         enemies: [[160, 138, 'magnetite'], [265, 118, 'ionwisp', 45], [360, 138, 'spiker'], [450, 98, 'hoverbot', 45], [540, 138, 'magnetite'], [630, 113, 'ionwisp', 50], [720, 138, 'spiker'], [805, 138, 'crawler'], [885, 138, 'magnetite'], [1130, 130, 'nodo_cero']],
         // final: completar ESTE nivel termina el juego. Antes la victoria era "el último índice
         // de LEVELS", pero con el nivel Extra detrás eso habría movido el final de la historia.
+        // Cristal de Señal (objetivo secundario): sobre el punto alto de la móvil de la arena final.
+        crystals: [[925, 74]],
         goal: 1260, boss: 'nodo_cero', final: true
     },
 

@@ -924,18 +924,60 @@ class EnergyCell {
     }
 }
 
+// Cristal de Señal (◆ dorado): el objetivo secundario. Restos de la red de vigilancia de los
+// constructores del Centinela (LORE.md §2.2) — reunir suficientes triangula sus emisores y hace
+// APARECER las torres Extra en el mapa estelar (SIGNAL_GATES en game.js). Mismo molde que
+// EnergyCell: flotante, se recoge al rozarlo, uno por nivel del mapa.
+class SignalCrystal {
+    constructor(x, y) { this.x = x; this.y = y; this.w = 8; this.h = 9; this.collected = false; this.t = Math.random() * Math.PI * 2; }
+    update() { this.t += 0.07; }
+    collides(e) { return this.x < e.x + e.w && this.x + this.w > e.x && this.y < e.y + e.h && this.y + this.h > e.y; }
+    draw(ctx, cx) {
+        if (this.collected) return;
+        const bob = Math.sin(this.t) * 2.5;
+        const sx = this.x - cx + this.w / 2, sy = this.y + bob + this.h / 2;
+        const pulse = 0.6 + Math.sin(this.t * 1.4) * 0.4;
+        ctx.save();
+        ctx.shadowColor = PALETTE.accent3; ctx.shadowBlur = 7 + pulse * 4;
+        const grad = ctx.createLinearGradient(0, sy - 5, 0, sy + 5);
+        grad.addColorStop(0, '#ffe9a8'); grad.addColorStop(1, PALETTE.accent3);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 5); ctx.lineTo(sx + 4, sy); ctx.lineTo(sx, sy + 5); ctx.lineTo(sx - 4, sy);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+        // faceta interior, para que se lea "cristal" y no un simple rombo plano
+        ctx.fillStyle = 'rgba(11,6,32,0.45)';
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 2.2); ctx.lineTo(sx + 1.8, sy); ctx.lineTo(sx, sy + 2.2); ctx.lineTo(sx - 1.8, sy);
+        ctx.closePath(); ctx.fill();
+    }
+}
+
 class LevelNode {
-    constructor(x, y, levelIndex, name) {
+    constructor(x, y, levelIndex, name, extra = false) {
         this.x = x; this.y = y; this.levelIndex = levelIndex; this.name = name;
         this.completed = false; this.unlocked = levelIndex === 0;
+        this.extra = extra; // nodo-portal de nivel Extra: oculto hasta triangular la señal
         this.w = 16; this.h = 16; this.t = 0;
     }
     update() { this.t = (this.t + 1) % 120; }
     draw(ctx) {
+        // Las puertas de las torres no existen en el mapa hasta reunir los cristales: no se
+        // dibujan bloqueadas — APARECEN (por eso tampoco tienen path en la constelación).
+        if (this.extra && !this.unlocked) return;
         const glow = this.unlocked && !this.completed ? 0.5 + Math.sin(this.t * 0.1) * 0.5 : 0;
+        if (this.extra) {
+            // anillo pulsante dorado: se lee "portal", distinto de un sector normal
+            const ring = 0.5 + Math.sin(this.t * 0.1) * 0.5;
+            ctx.save();
+            ctx.strokeStyle = PALETTE.accent3; ctx.globalAlpha = 0.3 + ring * 0.45; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.w / 2 + 3.5, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        }
         ctx.save();
-        if (glow > 0) { ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 10 * glow; }
-        ctx.fillStyle = this.completed ? PALETTE.accent3 : this.unlocked ? PALETTE.accent : PALETTE.panelLight;
+        if (glow > 0) { ctx.shadowColor = this.extra ? PALETTE.accent3 : PALETTE.accent; ctx.shadowBlur = 10 * glow; }
+        ctx.fillStyle = this.completed ? PALETTE.accent3 : this.unlocked ? (this.extra ? PALETTE.accent3 : PALETTE.accent) : PALETTE.panelLight;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.w / 2, 0, Math.PI * 2);
         ctx.fill();
@@ -971,11 +1013,18 @@ class WorldMap {
             new LevelNode(220, 68, 8, 'Núcleo del Reactor'),
             new LevelNode(244, 110, 9, 'Bóveda Sellada'),
             new LevelNode(268, 145, 10, 'Galería de Ecos'),
-            new LevelNode(292, 50, 11, 'Nodo Cero')
+            new LevelNode(292, 50, 11, 'Nodo Cero'),
+            // Nodos EXTRA (las torres de la red de vigilancia): ocultos hasta reunir los
+            // Cristales de Señal (SIGNAL_GATES en game.js). Fuera de la constelación y sin
+            // paths a propósito — son puertas que APARECEN, no parte de la ruta.
+            new LevelNode(125, 152, 12, 'Torre de Vigía', true),
+            new LevelNode(165, 152, 13, 'Aguja Glacial', true)
         ];
         this.currentNodeIndex = 0;
         this.paths = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11]];
     }
+    // Sectores del recorrido principal (los "N/12" del marcador): los nodos extra no cuentan.
+    get mainCount() { return this.nodes.filter(n => !n.extra).length; }
     update(keys) {
         const node = this.nodes[this.currentNodeIndex];
         if (keys.ArrowRight || keys.KeyD) {
@@ -1023,11 +1072,13 @@ class WorldMap {
         ctx.fillText(`Nivel ${cur.levelIndex + 1}: ${LEVELS[cur.levelIndex].name}`, 14, 35);
     }
     completeLevel(levelIndex) {
-        // Un nivel Extra (Torre de Vigía) no tiene nodo: completarlo no marca ni desbloquea nada
-        // en el mapa — se rejuega libre, como un desafío aparte.
-        if (!this.nodes[levelIndex]) return;
+        if (!this.nodes[levelIndex]) return; // defensivo: nivel sin nodo
         this.nodes[levelIndex].completed = true;
-        if (levelIndex < this.nodes.length - 1) this.nodes[levelIndex + 1].unlocked = true;
+        // El desbloqueo en cadena SALTA los nodos extra: las torres solo se abren reuniendo
+        // Cristales de Señal (completar Nodo Cero no destapa la Torre; completar la Torre no
+        // destapa la Aguja).
+        const next = this.nodes[levelIndex + 1];
+        if (next && !next.extra) next.unlocked = true;
     }
 }
 

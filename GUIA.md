@@ -7,7 +7,7 @@ Todo lo que hay en el juego: pilotos, fórmulas de combate, bestiario, estrategi
 - **INICIO** — donde apareces (y reapareces al perder una vida).
 - **BASE** 🟡 — la meta. En niveles de jefe, no puedes cruzarla mientras el jefe viva.
 - **LvN** sobre cada enemigo — su nivel. **JEFE** marca a los guardianes.
-- **♥** — cápsula de vida (+1 vida) · **⚡** — célula de energía (+1 Energía máxima, permanente).
+- **♥** — cápsula de vida (+1 vida) · **⚡** — célula de energía (+1 Energía máxima, permanente) · **◆ dorado** — Cristal de Señal (objetivo secundario, ver §4c).
 - **Franjas ámbar** en una plataforma — refuerzo que solo Scrap rompe al caminar encima.
 - **Plataforma agrietada** — frágil: se desmorona al pisarla (ver Peligros).
 - **Raíl punteado vertical** — plataforma móvil que sube y baja por ese recorrido.
@@ -102,6 +102,35 @@ El Mundo 1 estrena el terreno con un solo giro (el hielo del nivel 2 — que ade
 | **Cinta magnética** (chevrones) | Mundo 3 (nivel 9) | Te arrastra ~30% de tu velocidad en la dirección de los chevrones — siempre en contra | Camina sin pararte (avanzas igual, más despacio) y no te detengas cerca de un borde |
 
 Todos los peligros con ciclo van con reloj **de frames, no de tiempo real**: el patrón es idéntico en cualquier máquina, y en el Reto Diario es el mismo para todo el mundo (de los niveles del reto, 1–2, solo el 2 tiene peligro — el hielo, que no depende de ningún reloj).
+
+## 4c. Objetivo secundario: Cristales de Señal ◆
+
+Restos de la red de vigilancia de quienes construyeron al Centinela «hace mucho, para detener esto». Hay **un cristal por nivel del mapa (12 en total)**, siempre fuera del camino directo, y reunirlos **triangula los emisores supervivientes** de esa red: las torres.
+
+- Con **5 cristales** aparece en el mapa estelar la puerta de la **[Torre de Vigía](#nivel-extra--torre-de-vigía--vertical)**.
+- Con **10** aparece la de la **[Aguja Glacial](#nivel-extra-2--aguja-glacial--vertical--hielo--ascensores)**.
+- Los 2 restantes son margen: no hace falta el pleno para abrirlo todo.
+
+Las puertas son nodos dorados con anillo, abajo del mapa, fuera de la constelación — no se dibujan bloqueadas: **aparecen** («¡SEÑAL TRIANGULADA!») al cruzar cada umbral. El contador ◆ va en el HUD (bajo el cronómetro) y en el mapa. Los cristales **se guardan con la partida** y, como toda la progresión, **se pierden con el Game Over** (las torres vuelven a ocultarse). En el Reto Diario no cuentan.
+
+Dónde está cada uno:
+
+| Nivel | Dónde |
+|---|---|
+| 1 · Cráter | Sobre la plataforma alta del tramo final — un salto desde ella |
+| 2 · Grietas | Flotando en la grieta del set piece, sobre la red — bucea a por él |
+| 3 · Nido | Sobre la antesala, justo antes de la arena de la Reina |
+| 4 · Chatarral | Sobre el punto **alto de la móvil** — súbete y salta |
+| 5 · Tormenta | Sobre el **techo del refugio D** — exige habilidad aérea y te deja expuesto a la tormenta |
+| 6 · Centinela | Sobre el punto alto de la móvil de la antesala |
+| 7 · Muelle | Muy por encima de la flotante [590,130] — se roza en el ápice del salto |
+| 8 · Túnel | Sobre la frágil [650,140]... con el muro pisándote los talones |
+| 9 · Reactor | Sobre la cinta magnética — salta mientras te arrastra |
+| 10 · Bóveda | Sobre la plataforma alta del tramo final |
+| 11 · Galería | Sobre el punto alto de la segunda móvil |
+| 12 · Nodo Cero | Sobre el punto alto de la móvil de la arena final |
+
+Con salto simple llegan al menos 7 (niveles 1, 2, 3, 7, 8, 9 y 10): **Scrap puede abrir la Torre de Vigía sin ayuda de nadie**; los de las móviles y el techo del refugio piden montarse o habilidad aérea.
 
 ## 5. Los 4 jefes
 
@@ -234,7 +263,7 @@ El primer nivel **vertical** del juego: tres pisos (suelo, y=105 y y=60) recorri
 - El piso 2 se cruza de derecha a izquierda sobre **dos frágiles seguidas** — el peaje del serpentín: crúzalas de una pasada, cada una con su propia cuenta atrás. Si caen contigo, aterrizas en el suelo firme de abajo y a re-subir.
 - Una **puerta de energía** corta el corredor del suelo, y en cada piso patrulla su fauna (reptante y erizo abajo, magnetita y hoverbot en el 2, espectro y erizo guardián arriba).
 - **♥ Cápsula**: flotando entre pisos bajo las frágiles — un salto deliberado desde el corredor del suelo la roza en el ápice.
-- **Todavía sin nodo en el mapa estelar**: de momento se entra con `?level=13` (pendiente de enlazar desde otro nivel). Completarlo no desbloquea nada — es un desafío aparte, rejugable.
+- **Cómo se entra**: reúne **5 Cristales de Señal ◆** (ver §4c) y su puerta aparece en el mapa estelar (nodo dorado con anillo). Completarla marca su ✓ pero no desbloquea nada más — es un desafío aparte, rejugable. (`?level=13` sigue funcionando como acceso de depuración.)
 
 ### Nivel Extra 2 · Aguja Glacial — VERTICAL + HIELO + ASCENSORES
 
@@ -246,7 +275,7 @@ La torre difícil de verdad: el mismo serpentín de tres pisos que la Torre de V
 - **Piso 2** (derecha→izquierda): mixto — metal, hielo y **dos frágiles seguidas**. El borde izquierdo es hielo: llega frenado o te caerás al piso 1 esperando el ascensor.
 - **Piso 3, la cumbre**: hielo de punta a punta y el final por todo lo alto: pista de 130 → **hueco de 50 que SOLO cruza el salto con carrerilla** (con un espectro patrullando el aire del hueco) → la BASE. Fallar el salto te deja en el piso 2: a re-subir.
 - **♥ Cápsula**: flotando en el hueco del ascensor 1 — se recoge durante el viaje.
-- 8 enemigos de fauna alta (Lv3-6). Entrada: `?level=14` (también sin nodo en el mapa, de momento).
+- 8 enemigos de fauna alta (Lv3-6). **Cómo se entra**: reúne **10 Cristales de Señal ◆** (ver §4c) y su puerta aparece en el mapa estelar. (`?level=14` sigue como acceso de depuración.)
 
 ---
 
