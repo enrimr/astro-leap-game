@@ -853,23 +853,33 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
         const maxReach = makeMaxReach(Player);
         const torre = LEVELS.find(l => l.extra);
         expect(torre).toBeDefined();
-        // Todo tramo por debajo del piso 3 (y > 100: suelo, recogida, peldaños bajos, piso 2)
-        // debe quedarse corto de la meta INCLUSO saltando desde su extremo derecho.
+        // Todo tramo por debajo del piso 3 (suelo, recogida, peldaños, piso 2 — el piso 3 es
+        // el más alto del nivel) debe quedarse corto de la meta INCLUSO saltando desde su
+        // extremo derecho.
         const flight = maxReach(0); // alcance horizontal del salto simple en llano (~42)
+        const topFloorY = Math.min(...torre.platforms.map(p => p[1]));
         torre.platforms
-            .filter(p => p[1] > 100)
+            .filter(p => p[1] > topFloorY)
             .forEach(p => expect(p[0] + p[2] + flight).toBeLessThan(torre.goal));
-        // Y la separación entre pisos (45) supera lo que sube un salto simple + su ventana de
-        // aterrizaje: de piso a piso solo se sube por los peldaños de las escaleras.
-        const pl = new Player(0, 0, 'scrap');
-        pl.onGround = true;
-        let jumped = false, minY = 0;
-        for (let f = 0; f < 60; f++) {
-            pl.update({ Space: !jumped }, [], { burst() {} });
-            jumped = true;
-            minY = Math.min(minY, pl.y);
+        // Y la separación entre pisos supera lo que sube incluso el DOBLE SALTO de Kes (con su
+        // ventana de aterrizaje): de piso a piso solo se sube por los peldaños — únicamente el
+        // vuelo de Bolt puede saltarse las escaleras.
+        const f1 = torre.platforms.find(p => p[1] === 150);
+        const f2 = torre.platforms.find(p => p[1] < 150 && p[3] === 8);
+        const spacing = f1[1] - f2[1]; // separación real entre pisos (58)
+        // doble salto óptimo medido con la física real: salto, soltar, y re-pulsar en el ápice
+        const kes = new Player(0, 0, 'kes');
+        kes.onGround = true;
+        let phase = 'first', minY = 0;
+        for (let f = 0; f < 120; f++) {
+            let space = false;
+            if (phase === 'first') { space = true; phase = 'released'; }
+            else if (phase === 'released' && kes.vy > -0.2) { space = true; phase = 'doubled'; }
+            kes.update({ Space: space }, [], { burst() {} });
+            minY = Math.min(minY, kes.y);
         }
-        expect(45).toBeGreaterThan(-minY + 10); // 45 > ápice (~27) + snap (10)
+        expect(phase).toBe('doubled'); // el doble salto de verdad se ejecutó (si no, el test no mide nada)
+        expect(spacing).toBeGreaterThan(-minY + 10); // 58 > ápice del doble (~46) + snap (10)
     });
 
     test('Torre de Vigía: completarla marca su nodo sin destapar la Aguja ni disparar la victoria', () => {

@@ -259,7 +259,7 @@ Huecos largos estilo Tormenta de Iones, con piedras de paso para la ruta baja �
 
 ![Mapa del nivel extra](guia/nivel-13.png)
 
-El primer nivel **vertical** del juego: tres pisos (suelo, y=105 y y=60) recorridos en **serpentín** — derecha por el suelo, escalera al fondo derecho, izquierda por el piso 2, escalera en zigzag al fondo izquierdo, y derecha por el piso 3 hasta la BASE, que espera arriba del todo. La separación entre pisos (45) no la sube ningún salto simple: solo por los peldaños (el doble salto/vuelo compra el atajo vertical, como siempre).
+El primer nivel **vertical** del juego: tres pisos (suelo, y=92 y y=34) recorridos en **serpentín** — derecha por el suelo, escalera al fondo derecho, izquierda por el piso 2, escalera en zigzag al fondo izquierdo, y derecha por el piso 3 hasta la BASE, que espera arriba del todo. La separación entre pisos (**58**) no la sube **ni el doble salto** (su ápice + ventana de aterrizaje llega a ~56): de piso a piso solo se sube por los peldaños de las escaleras (subidas de 29, salto simple) — únicamente el vuelo sostenido de Bolt puede saltárselas.
 
 - **Caerse de un piso cuesta tiempo, no vidas**: cada hueco de los pisos 2-3 tiene suelo debajo (incluido un suelo de recogida bajo la escalera derecha). Los únicos huecos letales son los dos del suelo.
 - El piso 2 se cruza de derecha a izquierda sobre **dos frágiles seguidas** — el peaje del serpentín: crúzalas de una pasada, cada una con su propia cuenta atrás. Si caen contigo, aterrizas en el suelo firme de abajo y a re-subir.
