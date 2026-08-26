@@ -177,20 +177,34 @@ const LEVELS = [
     },
     {
         name: 'Núcleo del Centinela', world: 2, variant: 'metal',
+        // El Centinela DOMINA su zona: mientras viva, barre el suelo con ondas de energía en
+        // ciclo determinista (calma 3s → apunta 1s → onda 1s; lógica en Game.update). La
+        // onda daña a quien tenga los pies en la franja del suelo entre zoneStart y el jefe:
+        // te salvas subiéndote a una COBERTURA elevada (y=122, algunas frágiles...) o
+        // aguantando en el aire — y una onda (60f) dura más que un salto simple (27f), así que
+        // saltar sin cobertura no basta. Es el inverso de la tormenta del N5: allí te escondes
+        // DEBAJO; aquí te subes ENCIMA. Al ganar el duelo, la zona se apaga.
+        sentinelWatch: { zoneStart: 140, calm: 180, warn: 60, fire: 60, band: 132 },
         platforms: [
-            [0, 150, 90, 15], [150, 150, 60, 15], [260, 130, 45, 6],
-            [355, 150, 60, 15], [460, 115, 45, 6, 'fragile'], [560, 150, 60, 15],
-            // Antesala añadida al alargar el nivel: la arena del Centinela se desplaza a la
-            // derecha y estos dos tramos rellenan el camino.
-            [685, 150, 55, 15], [770, 150, 55, 15], [850, 150, 290, 15],
-            // Camino bajo con salto simple (ver Grietas de Hielo/Chatarral Magnético).
-            [115, 150, 20, 6], [235, 150, 20, 6], [333, 140, 20, 6],
-            [440, 150, 20, 6], [533, 125, 20, 6], [645, 150, 15, 6]
+            // Intro segura (antes de zoneStart) y suelo casi continuo: correr es la fase de
+            // avance; los huecos de 25 son el único peligro del suelo fuera de las ondas.
+            [0, 150, 140, 15],
+            [165, 150, 180, 15], [370, 150, 160, 15], [555, 150, 170, 15], [750, 150, 90, 15],
+            [850, 150, 290, 15],
+            // Coberturas (subida 28: salto simple), repartidas para que desde cualquier punto
+            // de la zona haya una a ≤93 — lo andable durante el aviso de 60 frames. Dos son
+            // FRÁGILES: tu cobertura puede desmoronarse bajo los pies en plena onda.
+            [200, 122, 40, 8], [295, 122, 35, 8, 'fragile'],
+            [420, 122, 40, 8], [495, 122, 30, 8, 'fragile'],
+            [600, 122, 40, 8], [680, 122, 35, 8],
+            [775, 122, 40, 8],
+            [890, 122, 35, 8] // la de la arena: la última antes del duelo
         ],
         movingPlatforms: [[540, 95, 40, 6, 14, 0.02]],
-        enemies: [[160, 138, 'magnetite'], [270, 118, 'hoverbot', 40], [365, 138, 'ionwisp', 50], [700, 138, 'magnetite'], [790, 138, 'ionwisp', 45], [970, 130, 'sentinel']],
-        // Cristales de Señal: flotante del camino, punto alto de la móvil y la antesala.
-        crystals: [[275, 112], [560, 72], [800, 132]],
+        enemies: [[180, 138, 'magnetite'], [390, 138, 'ionwisp', 50], [575, 138, 'hoverbot', 45], [690, 138, 'magnetite'], [905, 138, 'ionwisp', 40], [970, 130, 'sentinel']],
+        // Cristales de Señal: sobre la 1ª cobertura, el punto alto de la móvil y la cobertura
+        // de la antesala.
+        crystals: [[215, 102], [560, 72], [805, 102]],
         goal: 1090, boss: 'sentinel'
     },
 

@@ -1407,6 +1407,120 @@ describe('Tormenta iónica — nivel 5 (contra js/game.js real)', () => {
     });
 });
 
+describe('El dominio del Centinela — barrido del nivel 6 (contra js/game.js real)', () => {
+    function inWatchLevel() {
+        const { game, LEVELS, Player } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(5); // Núcleo del Centinela
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        // aparta a todos MENOS al jefe (la zona depende de que siga vivo)
+        game.enemies.forEach(e => { if (!e.isBoss) { e.x = -2500; e.initialX = -2500; } });
+        game.hintsSeen.add('sentinel-watch');
+        return { game, watch: LEVELS[5].sentinelWatch, LEVELS, Player };
+    }
+    function standAt(game, x, y = 137) {
+        game.player.x = x; game.player.y = y;
+        game.player.vx = 0; game.player.vy = 0; game.player.onGround = true;
+    }
+
+    test('el ciclo calma → apunta → onda es determinista por frames', () => {
+        const { game, watch } = inWatchLevel();
+        game.watchT = 0;
+        expect(game.watchPhase(watch)).toBe('calm');
+        game.watchT = watch.calm;
+        expect(game.watchPhase(watch)).toBe('warn');
+        game.watchT = watch.calm + watch.warn;
+        expect(game.watchPhase(watch)).toBe('fire');
+        game.watchT = watch.calm + watch.warn + watch.fire;
+        expect(game.watchPhase(watch)).toBe('calm');
+    });
+
+    test('la onda golpea a quien pisa el suelo de la zona, con tregua (no re-golpea por frame)', () => {
+        const { game, watch } = inWatchLevel();
+        standAt(game, 250); // suelo de la zona, sin cobertura
+        game.watchT = watch.calm + watch.warn;
+        const hp0 = game.player.hp;
+        game.update();
+        expect(game.player.hp).toBe(hp0 - Math.max(1, 6 - game.player.defense));
+        expect(game.playerInvulnerable).toBe(40);
+        const hp1 = game.player.hp;
+        for (let i = 0; i < 20; i++) game.update();
+        expect(game.player.hp).toBe(hp1);
+    });
+
+    test('sobre una cobertura elevada, la onda entera pasa de largo', () => {
+        const { game, watch } = inWatchLevel();
+        standAt(game, 210, 109); // encima de la cobertura [200,122,40,8]
+        game.watchT = watch.calm + watch.warn;
+        const hp0 = game.player.hp;
+        for (let i = 0; i < watch.fire; i++) game.update();
+        expect(game.player.hp).toBe(hp0);
+    });
+
+    test('en el aire en el instante de la onda tampoco golpea (los pies están sobre la franja)', () => {
+        const { game, watch } = inWatchLevel();
+        standAt(game, 250);
+        game.player.y = 90; game.player.onGround = false; game.player.vy = 0; // en pleno salto
+        game.watchT = watch.calm + watch.warn;
+        const hp0 = game.player.hp;
+        game.update();
+        expect(game.player.hp).toBe(hp0);
+    });
+
+    test('la intro (antes de zoneStart) queda fuera del dominio', () => {
+        const { game, watch } = inWatchLevel();
+        standAt(game, 60); // x + w < 140
+        game.watchT = watch.calm + watch.warn;
+        const hp0 = game.player.hp;
+        for (let i = 0; i < watch.fire; i++) game.update();
+        expect(game.player.hp).toBe(hp0);
+    });
+
+    test('con el Centinela derrotado, la zona se apaga', () => {
+        const { game, watch } = inWatchLevel();
+        game.enemies.find(e => e.isBoss).alive = false;
+        standAt(game, 250);
+        game.watchT = watch.calm + watch.warn;
+        const hp0 = game.player.hp;
+        for (let i = 0; i < watch.fire; i++) game.update();
+        expect(game.player.hp).toBe(hp0);
+    });
+
+    test('regla de diseño: desde cualquier punto de la zona hay cobertura (o salida) a lo andable en el aviso', () => {
+        const { game, watch, LEVELS, Player } = inWatchLevel();
+        const lvl = LEVELS[5];
+        const speed = new Player(0, 0, 'kes').speed;
+        const reachInWarn = watch.warn * speed;
+        const bossX = lvl.enemies.find(e => e[2] === 'sentinel')[0];
+        // coberturas: plataformas elevadas finas por encima de la franja
+        const covers = lvl.platforms.filter(p => p[1] < watch.band && p[3] <= 10);
+        expect(covers.length).toBeGreaterThanOrEqual(6);
+        for (let x = watch.zoneStart; x < bossX; x += 5) {
+            const toCover = Math.min(...covers.map(c => x < c[0] ? c[0] - x : (x > c[0] + c[2] ? x - (c[0] + c[2]) : 0)));
+            const toExit = x - watch.zoneStart; // también vale retirarse de la zona
+            expect(Math.min(toCover, toExit)).toBeLessThanOrEqual(reachInWarn);
+        }
+    });
+
+    test('regla de diseño: la onda dura más que un salto simple — saltar sin cobertura no basta', () => {
+        const { watch, LEVELS, Player } = inWatchLevel();
+        const { Platform } = loadGame();
+        const floor = new Platform(0, 150, 500, 15);
+        const p = new Player(20, 137, 'scrap');
+        p.onGround = true;
+        const particles = { burst() {} };
+        let jumped = false, airFrames = 0;
+        for (let f = 0; f < 120; f++) {
+            p.update({ Space: !jumped }, [floor], particles);
+            jumped = true;
+            if (!p.onGround) airFrames++;
+            else if (jumped && f > 5) break; // aterrizó: fin del salto
+        }
+        expect(airFrames).toBeGreaterThan(0);
+        expect(watch.fire).toBeGreaterThan(airFrames); // 50 > ~27: el aire no te cubre la onda entera
+    });
+});
+
 describe('Túnel de Escape — cuenta atrás del scroll forzado (contra js/game.js real)', () => {
     function inTunnel() {
         const { game } = loadGame();

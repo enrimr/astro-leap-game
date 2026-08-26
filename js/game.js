@@ -692,6 +692,18 @@ class Game {
         this.stormT = 0;
         // Sistema de emergencia (árbol de mejoras): se rearma con cada (re)carga de nivel.
         this.player.emergencyUsed = false;
+        // Barrido del Centinela (ver sentinelWatch en levels.js): como la tormenta, el reloj
+        // arranca en calma con cada (re)carga — nunca reapareces con la onda encima.
+        this.watchT = 0;
+    }
+
+    // Fase del barrido del Centinela según this.watchT: calma (avanza) → apunta (súbete a una
+    // cobertura) → onda (el suelo de su zona quema). Frames, determinista, como la tormenta.
+    watchPhase(watch) {
+        const c = this.watchT % (watch.calm + watch.warn + watch.fire);
+        if (c < watch.calm) return 'calm';
+        if (c < watch.calm + watch.warn) return 'warn';
+        return 'fire';
     }
 
     // Destapa en el mapa las puertas de las torres cuyo umbral de cristales ya se cumple.
@@ -1575,6 +1587,33 @@ class Game {
                 }
             }
 
+            // Barrido del Centinela: solo mientras el jefe viva. En plena onda, daña a quien
+            // tenga los pies en la franja del suelo de su zona — a salvo sobre una cobertura
+            // elevada o en el aire. Mismo patrón golpe+tregua que puertas y tormenta.
+            const watch = level.sentinelWatch;
+            if (watch) {
+                const watchBoss = this.enemies.find(e => e.isBoss);
+                if (watchBoss && watchBoss.alive) {
+                    const prevWatch = this.watchPhase(watch);
+                    this.watchT++;
+                    const wPhase = this.watchPhase(watch);
+                    if (wPhase === 'warn' && prevWatch === 'calm') {
+                        if (window.SFX) SFX.bossCharge();
+                        this.showHint('sentinel-watch', 'El Centinela barre su dominio a ras de suelo: cuando apunte, súbete a una cobertura elevada — un salto no dura lo que la onda.');
+                    }
+                    if (wPhase === 'fire' && this.playerInvulnerable === 0
+                        && this.player.x + this.player.w > watch.zoneStart && this.player.x < watchBoss.x
+                        && this.player.y + this.player.h > watch.band) {
+                        this.player.takeDamage(this.hazardDamage(6));
+                        this.playerInvulnerable = 40; // tregua corta a propósito: quedarse en el suelo la onda entera cuesta DOS golpes
+                        this.shake = Math.max(this.shake, 6);
+                        this.particles.burst(this.player.x + this.player.w / 2, this.player.y + this.player.h, '#ff5c6c', 12, { speed: 2, life: 20, size: 2.5 });
+                        if (window.SFX) SFX.zap();
+                        if (this.player.hp <= 0) { this.loseLife(); return; }
+                    }
+                }
+            }
+
             for (const cry of this.crystals) {
                 if (cry.collected) continue;
                 cry.update();
@@ -1798,6 +1837,55 @@ class Game {
                     ctx.font = '10px "Rajdhani", sans-serif'; ctx.fillStyle = PALETTE.dim;
                     ctx.fillText('EL NÚCLEO VA A COLAPSAR', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 18);
                     ctx.textAlign = 'left';
+                }
+            }
+
+            // Barrido del Centinela: capa visual (la lógica de daño vive en update()). Apuntar
+            // = resplandor rojo creciente en la franja del suelo de la zona; onda = franja roja
+            // encendida con parpadeo. El brillo cian sobre cada cobertura señala dónde subirse
+            // (la misma idea que el resplandor de refugios de la tormenta). Con reduceEffects,
+            // valores fijos sin pulso.
+            if (level.sentinelWatch) {
+                const watchBoss = this.enemies.find(e => e.isBoss);
+                if (watchBoss && watchBoss.alive) {
+                    const w = level.sentinelWatch;
+                    const wPhase = this.watchPhase(w);
+                    if (wPhase !== 'calm') {
+                        const zx = Math.max(w.zoneStart - this.cameraX, 0);
+                        const zw = Math.min(watchBoss.x - this.cameraX, GAME_WIDTH) - zx;
+                        if (zw > 0) {
+                            if (wPhase === 'warn') {
+                                const c = this.watchT % (w.calm + w.warn + w.fire);
+                                const charge = this.reduceEffects ? 0.5 : (c - w.calm) / w.warn; // crece hacia la onda
+                                ctx.fillStyle = `rgba(255,92,108,${0.08 + 0.14 * charge})`;
+                                ctx.fillRect(zx, w.band, zw, 150 - w.band + 8);
+                            } else {
+                                const flick = this.reduceEffects ? 1 : 0.8 + Math.random() * 0.2;
+                                ctx.save();
+                                ctx.shadowColor = '#ff5c6c'; ctx.shadowBlur = 8;
+                                ctx.fillStyle = `rgba(255,92,108,${0.5 * flick})`;
+                                ctx.fillRect(zx, w.band, zw, 150 - w.band + 8);
+                                ctx.fillStyle = `rgba(255,235,235,${0.55 * flick})`;
+                                ctx.fillRect(zx, w.band, zw, 3);
+                                ctx.restore();
+                            }
+                            // brillo sobre las coberturas: dónde subirse
+                            for (const p of this.platforms) {
+                                if (!p.solid || p.y > w.band || p.h > 10 || p.y < 100) continue;
+                                const sx = p.x - this.cameraX;
+                                if (sx > GAME_WIDTH || sx + p.w < 0) continue;
+                                const coverGrad = ctx.createLinearGradient(0, p.y - 14, 0, p.y);
+                                coverGrad.addColorStop(0, 'rgba(124,245,255,0)');
+                                coverGrad.addColorStop(1, 'rgba(124,245,255,0.2)');
+                                ctx.fillStyle = coverGrad;
+                                ctx.fillRect(sx, p.y - 14, p.w, 14);
+                            }
+                            ctx.fillStyle = wPhase === 'warn' ? 'rgba(255,92,108,0.9)' : 'rgba(255,235,235,0.95)';
+                            ctx.font = 'bold 8px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
+                            ctx.fillText(wPhase === 'warn' ? '⚠ EL CENTINELA APUNTA' : '⚡ ONDA DE BARRIDO — A CUBIERTO', GAME_WIDTH / 2, 28);
+                            ctx.textAlign = 'left';
+                        }
+                    }
                 }
             }
 
