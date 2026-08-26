@@ -232,6 +232,7 @@ class Game {
         this.crystals = []; // instancias de SignalCrystal del nivel actual
         this.signalCrystals = new Set(); // índices de nivel cuyo cristal ya se recogió — persiste con el guardado, se pierde en Game Over
         this.combat = null; this.combatTransition = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
+        this.combatTouchHold = false; // toque sostenido en pantalla durante un duelo = acelerar turnos
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
         this.crystalMessage = 0; this.signalUnlockMessage = 0; this.signalUnlockText = '';
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
@@ -419,7 +420,7 @@ class Game {
                 <p class="help-text">
                     <b>Mover</b> — ← →<br>
                     <b>Saltar</b> — ESPACIO (segunda vez en el aire según el piloto: doble salto, vuelo, impulso...)<br>
-                    <b>Combate</b> — ↑↓ + ESPACIO, o las teclas 1-4<br>
+                    <b>Combate</b> — ↑↓ + ESPACIO, o las teclas 1-4. Mantén pulsado ESPACIO (o el dedo en pantalla) para acelerar los turnos<br>
                     <b>Pilotos</b> — Kes dobla salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos.
                     Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C.<br>
                     <b>Mejoras</b> — cada subida de nivel da 1 punto para el árbol de mejoras (chapa MEJORAS del mapa, o tecla T)<br>
@@ -790,6 +791,14 @@ class Game {
                 if (window.SFX) SFX.levelUp();
             }
         }
+    }
+
+    // Acelerador de turnos del duelo: mantener pulsado ESPACIO/Enter (o el dedo en pantalla,
+    // ver setupTouchControls) hace correr las pausas de mensaje a 4x. Mantener ya no dispara
+    // acciones (el autorepeat se filtra en setupInput con e.repeat): pulsar decide, mantener
+    // acelera — dos gestos, dos significados.
+    combatFastForward() {
+        return !!(this.keys.Space || this.keys.Enter || this.combatTouchHold);
     }
 
     // Energía por derrota, con el nodo Reciclador del árbol (+1 sobre ENERGY_PER_KILL).
@@ -1259,7 +1268,10 @@ class Game {
                 if (e.code === 'Space' || e.code === 'Enter') this.dismissHintScreen();
                 return;
             }
-            if (this.combat && this.combat.active) this.combat.handleInput(e.code);
+            // e.repeat fuera: el autorepeat del navegador al MANTENER una tecla ya no dispara
+            // acciones en cadena ni recorre el menú solo — mantener significa "acelerar los
+            // turnos" (ver combatFastForward), pulsar significa "decidir".
+            if (this.combat && this.combat.active && !e.repeat) this.combat.handleInput(e.code);
             // Durante la transición de encuentro no se puede salir ni reiniciar — el combate ya
             // es inevitable (igual que en Pokémon: cuando la pantalla parpadea, ya estás dentro).
             if (e.code === 'Escape' && this.inLevel && !this.combat && !this.combatTransition) this.exitLevel();
@@ -1350,6 +1362,17 @@ class Game {
         startScreen.addEventListener('click', (e) => {
             const btn = e.target.closest('.menu-btn');
             if (btn) this.handleMenuAction(btn.dataset.action, btn);
+        });
+
+        // Acelerador táctil de turnos: mantener el dedo en pantalla durante un duelo (sobre el
+        // canvas o sobre los botones de combate, da igual) equivale a mantener ESPACIO.
+        const ffStart = () => { if (this.combat && this.combat.active) this.combatTouchHold = true; };
+        const ffEnd = () => { this.combatTouchHold = false; };
+        [canvas, combatButtonsEl].forEach(el => {
+            if (!el) return;
+            el.addEventListener('touchstart', ffStart, { passive: true });
+            el.addEventListener('touchend', ffEnd);
+            el.addEventListener('touchcancel', ffEnd);
         });
 
         // Tocar/clicar directamente un nodo del mapa estelar entra a ese nivel (si está desbloqueado)
@@ -1476,7 +1499,7 @@ class Game {
         }
 
         if (this.combat) {
-            this.combat.update();
+            this.combat.update(this.combatFastForward());
             this.shake = Math.max(this.shake, this.combat.shake || 0);
             if (!this.combat.active) {
                 if (this.combat.result === 'win') {

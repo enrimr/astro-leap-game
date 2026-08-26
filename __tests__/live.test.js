@@ -491,6 +491,87 @@ describe('Cristales de Señal — objetivo secundario y puertas de las torres (c
     });
 });
 
+describe('Acelerador de turnos del duelo — mantener pulsado (contra el código real)', () => {
+    test('update(fast) drena la pausa de mensaje a 4x; sin fast, a 1x', () => {
+        const { Player, Enemy, CombatSystem } = loadGame();
+        const combat = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'drone'));
+        combat.turn = 'player'; combat.messageTimer = 60;
+        for (let i = 0; i < 10; i++) combat.update(true);
+        expect(combat.messageTimer).toBe(20);
+        combat.messageTimer = 60;
+        for (let i = 0; i < 10; i++) combat.update(false);
+        expect(combat.messageTimer).toBe(50);
+    });
+
+    test('acelerar no salta el turno enemigo: el clamp a 0 lo resuelve exactamente una vez', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        const player = new Player(0, 0, 'kes'); player.maxHp = 9999; player.hp = 9999;
+        const combat = new CombatSystem(player, new Enemy(0, 0, 'drone'));
+        setRNG(() => 0.5);
+        combat.turn = 'enemy'; combat.messageTimer = 3; // un paso de 4 lo pasaría de largo sin clamp
+        combat.update(true);
+        setRNG(Math.random);
+        expect(combat.turn).toBe('player');
+        expect(combat.messageTimer).toBe(60); // el golpe enemigo dejó su propio mensaje en pantalla
+        expect(9999 - player.hp).toBeGreaterThan(0); // y golpeó UNA vez
+    });
+
+    test('el "Tu turno" vuelve por frames del combate (acelerables), no por un setTimeout de reloj real', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        const player = new Player(0, 0, 'kes'); player.maxHp = 9999; player.hp = 9999;
+        const combat = new CombatSystem(player, new Enemy(0, 0, 'drone'));
+        setRNG(() => 0.5);
+        combat.turn = 'enemy'; combat.messageTimer = 1;
+        combat.update(false); // resuelve el turno enemigo → mensaje del golpe + promptTimer
+        setRNG(Math.random);
+        expect(combat.message).toMatch(/ataca/);
+        // acelerado: 60 de mensaje (15 updates) + 20 de prompt (5 updates)
+        for (let i = 0; i < 20; i++) combat.update(true);
+        expect(combat.message).toBe('Tu turno. Elige acción:');
+    });
+
+    test('actuar rápido cancela el "Tu turno" pendiente (el temporizador viejo pisaba tu mensaje)', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        const player = new Player(0, 0, 'kes'); player.maxHp = 9999; player.hp = 9999;
+        const combat = new CombatSystem(player, new Enemy(0, 0, 'magnetite'));
+        setRNG(() => 0.5);
+        combat.turn = 'enemy'; combat.messageTimer = 1;
+        combat.update(false);                              // vuelve tu turno, prompt pendiente
+        expect(combat.promptTimer).toBeGreaterThan(0);
+        for (let i = 0; i < 15; i++) combat.update(true);  // drena el mensaje del golpe enemigo
+        combat.executePlayerAction(0);                     // atacas ANTES de que salga el prompt
+        setRNG(Math.random);
+        expect(combat.message).toMatch(/Disparaste|CRÍTICO/);
+        expect(combat.promptTimer).toBe(0); // el prompt pendiente queda cancelado: ya no pisará tu mensaje
+    });
+
+    test('el autorepeat de una tecla mantenida NO dispara acciones en cadena', () => {
+        const { game, window, Player, Enemy, CombatSystem } = loadGame();
+        game.gameStarted = true;
+        const enemy = new Enemy(0, 0, 'drone'); enemy.maxHp = 999; enemy.hp = 999;
+        game.combat = new CombatSystem(game.player, enemy);
+        game.combat.turn = 'player'; game.combat.messageTimer = 0;
+        // keydown repetido (mantener la tecla): ignorado
+        window.document.dispatchEvent(new window.KeyboardEvent('keydown', { code: 'Digit1', repeat: true }));
+        expect(enemy.hp).toBe(999);
+        // keydown de pulsación real: ejecuta
+        window.document.dispatchEvent(new window.KeyboardEvent('keydown', { code: 'Digit1', repeat: false }));
+        expect(enemy.hp).toBeLessThan(999);
+    });
+
+    test('mantener ESPACIO o el toque sostenido activan el acelerador; sueltos, no', () => {
+        const { game } = loadGame();
+        expect(game.combatFastForward()).toBe(false);
+        game.keys.Space = true;
+        expect(game.combatFastForward()).toBe(true);
+        game.keys.Space = false;
+        game.combatTouchHold = true;
+        expect(game.combatFastForward()).toBe(true);
+        game.combatTouchHold = false;
+        expect(game.combatFastForward()).toBe(false);
+    });
+});
+
 describe('Game — avisos contextuales (hintScreen, contra js/game.js real)', () => {
     test('showHint() abre el diálogo y marca el id como visto', () => {
         const { game } = loadGame();

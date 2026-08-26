@@ -1090,6 +1090,7 @@ class CombatSystem {
         // mismo daño para los 4, solo cambia cómo se llama y cómo suena al usarla.
         this.actions = ['ATACAR', HEROES[player.character].combatName.toUpperCase(), 'DEFENDER', 'HUIR'];
         this.defending = false; this.active = true; this.result = null; this.messageTimer = 0;
+        this.promptTimer = 0; // cuenta atrás (en frames de combate) hasta reponer el "Tu turno"
         this.selectedIndex = 0; this.shake = 0;
         this.enemyTurnCount = 0; // cuenta turnos de ENEMIGO (no del jugador), para los patrones de jefe
         this.bossCharging = false; // true en el turno siguiente a una carga (Centinela o Nodo Cero): el próximo golpe viene reforzado
@@ -1104,6 +1105,7 @@ class CombatSystem {
     }
     executePlayerAction(action) {
         this.defending = false;
+        this.promptTimer = 0; // si había un "Tu turno" pendiente, la acción lo hace innecesario
         if (window.SFX) SFX.confirm();
         if (action === 0) {
             let raw = Math.floor(this.player.attack * (0.8 + RNG() * 0.4));
@@ -1134,7 +1136,10 @@ class CombatSystem {
         if (this.enemy.defeated) { this.result = 'win'; this.active = false; return; }
         this.turn = 'enemy';
     }
-    update() {
+    // fast: acelerador de turnos — con una tecla/toque MANTENIDO (ver Game.combatFastForward),
+    // las pausas de mensaje corren a 4x. El ritmo pausado sigue siendo el por defecto; la prisa
+    // es opt-in, pensada para rejugadas y farmeo.
+    update(fast = false) {
         // El jugador y el enemigo no pasan por su update() normal durante el combate,
         // así que sus retratos animan aquí (parpadeo, respiración, pulso de los jefes).
         this.player.animT += 0.06;
@@ -1144,14 +1149,23 @@ class CombatSystem {
         this.enemy.blinkTimer--;
         if (this.enemy.blinkTimer <= 0) this.enemy.blinkTimer = 60 + Math.random() * 150;
         if (this.shake > 0) this.shake *= 0.85;
+        const step = fast ? 4 : 1;
         if (this.messageTimer > 0) {
-            this.messageTimer--;
+            // Clamp a 0: aunque el paso acelerado se salte el frame exacto, el turno enemigo
+            // se dispara exactamente una vez.
+            this.messageTimer = Math.max(0, this.messageTimer - step);
             if (this.messageTimer === 0 && this.turn === 'enemy') {
                 this.resolveEnemyTurn();
                 if (this.player.hp <= 0) { this.result = 'lose'; this.active = false; return; }
                 this.turn = 'player';
-                setTimeout(() => { this.message = 'Tu turno. Elige acción:'; }, 1000);
+                // El "Tu turno" vuelve en frames DE COMBATE, no con un setTimeout de reloj real
+                // — el temporizador viejo pisaba el mensaje de tu acción si actuabas rápido, y
+                // con el acelerador ese desfase habría sido la norma en vez de la excepción.
+                this.promptTimer = 20;
             }
+        } else if (this.turn === 'player' && this.promptTimer > 0) {
+            this.promptTimer = Math.max(0, this.promptTimer - step);
+            if (this.promptTimer === 0) this.message = 'Tu turno. Elige acción:';
         }
     }
     // Decide la acción del enemigo en su turno. Los enemigos normales siempre atacan (sin cambios);
@@ -1265,6 +1279,16 @@ class CombatSystem {
         ctx.fillStyle = PALETTE.panel; ctx.fillRect(10, 78, 300, 20);
         ctx.fillStyle = PALETTE.ink; ctx.font = '10px "Rajdhani", sans-serif';
         ctx.fillText(this.message, 16, 92);
+
+        // Pista del acelerador — solo mientras hay una pausa de mensaje que acelerar
+        if (this.messageTimer > 0) {
+            ctx.save();
+            ctx.fillStyle = PALETTE.dim; ctx.globalAlpha = 0.6;
+            ctx.font = '7px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText('≫ mantén pulsado para acelerar', 310, 172);
+            ctx.restore();
+            ctx.textAlign = 'left';
+        }
 
         // Menú de acciones (banda propia, debajo del todo)
         if (this.turn === 'player' && this.messageTimer === 0) {

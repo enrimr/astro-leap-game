@@ -73,6 +73,8 @@ Sin habilidad aérea — la ruta baja de piedras de paso existe para él. A camb
 
 El daño que recibes sin defender es `ATQ enemigo × (0.8–1.2) − tu DEF` (mínimo 1).
 
+**Acelerar los turnos**: mantén pulsado **ESPACIO** (o el dedo en la pantalla, en táctil) y las pausas de mensaje corren a 4×. Mantener ya no dispara acciones en cadena — pulsar decide, mantener acelera.
+
 **El pisotón**: si caes sobre la mitad superior de un enemigo (`vy > 0`) **y tu nivel supera al suyo**, muere al instante — XP completa, +2 EN, sin duelo, y rebotas hacia arriba. Es la forma rápida de limpiar niveles. Si no te da el nivel (o el contacto es lateral), transición de encuentro y duelo.
 
 ## 4. Bestiario

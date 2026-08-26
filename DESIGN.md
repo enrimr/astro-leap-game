@@ -390,3 +390,14 @@ El Reto Diario comparaba tiempos por texto («¿lo superas?»); el duelo lo conv
 - **El duelo de otra fecha no pisa tu récord de hoy**: `saveDailyRecord` solo se llama si `dailyDate === hoy` — el registro diario es "tu mejor tiempo DE HOY", no un cajón de duelos.
 - El nombre del token se sanea a `[letras/números/espacio/_-]` y 14 caracteres ANTES de codificar y también al decodificar: entra en `innerHTML` del menú y en texto de canvas, así que jamás debe llegar un `<` vivo. Token inválido → se ignora en silencio (menú normal, sin error).
 - La revancha es el mismo botón de retar con tu tiempo recién hecho: el bucle social se cierra solo — reto → duelo → revancha → duelo...
+
+### 2.28 Acelerador de turnos: pulsar decide, mantener acelera
+
+El duelo por turnos tiene un ritmo pausado a propósito (cada mensaje respira 60 frames), pero contra la morralla y en rejugadas se hacía trámite. La solución no es acortar el ritmo por defecto sino hacerlo opt-in: **mantener pulsado** ESPACIO/Enter (o el dedo en pantalla, en táctil) drena las pausas de mensaje a 4× (`CombatSystem.update(fast)`), con clamp a 0 para que el turno enemigo se resuelva exactamente una vez aunque el paso acelerado se salte el frame exacto.
+
+Dos arreglos que arrastró:
+
+- **El autorepeat del teclado se filtra** (`e.repeat` en el keydown): antes, mantener ESPACIO disparaba la acción seleccionada en cadena por el autorepeat del navegador — un accidente esperando a ocurrir que ahora es imposible. Mantener significa acelerar; pulsar significa decidir. Dos gestos, dos significados.
+- **El "Tu turno. Elige acción:" deja de ser un `setTimeout` de reloj real** y pasa a frames de combate (`promptTimer`, cancelado si actúas antes): el temporizador viejo pisaba el mensaje de tu acción si jugabas rápido — un bug latente que el acelerador habría convertido en la norma.
+
+La pista «≫ mantén pulsado para acelerar» solo se dibuja mientras hay pausa de mensaje que acelerar. Medido en un duelo real corto: la pelea entera tarda la mitad (las pausas van a 4×; los frames de acción no se pueden comprimir).

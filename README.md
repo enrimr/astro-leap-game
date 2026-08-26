@@ -108,7 +108,7 @@ Cronómetro RTA (tiempo real con `performance.now()`, no frames) desde que arran
 ## Controles
 
 - `←` `→` — mover · `ESPACIO` — saltar (segunda pulsación en el aire = habilidad del piloto)
-- En combate: `↑`/`↓` navegan, `ESPACIO`/`Enter` confirma, o `1`-`4` directo
+- En combate: `↑`/`↓` navegan, `ESPACIO`/`Enter` confirma, o `1`-`4` directo. **Mantén pulsado** ESPACIO (o el dedo en pantalla) para acelerar los turnos a 4×
 - `C` — hangar de pilotos (en el mapa) · `ESC` — salir del nivel · `R` — reiniciar nivel
 - Táctil y ratón: controles en pantalla siempre visibles
 - Esquina superior izquierda: silenciar música 🎵 y efectos 🔊 por separado, y un tercer botón de **accesibilidad** que reduce el temblor de pantalla y los parpadeos. Todo se recuerda entre sesiones.
