@@ -1365,17 +1365,18 @@ describe('Regresión: el salto de Bolt (contra js/entities.js real)', () => {
 });
 
 describe('Fantasma con ruta real — grabación y reproducción (contra el código real)', () => {
-    test('encodeDuelRoute/decodeDuelRoute: ida y vuelta con cuantización de 4px', () => {
+    test('encodeDuelRoute/decodeDuelRoute: ida y vuelta con cuantización de 4px y flag de combate', () => {
         const { encodeDuelRoute, decodeDuelRoute } = loadGame();
-        const samples = []; // trayectoria con salto: x avanza, y hace un arco
-        for (let i = 0; i < 50; i++) samples.push(20 + i * 15, 137 - Math.round(Math.sin(i / 8) * 25));
+        const samples = []; // tripletas (x, y, ¿en combate?): salto en arco, y duelo en las muestras 30-40
+        for (let i = 0; i < 50; i++) samples.push(20 + i * 15, 137 - Math.round(Math.sin(i / 8) * 25), i >= 30 && i <= 40 ? 1 : 0);
         const route = decodeDuelRoute(encodeDuelRoute(samples));
         expect(route).not.toBeNull();
         expect(route.stride).toBe(12);
         expect(route.points.length).toBe(50);
         route.points.forEach((p, i) => {
-            expect(Math.abs(p.x - samples[2 * i])).toBeLessThanOrEqual(2);
-            expect(Math.abs(p.y - samples[2 * i + 1])).toBeLessThanOrEqual(2);
+            expect(Math.abs(p.x - samples[3 * i])).toBeLessThanOrEqual(2);
+            expect(Math.abs(p.y - samples[3 * i + 1])).toBeLessThanOrEqual(2);
+            expect(p.c).toBe(i >= 30 && i <= 40); // el "estaba en duelo" sobrevive al empaquetado
         });
         // rutas rotas → null
         expect(decodeDuelRoute('')).toBeNull();
@@ -1386,7 +1387,7 @@ describe('Fantasma con ruta real — grabación y reproducción (contra el códi
     test('una partida larga se submuestrea a ≤600 puntos con el stride multiplicado', () => {
         const { encodeDuelRoute, decodeDuelRoute } = loadGame();
         const samples = [];
-        for (let i = 0; i < 1500; i++) samples.push(i, 137); // 1500 pares = 5 min de reto
+        for (let i = 0; i < 1500; i++) samples.push(i, 137, 0); // 1500 tripletas = 5 min de reto
         const route = decodeDuelRoute(encodeDuelRoute(samples));
         expect(route.points.length).toBeLessThanOrEqual(600);
         expect(route.stride).toBe(36); // 12 × 3
@@ -1395,7 +1396,7 @@ describe('Fantasma con ruta real — grabación y reproducción (contra el códi
     test('el token v2 lleva la ruta y el v1 (enlaces antiguos) sigue decodificando sin ella', () => {
         const { encodeDuelToken, decodeDuelToken, encodeDuelRoute } = loadGame();
         const samples = [];
-        for (let i = 0; i < 40; i++) samples.push(20 + i * 20, 137);
+        for (let i = 0; i < 40; i++) samples.push(20 + i * 20, 137, 0);
         const routeStr = encodeDuelRoute(samples);
         const v2 = decodeDuelToken(encodeDuelToken('2026-08-24', 83450, 'Rival', routeStr));
         expect(v2.route).not.toBeNull();
@@ -1407,7 +1408,7 @@ describe('Fantasma con ruta real — grabación y reproducción (contra el códi
     test('presupuesto de URL: una partida de ~90s cabe en un token de menos de 2000 caracteres', () => {
         const { encodeDuelToken, encodeDuelRoute } = loadGame();
         const samples = [];
-        for (let i = 0; i < 450; i++) samples.push(Math.min(1300, i * 3), 100 + (i % 40)); // 450 muestras = 90s
+        for (let i = 0; i < 450; i++) samples.push(Math.min(1300, i * 3), 100 + (i % 40), i % 5 === 0 ? 1 : 0); // 450 muestras = 90s
         const token = encodeDuelToken('2026-08-24', 90000, 'Enrique', encodeDuelRoute(samples));
         expect(token.length).toBeLessThan(2000);
     });
@@ -1426,7 +1427,10 @@ describe('Fantasma con ruta real — grabación y reproducción (contra el códi
         for (let f = 0; f < 48; f++) game.update();
         expect(game.duelRec.length).toBeGreaterThan(afterLevel);
         const tail = game.duelRec.slice(afterLevel);
-        for (let i = 0; i < tail.length; i += 2) expect(tail[i]).toBe(frozenX);
+        for (let i = 0; i < tail.length; i += 3) {
+            expect(tail[i]).toBe(frozenX); // posición congelada durante el duelo...
+            expect(tail[i + 2]).toBe(1);   // ...y marcada como "en combate" para el ⚔ del fantasma
+        }
         game.combat = null;
         game.exitLevel(); // limpieza: restaura la partida real
     });
@@ -1450,7 +1454,7 @@ describe('Fantasma con ruta real — grabación y reproducción (contra el códi
         const { game, encodeDuelRoute, decodeDuelToken, encodeDuelToken, todayDateString } = loadGame();
         // ruta sintética con un salto claro en medio
         const samples = [];
-        for (let i = 0; i < 60; i++) samples.push(20 + i * 10, i >= 20 && i <= 26 ? 110 : 137);
+        for (let i = 0; i < 60; i++) samples.push(20 + i * 10, i >= 20 && i <= 26 ? 110 : 137, 0);
         const duel = decodeDuelToken(encodeDuelToken(todayDateString(), 12000, 'Rival', encodeDuelRoute(samples)));
         game.startDailyChallenge(duel);
         expect(game.duelRival.route).not.toBeNull();

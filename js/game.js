@@ -177,14 +177,17 @@ function sanitizeDuelName(name) {
 // re-simular nada (ni duplicar el RNG global sembrado), y las pausas de combate del retador
 // quedan registradas tal cual — su fantasma se queda clavado donde se quedó él.
 function encodeDuelRoute(samples) {
-    const pairs = Math.floor(samples.length / 2);
-    if (pairs < 2) return '';
-    const k = Math.max(1, Math.ceil(pairs / 600)); // submuestreo adaptativo: partidas largas, stride mayor
+    const n = Math.floor(samples.length / 3); // tripletas (x, y, ¿en combate?)
+    if (n < 2) return '';
+    const k = Math.max(1, Math.ceil(n / 600)); // submuestreo adaptativo: partidas largas, stride mayor
     let bin = '';
-    for (let i = 0; i < pairs; i += k) {
-        const x4 = Math.max(0, Math.min(511, Math.round(samples[2 * i] / 4)));
-        const y4 = Math.max(0, Math.min(63, Math.round(samples[2 * i + 1] / 4)));
-        bin += String.fromCharCode(x4 & 0xFF, ((x4 >> 8) & 1) | (y4 << 1));
+    for (let i = 0; i < n; i += k) {
+        const x4 = Math.max(0, Math.min(511, Math.round(samples[3 * i] / 4)));
+        const y4 = Math.max(0, Math.min(63, Math.round(samples[3 * i + 1] / 4)));
+        // el bit alto del 2º byte va gratis: "estaba en combate" — así el fantasma puede
+        // enseñar el ⚔ en vez de parecer bloqueado durante las pausas de duelo del retador
+        const combat = samples[3 * i + 2] ? 0x80 : 0;
+        bin += String.fromCharCode(x4 & 0xFF, (((x4 >> 8) & 1) | (y4 << 1) | combat) & 0xFF);
     }
     return (12 * k) + ':' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -198,7 +201,7 @@ function decodeDuelRoute(str) {
         const points = [];
         for (let i = 0; i + 1 < bin.length; i += 2) {
             const b0 = bin.charCodeAt(i), b1 = bin.charCodeAt(i + 1);
-            points.push({ x: (((b1 & 1) << 8) | b0) * 4, y: (b1 >> 1) * 4 });
+            points.push({ x: (((b1 & 1) << 8) | b0) * 4, y: ((b1 >> 1) & 63) * 4, c: !!(b1 & 0x80) });
         }
         return points.length >= 2 ? { stride, points } : null;
     } catch (e) { return null; }
@@ -1590,9 +1593,11 @@ class Game {
         // los duelos. ANTES de los early-returns a propósito: durante un combate (o un aviso)
         // la posición no cambia pero se sigue grabando — la pausa del retador queda registrada
         // tal cual, que es la gracia. Tope de 3000 puntos (10 min).
-        if (this.dailyMode && this.duelRec && this.duelRec.length < 6000) {
+        if (this.dailyMode && this.duelRec && this.duelRec.length < 9000) {
             this.duelRecFrame++;
-            if (this.duelRecFrame % 12 === 0) this.duelRec.push(this.player.x, this.player.y);
+            // tripleta (x, y, ¿en combate?): el flag viaja en el bit libre del empaquetado y
+            // permite que el fantasma del rival muestre "en duelo" en vez de parecer colgado.
+            if (this.duelRecFrame % 12 === 0) this.duelRec.push(this.player.x, this.player.y, (this.combat || this.combatTransition) ? 1 : 0);
         }
         if (this.unlockScreen) {
             if (this.shake > 0) this.shake *= 0.85; // por si acaso, aunque no se dibuje con temblor aquí
@@ -2114,7 +2119,7 @@ class Game {
             // delta bajo el cronómetro compara tu posición con el tiempo al que él pasó por ahí.
             if (this.dailyMode && this.duelRival && this.duelGhost) {
                 const route = this.duelRival.route;
-                let trailAt = -1;
+                let trailAt = -1, ghostInCombat = false;
                 if (route) {
                     // Ruta REAL grabada por el retador: interpola entre muestras (la simulación
                     // corre a 60Hz fijos, así que tiempo↔frames están amarrados). Se ven sus
@@ -2128,6 +2133,7 @@ class Game {
                     this.duelGhost.y = p0.y + (p1.y - p0.y) * t;
                     this.duelGhost.facing = p1.x >= p0.x ? 1 : -1;
                     trailAt = i0;
+                    ghostInCombat = !!(p0.c && p1.c); // ambos extremos del tramo: duelo de verdad, no un roce
                 } else {
                     // Token v1 (sin ruta): fantasma de ritmo — avance lineal que pisa la meta
                     // exactamente en su tiempo.
@@ -2136,7 +2142,7 @@ class Game {
                     this.duelGhost.y = 137;
                     this.duelGhost.facing = 1;
                 }
-                this.duelGhost.animT += 0.35; // camina siempre, incansable
+                this.duelGhost.animT += ghostInCombat ? 0.06 : 0.35; // en duelo respira quieto; si no, camina incansable
                 // Estela: el tramo recién recorrido de la ruta, desvaneciéndose tras el fantasma.
                 if (trailAt > 0) {
                     ctx.save();
@@ -2160,7 +2166,14 @@ class Game {
                 if (gx > -40 && gx < GAME_WIDTH + 40) {
                     ctx.save();
                     ctx.globalAlpha = 0.75; ctx.fillStyle = PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
-                    ctx.fillText(this.duelRival.name, gx + 4, this.duelGhost.y - 4);
+                    ctx.fillText(ghostInCombat ? `${this.duelRival.name} · en duelo` : this.duelRival.name, gx + 4, this.duelGhost.y - 4);
+                    // El retador estaba PELEANDO en este punto de su partida: sin la señal, el
+                    // fantasma parado parece un bug. El ⚔ pulsa sobre su cabeza mientras dure.
+                    if (ghostInCombat) {
+                        const swordPulse = this.reduceEffects ? 0.8 : 0.55 + Math.sin(Date.now() * 0.008) * 0.35;
+                        ctx.globalAlpha = swordPulse; ctx.fillStyle = PALETTE.accent3; ctx.font = '10px sans-serif';
+                        ctx.fillText('⚔', gx + 4, this.duelGhost.y - 13);
+                    }
                     ctx.textAlign = 'left';
                     ctx.restore();
                 }
