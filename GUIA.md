@@ -255,7 +255,13 @@ Huecos largos estilo Tormenta de Iones, con piedras de paso para la ruta baja �
 
 ![Mapa del nivel 12](guia/nivel-12.png)
 
-9 enemigos de todo el bestiario en escalada hasta [Nodo Cero](#-nodo-cero--nodo-cero-nivel-12-jefe-final), con el examen final del terreno: dos islotes **frágiles**, una **móvil**, una **cinta** en contra y una **doble puerta desfasada en la propia arena**, el último control antes del jefe. Pisotea todo lo que puedas para llegar con la Energía llena: el duelo final premia poder encadenar Habilidades.
+La **prueba final del juego, en tres actos**:
+
+- **ACTO 1 · Precisión** (hasta x≈470): piedras estrechas a alturas alternas, dos **frágiles encadenadas** sobre el vacío y una **puerta de energía** — puro examen de salto, casi sin enemigos.
+- **ACTO 2 · Los dominios absorbidos** (470→980): la Red combina lo aprendido de cada mundo — **tormenta iónica zonal** (solo muerde en este tramo; ciclo más apretado que en el nivel 5) con refugios y un techo-flotante, **cinta en contra con una puerta encima** (el peaje triple: cinta + puerta + tormenta) y un **tramo de hielo**. Ojo: dos magnetitas okupan los propios refugios.
+- **ACTO 3 · La huida** (desde x=980): «¡LA RED DESPIERTA!» — un **muro de energía** arranca a tu espalda y te persigue por un gauntlet de piedras y una frágil hasta la arena, donde se queda **parado en el borde**: no hay vuelta atrás durante el duelo.
+- **Jefe**: [Nodo Cero](#-nodo-cero--nodo-cero-nivel-12-jefe-final), entre dos puertas desfasadas. Llega con la Energía alta: el duelo premia encadenar Habilidades.
+- **El final**: ganar el duelo **derrumba la Red en pantalla** — los fragmentos caen en cascada, los peligros se apagan... y en la meta aparece **LA NAVE**. Súbete y despega: así se termina ASTRO LEAP, no cruzando una bandera.
 
 ### Nivel Extra · Torre de Vigía — VERTICAL
 

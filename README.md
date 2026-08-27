@@ -58,7 +58,7 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 | | 9 | Núcleo del Reactor | **Jefe: Overlord** — ignora Defender cada 3 turnos; **debuta la cinta magnética** en contra |
 | 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; todos los peligros combinados |
 | | 11 | Galería de Ecos | Huecos largos + móviles, frágiles y una puerta de energía |
-| | 12 | Nodo Cero | **Jefe final: Nodo Cero** — combina los 3 patrones anteriores; el terreno combina los 4 peligros |
+| | 12 | Nodo Cero | **La prueba final en 3 actos**: precisión → todos los peligros combinados (tormenta zonal, cinta+puerta, hielo) → huida con el muro detrás. **Jefe final: Nodo Cero**, y al ganar... la Red se derrumba y escapas EN LA NAVE |
 | Extra | 13 | Torre de Vigía | **Vertical en serpentín**: tres pisos, escaleras alternas y la BASE arriba del todo — aparece al reunir **8 ◆** |
 | | 14 | Aguja Glacial | **La torre difícil**: suelo helado, puertas, y **ascensores obligatorios**; final de salto con carrerilla — aparece con **20 ◆** |
 

@@ -1832,6 +1832,107 @@ describe('El dominio del Centinela — barrido del nivel 6 (contra js/game.js re
     });
 });
 
+describe('Nodo Cero — la prueba final: muro con disparador, tormenta zonal y la finale (contra el código real)', () => {
+    function inFinalLevel() {
+        const { game, LEVELS, CombatSystem, window } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(11);
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        game.enemies.forEach(e => { if (!e.isBoss) { e.x = -2500; e.initialX = -2500; } });
+        game.hintsSeen.add('ion-storm');
+        return { game, level: LEVELS[11], CombatSystem, window };
+    }
+    function standAt(game, x) {
+        game.player.x = x; game.player.y = 137;
+        game.player.vx = 0; game.player.vy = 0; game.player.onGround = true;
+    }
+
+    test('el muro con disparador NO existe hasta cruzar triggerX: cámara normal y cero daño', () => {
+        const { game } = inFinalLevel();
+        standAt(game, 500);
+        const hp0 = game.player.hp;
+        for (let i = 0; i < 120; i++) game.update();
+        expect(game.wallStarted).toBe(false);
+        expect(game.player.hp).toBe(hp0);
+        expect(game.cameraX).toBeGreaterThan(300); // cámara centrada en el jugador, no clavada en 0
+    });
+
+    test('cruzar triggerX despierta a la Red: el muro arranca desde la cámara y alcanza como el del Túnel', () => {
+        const { game, level } = inFinalLevel();
+        standAt(game, level.forcedScroll.triggerX + 5);
+        game.update();
+        expect(game.wallStarted).toBe(true);
+        expect(game.wallMessage).toBeGreaterThan(0); // «¡LA RED DESPIERTA!»
+        // quedarse quieto: el muro te caza
+        const hp0 = game.player.hp;
+        game.player.x = game.cameraX + 1; // pegado al borde que persigue
+        for (let i = 0; i < 60 && game.player.hp === hp0; i++) { game.player.x = game.cameraX + 1; game.update(); }
+        expect(game.player.hp).toBeLessThan(hp0);
+    });
+
+    test('la tormenta zonal solo muerde dentro de su dominio (acto 2)', () => {
+        const { game, level } = inFinalLevel();
+        const storm = level.ionStorm;
+        // dentro de la zona, al raso (piedra sin techo)
+        standAt(game, 595);
+        game.stormT = storm.calm + storm.warn;
+        const hp0 = game.player.hp;
+        game.update();
+        expect(game.player.hp).toBeLessThan(hp0);
+        // fuera de la zona (acto 1), misma fase: intacto
+        const { game: g2, level: l2 } = inFinalLevel();
+        standAt(g2, 40);
+        g2.stormT = l2.ionStorm.calm + l2.ionStorm.warn;
+        const hp2 = g2.player.hp;
+        for (let i = 0; i < 30; i++) g2.update();
+        expect(g2.player.hp).toBe(hp2);
+    });
+
+    test('ganar el duelo contra Nodo Cero derrumba la Red: finale en marcha, esbirros caídos, puertas dormidas', () => {
+        const { game, CombatSystem } = inFinalLevel();
+        game.player.xpToNextLevel = 999999; // sin hint de punto de mejora por medio
+        const boss = game.enemies.find(e => e.isBoss);
+        game.combat = new CombatSystem(game.player, boss);
+        boss.alive = false; boss.defeated = true;
+        game.combat.result = 'win'; game.combat.active = false;
+        game.update(); // procesa la victoria del duelo
+        expect(game.finale).not.toBeNull();
+        expect(game.finale.phase).toBe('collapse');
+        expect(game.enemies.every(e => !e.alive)).toBe(true); // los fragmentos caen con la Red
+        game.beams.forEach(b => expect(b.phase()).toBe('off')); // puertas dormidas
+        const t0 = game.beams[0].t;
+        game.update();
+        expect(game.beams[0].t).toBe(t0); // ...y congeladas: ya no ciclan
+    });
+
+    test('la meta retiene durante el colapso, embarca en fase nave, y el despegue acaba en ¡MISIÓN CUMPLIDA!', () => {
+        const { game, level, CombatSystem, window } = inFinalLevel();
+        game.player.xpToNextLevel = 999999;
+        const boss = game.enemies.find(e => e.isBoss);
+        game.combat = new CombatSystem(game.player, boss);
+        boss.alive = false; boss.defeated = true;
+        game.combat.result = 'win'; game.combat.active = false;
+        game.update();
+        // colapso: cruzar la meta retiene como un jefe vivo
+        standAt(game, level.goal + 2);
+        game.update();
+        expect(game.player.x).toBeLessThan(level.goal);
+        expect(game.gameStarted).toBe(true);
+        // deja terminar el colapso → fase nave
+        for (let i = 0; i < 160 && game.finale.phase === 'collapse'; i++) game.update();
+        expect(game.finale.phase).toBe('ship');
+        // embarque
+        standAt(game, level.goal + 2);
+        game.update();
+        expect(game.finale.phase).toBe('takeoff');
+        expect(game.levelCompleting).toBe(true); // el piloto va a bordo
+        // despegue completo → victoria
+        for (let i = 0; i < 220 && game.gameStarted; i++) game.update();
+        expect(game.gameStarted).toBe(false);
+        expect(window.document.getElementById('startScreen').innerHTML).toContain('MISIÓN CUMPLIDA');
+    });
+});
+
 describe('Túnel de Escape — cuenta atrás del scroll forzado (contra js/game.js real)', () => {
     function inTunnel() {
         const { game } = loadGame();

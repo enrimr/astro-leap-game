@@ -262,6 +262,43 @@ function makeStars(count, maxX) {
     return stars;
 }
 
+// La nave del cadete — el objetivo de toda la historia, por fin en pantalla (finale del
+// nivel 12, ver Game.startFinale). Vectorial a juego con el resto del arte: cápsula con
+// ventana, aletas y llama de despegue.
+function drawShip(ctx, x, groundY, thrusting, t) {
+    const w = 20, h = 38;
+    ctx.save();
+    if (thrusting) {
+        const flick = 6 + Math.random() * 8 + Math.min(16, t * 0.12);
+        const flame = ctx.createLinearGradient(0, groundY, 0, groundY + flick);
+        flame.addColorStop(0, '#ffd23f'); flame.addColorStop(1, 'rgba(255,92,108,0)');
+        ctx.fillStyle = flame;
+        ctx.beginPath();
+        ctx.moveTo(x - 5, groundY); ctx.lineTo(x + 5, groundY); ctx.lineTo(x, groundY + flick);
+        ctx.closePath(); ctx.fill();
+    }
+    ctx.shadowColor = PALETTE.accent; ctx.shadowBlur = 10;
+    const body = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+    body.addColorStop(0, '#9be8f5'); body.addColorStop(0.5, '#f5f3ff'); body.addColorStop(1, '#5fb8d9');
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(x, groundY - h);
+    ctx.quadraticCurveTo(x + w / 2, groundY - h + 14, x + w / 2, groundY - 8);
+    ctx.lineTo(x + w / 2, groundY); ctx.lineTo(x - w / 2, groundY);
+    ctx.lineTo(x - w / 2, groundY - 8);
+    ctx.quadraticCurveTo(x - w / 2, groundY - h + 14, x, groundY - h);
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = PALETTE.accent2;
+    ctx.beginPath(); ctx.moveTo(x - w / 2, groundY - 10); ctx.lineTo(x - w / 2 - 6, groundY); ctx.lineTo(x - w / 2, groundY); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + w / 2, groundY - 10); ctx.lineTo(x + w / 2 + 6, groundY); ctx.lineTo(x + w / 2, groundY); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = PALETTE.bg1;
+    ctx.beginPath(); ctx.arc(x, groundY - h + 16, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PALETTE.accent;
+    ctx.beginPath(); ctx.arc(x, groundY - h + 16, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
 class Game {
     constructor() {
         this.unlockedCharacters = new Set(['kes']);
@@ -271,6 +308,9 @@ class Game {
         this.signalCrystals = new Set(); // índices de nivel cuyo cristal ya se recogió — persiste con el guardado, se pierde en Game Over
         this.combat = null; this.combatTransition = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
         this.combatTouchHold = false; // toque sostenido en pantalla durante un duelo = acelerar turnos
+        this.finale = null; // máquina de estados del final del juego (colapso → nave → despegue)
+        this.wallStarted = false; // muro con disparador (forcedScroll.triggerX) ya en marcha
+        this.wallMessage = 0;
         this.levelUpMessage = 0; this.levelCompleteMessage = 0; this.livesLostMessage = 0; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
         this.crystalMessage = 0; this.signalUnlockMessage = 0; this.signalUnlockText = '';
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
@@ -807,6 +847,8 @@ class Game {
         this.stormT = 0;
         // Sistema de emergencia (árbol de mejoras): se rearma con cada (re)carga de nivel.
         this.player.emergencyUsed = false;
+        this.finale = null;
+        this.wallStarted = false; this.wallMessage = 0;
         // Barrido del Centinela (ver sentinelWatch en levels.js): como la tormenta, el reloj
         // arranca en calma con cada (re)carga — nunca reapareces con la onda encima.
         this.watchT = 0;
@@ -1254,6 +1296,50 @@ class Game {
         }
     }
 
+    // La pantalla de victoria y el reset de fin de partida. Método propio para que la finale
+    // del nivel 12 (despegue de la nave) pueda dispararlo al terminar su animación — y para la
+    // ruta defensiva de cruzar la meta final sin finale (p.ej. tests que matan al jefe a mano).
+    finishGame() {
+        this.levelCompleting = false; this.gameStarted = false;
+        const finalTime = performance.now() - this.runStartTime;
+        const isRecord = this.saveBestTime(finalTime);
+        if (window.SFX) { SFX.music.stop(); SFX.victory(); }
+        const sectors = this.worldMap.mainCount; // los 12 del recorrido — las torres Extra no cuentan en el marcador
+        const shareText = `🏆 ASTRO LEAP completado: ${sectors}/${sectors} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal! ⏱️' : ''}. ¿Me bajas el tiempo? 🚀`;
+        this.unlockedCharacters = new Set(['kes']);
+        this.player = new Player(20, 100, 'kes');
+        this.worldMap = new WorldMap();
+        this.collectedPickups = new Set();
+        this.signalCrystals = new Set();
+        this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
+        startScreen.innerHTML = this.buildMenuScreen({
+            title: '¡MISIÓN CUMPLIDA!',
+            subtitle: 'Derrotaste a Nodo Cero, reparaste la nave y escapaste del Sistema Ceniza.',
+            resultHTML: `
+                <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Completaste los ${sectors} sectores en ${formatTime(finalTime)}</p>
+                ${this.buildShareHTML(shareText)}
+            `
+        });
+        openMenuOverlay();
+        this.inLevel = false; this.inWorldMap = false;
+    }
+
+    // El final del juego, EN PANTALLA (nivel 12): al ganar el duelo contra Nodo Cero, la Red
+    // se derrumba (colapso con los colores de los 4 guardianes y los esbirros cayendo en
+    // cascada), todos los peligros se apagan — la calma tras la caída cuenta la historia sin
+    // una línea de diálogo —, la NAVE aparece en la meta en lugar de la bandera, y despegas.
+    startFinale(boss) {
+        this.finale = { phase: 'collapse', t: 0, x: boss.x + boss.w / 2, y: boss.y + boss.h / 2, shipLift: 0 };
+        this.enemies.forEach(e => {
+            if (!e.isBoss && e.alive) {
+                e.alive = false; e.defeated = true;
+                this.particles.burst(e.x + e.w / 2, e.y + e.h / 2, e.color, 10, { speed: 1.8, life: 24, size: 2.5 });
+            }
+        });
+        this.beams.forEach(b => { b.t = 0; }); // puertas a fase dormida (y update() ya no las avanza)
+        this.shake = 10;
+    }
+
     fullGameOver() {
         if (window.SFX) { SFX.music.stop(); SFX.gameOver(); }
         this.gameStarted = false;
@@ -1564,6 +1650,7 @@ class Game {
                     if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     if (this.combat.enemy.isBoss) this.unlockCharacterForBoss(this.combat.enemy.type);
+                    if (this.combat.enemy.type === 'nodo_cero') this.startFinale(this.combat.enemy);
                     this.saveProgress();
                 } else if (this.combat.result === 'lose') {
                     this.loseLife();
@@ -1587,8 +1674,19 @@ class Game {
             const CAMERA_END_MARGIN = 40; // deja la meta con aire a la derecha en vez de pegada al borde
             const maxScroll = level.goal + CAMERA_END_MARGIN - GAME_WIDTH;
 
-            if (level.forcedScroll) {
-                if (this.forcedScrollDelay > 0) {
+            if (level.forcedScroll && !this.finale) {
+                if (level.forcedScroll.triggerX && !this.wallStarted) {
+                    // Muro con disparador por posición (nivel 12): cámara normal hasta que el
+                    // jugador cruza triggerX — entonces la Red despierta y el muro arranca
+                    // desde donde esté la cámara, sin cuenta atrás.
+                    this.cameraX = Math.max(0, Math.min(this.player.x - GAME_WIDTH / 2, maxScroll));
+                    this.autoScrollX = this.cameraX;
+                    if (this.player.x >= level.forcedScroll.triggerX) {
+                        this.wallStarted = true;
+                        this.wallMessage = 130;
+                        if (window.SFX) SFX.scrollStart();
+                    }
+                } else if (!level.forcedScroll.triggerX && this.forcedScrollDelay > 0) {
                     this.forcedScrollDelay--;
                     if (this.forcedScrollDelay % 60 === 0 && window.SFX) {
                         this.forcedScrollDelay === 0 ? SFX.scrollStart() : SFX.countdownTick();
@@ -1669,7 +1767,7 @@ class Game {
             // Puertas de energía: dañan solo en su fase activa, con la misma tregua de
             // invulnerabilidad que el muro del Túnel (no es muerte instantánea). El empujón
             // saca al jugador de la columna — sin él, quedarse dentro re-golpea cada tregua.
-            for (const beam of this.beams) {
+            if (!this.finale) for (const beam of this.beams) {
                 beam.update();
                 if (this.playerInvulnerable === 0 && beam.collides(this.player)) {
                     this.player.takeDamage(this.hazardDamage(4));
@@ -1687,7 +1785,7 @@ class Game {
             // raso — mismo patrón de golpe+tregua que las puertas de energía. El combate y los
             // diálogos congelan update() antes de llegar aquí, así que la tormenta no corre
             // mientras lees un aviso ni durante un duelo.
-            if (level.ionStorm) {
+            if (level.ionStorm && !this.finale) {
                 const prevPhase = this.stormPhase(level.ionStorm);
                 this.stormT++;
                 const phase = this.stormPhase(level.ionStorm);
@@ -1695,7 +1793,9 @@ class Game {
                     if (window.SFX) SFX.bossCharge();
                     this.showHint('ion-storm', 'La tormenta va a descargar: ponte a cubierto BAJO una plataforma antes de que caiga, o corre al siguiente refugio.');
                 }
-                if (phase === 'strike' && this.playerInvulnerable === 0 && !this.playerSheltered()) {
+                const inStormZone = !level.ionStorm.zone
+                    || (this.player.x + this.player.w > level.ionStorm.zone[0] && this.player.x < level.ionStorm.zone[1]);
+                if (phase === 'strike' && this.playerInvulnerable === 0 && inStormZone && !this.playerSheltered()) {
                     this.player.takeDamage(this.hazardDamage(5));
                     this.playerInvulnerable = 45;
                     this.shake = Math.max(this.shake, 5);
@@ -1773,10 +1873,53 @@ class Game {
                 }
             }
 
+            // La finale del nivel 12: colapso de la Red → la nave espera → despegue → victoria.
+            if (this.finale) {
+                const fin = this.finale;
+                fin.t++;
+                if (fin.phase === 'collapse') {
+                    if (fin.t % 14 === 0) {
+                        const guardianColors = ['#ff5ecb', '#8b83c2', '#ffd23f', '#ff3366'];
+                        this.particles.burst(fin.x + (Math.random() - 0.5) * 44, fin.y + (Math.random() - 0.5) * 30,
+                            guardianColors[(fin.t / 14) % 4 | 0], 14, { speed: 2.4, life: 30, size: 3 });
+                        this.shake = Math.max(this.shake, 5);
+                        if (window.SFX) SFX.zap();
+                    }
+                    if (fin.t >= 150) {
+                        fin.phase = 'ship'; fin.t = 0;
+                        if (window.SFX) SFX.levelComplete();
+                    }
+                } else if (fin.phase === 'takeoff') {
+                    fin.shipLift = 0.002 * fin.t * fin.t; // despegue con aceleración
+                    if (fin.t % 2 === 0) this.particles.burst(level.goal + 8, 150 - fin.shipLift, PALETTE.accent3, 3, { speed: 1.5, life: 18, size: 2.5 });
+                    if (fin.t >= 200) { fin.phase = 'done'; this.finishGame(); return; }
+                }
+            }
+
             if (this.player.x >= level.goal && !this.levelCompleting) {
                 if (level.boss) {
                     const boss = this.enemies.find(e => e.isBoss);
                     if (boss && boss.alive) { this.player.x = level.goal - 5; this.player.vx = 0; return; }
+                }
+                // Nivel final: la meta es la NAVE, no una bandera — el flujo sale por la finale.
+                if (level.final) {
+                    if (this.finale && this.finale.phase === 'collapse') {
+                        // la Red aún se derrumba: mismo bloqueo que un jefe vivo
+                        this.player.x = level.goal - 5; this.player.vx = 0; return;
+                    }
+                    if (this.finale && this.finale.phase === 'ship') {
+                        // embarque: el jugador sube a bordo y la nave despega
+                        this.finale.phase = 'takeoff'; this.finale.t = 0;
+                        this.levelCompleting = true; // congela al piloto: va a bordo
+                        if (window.SFX) SFX.scrollStart();
+                        return;
+                    }
+                    if (this.finale) return; // despegue en marcha
+                    // sin finale (jefe eliminado sin duelo, p.ej. en tests): victoria directa
+                    this.levelCompleting = true;
+                    if (window.SFX) SFX.levelComplete();
+                    this.finishGame();
+                    return;
                 }
                 this.levelCompleting = true;
                 if (window.SFX) SFX.levelComplete();
@@ -1844,28 +1987,9 @@ class Game {
                 // La victoria la marca el nivel `final` (Nodo Cero), NO el último índice de
                 // LEVELS: el nivel Extra vive detrás en el array y no debe terminar el juego.
                 if (LEVELS[this.currentLevel].final) {
-                    this.levelCompleting = false; this.gameStarted = false;
-                    const finalTime = performance.now() - this.runStartTime;
-                    const isRecord = this.saveBestTime(finalTime);
-                    if (window.SFX) { SFX.music.stop(); SFX.victory(); }
-                    const sectors = this.worldMap.mainCount; // los 12 del recorrido — las torres Extra no cuentan en el marcador
-                    const shareText = `🏆 ASTRO LEAP completado: ${sectors}/${sectors} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal! ⏱️' : ''}. ¿Me bajas el tiempo? 🚀`;
-                    this.unlockedCharacters = new Set(['kes']);
-                    this.player = new Player(20, 100, 'kes');
-                    this.worldMap = new WorldMap();
-                    this.collectedPickups = new Set();
-                    this.signalCrystals = new Set();
-                    this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
-                    startScreen.innerHTML = this.buildMenuScreen({
-                        title: '¡MISIÓN CUMPLIDA!',
-                        subtitle: 'Derrotaste a Nodo Cero, reparaste la nave y escapaste del Sistema Ceniza.',
-                        resultHTML: `
-                            <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Completaste los ${sectors} sectores en ${formatTime(finalTime)}</p>
-                            ${this.buildShareHTML(shareText)}
-                        `
-                    });
-                    openMenuOverlay();
-                    this.inLevel = false; this.inWorldMap = false;
+                    // El nivel final nunca llega aquí por el flujo normal (sale por la finale
+                    // en el propio cruce de meta) — rama defensiva.
+                    this.finishGame();
                 } else {
                     // Guardado en this.levelCompleteTimeout para poder cancelarlo si el jugador
                     // recarga el nivel (R) o sale (ESC) durante los 1.8s de celebración — si no,
@@ -1890,6 +2014,7 @@ class Game {
             if (this.extraEnergyMessage > 0) this.extraEnergyMessage--;
             if (this.crystalMessage > 0) this.crystalMessage--;
             if (this.signalUnlockMessage > 0) this.signalUnlockMessage--;
+            if (this.wallMessage > 0) this.wallMessage--;
         }
     }
 
@@ -1960,7 +2085,7 @@ class Game {
         } else {
             for (const p of this.platforms) p.draw(ctx, this.cameraX);
             for (const beam of this.beams) beam.draw(ctx, this.cameraX);
-            if (this.goalFlag) this.goalFlag.draw(ctx, this.cameraX);
+            if (this.goalFlag && !this.finale) this.goalFlag.draw(ctx, this.cameraX); // en la finale, la meta es la nave
             for (const cap of this.capsules) cap.draw(ctx, this.cameraX);
             for (const cell of this.energyCells) cell.draw(ctx, this.cameraX);
             for (const cry of this.crystals) cry.draw(ctx, this.cameraX);
@@ -1969,7 +2094,9 @@ class Game {
             // Parpadeo de invulnerabilidad: con reduceEffects, en vez de destello on/off se dibuja
             // siempre pero semitransparente — se sigue notando que estás invulnerable sin el
             // destello rápido.
-            if (this.reduceEffects) {
+            const aboard = this.finale && (this.finale.phase === 'takeoff' || this.finale.phase === 'done'); // embarcado: viaja en la nave
+            if (aboard) { /* el piloto va a bordo */ }
+            else if (this.reduceEffects) {
                 if (this.playerInvulnerable > 0) { ctx.save(); ctx.globalAlpha = 0.55; this.player.draw(ctx, this.cameraX); ctx.restore(); }
                 else this.player.draw(ctx, this.cameraX);
             } else if (this.playerInvulnerable === 0 || Math.floor(this.playerInvulnerable / 8) % 2 === 0) {
@@ -1977,6 +2104,10 @@ class Game {
             }
 
             const level = LEVELS[this.currentLevel];
+            // ¿El muro está en marcha? (modo disparador o modo cuenta atrás) — y con la Red
+            // caída (finale), apagado.
+            const wallActive = level.forcedScroll && !this.finale
+                && (level.forcedScroll.triggerX ? this.wallStarted : this.forcedScrollDelay === 0);
 
             // Fantasma de ritmo del duelo: recorre el nivel a la velocidad exacta para llegar a
             // la meta EN el tiempo del rival (ignora el terreno — marca ritmo, no ruta). El
@@ -2046,22 +2177,27 @@ class Game {
                 // Con reduceEffects, un valor fijo en vez del pulso rojo oscilante junto al borde
                 // izquierdo de la pantalla (la luz que más se acerca a un parpadeo real del juego).
                 const pulse = this.reduceEffects ? 0.8 : (0.6 + Math.sin(Date.now() * 0.012) * 0.4);
-                // El resplandor rojo del muro solo cuando el muro existe: durante la cuenta
-                // atrás la cámara sigue al jugador y aún no hay nada persiguiendo.
-                if (this.forcedScrollDelay === 0) {
+                // El resplandor rojo del muro solo cuando el muro existe (cuenta atrás agotada,
+                // o disparador ya cruzado) — y nunca con la Red caída.
+                if (wallActive) {
                     const wallGrad = ctx.createLinearGradient(0, 0, 18, 0);
                     wallGrad.addColorStop(0, `rgba(255,70,70,${0.9 * pulse})`);
                     wallGrad.addColorStop(1, 'rgba(255,70,70,0)');
                     ctx.fillStyle = wallGrad;
                     ctx.fillRect(0, 20, 18, GAME_HEIGHT - 20);
-                }
-                if (this.forcedScrollDelay === 0) {
                     ctx.fillStyle = `rgba(255,100,100,${0.7 + pulse * 0.3})`;
                     ctx.font = 'bold 8px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
-                    ctx.fillText('⚠ NÚCLEO', 90, 28);
+                    ctx.fillText(`⚠ ${level.forcedScroll.label || 'NÚCLEO'}`, 90, 28);
                     ctx.textAlign = 'left';
                 }
-                if (this.forcedScrollDelay > 0) {
+                if (this.wallMessage > 0) {
+                    ctx.fillStyle = '#ff3366'; ctx.font = 'bold 14px "Orbitron", sans-serif'; ctx.textAlign = 'center';
+                    ctx.fillText('¡LA RED DESPIERTA!', GAME_WIDTH / 2, 70);
+                    ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
+                    ctx.fillText('¡CORRE!', GAME_WIDTH / 2, 86);
+                    ctx.textAlign = 'left';
+                }
+                if (!level.forcedScroll.triggerX && this.forcedScrollDelay > 0) {
                     ctx.fillStyle = PALETTE.accent2; ctx.font = 'bold 22px "Orbitron", sans-serif'; ctx.textAlign = 'center';
                     const secs = Math.ceil(this.forcedScrollDelay / 60);
                     ctx.fillText(secs > 0 ? String(secs) : '¡CORRE!', GAME_WIDTH / 2, GAME_HEIGHT / 2);
@@ -2120,16 +2256,42 @@ class Game {
                 }
             }
 
+            // La finale: colapso de la Red, la nave esperando en la meta, y el despegue.
+            if (this.finale) {
+                const fin = this.finale;
+                if (fin.phase !== 'collapse') {
+                    drawShip(ctx, level.goal + 8 - this.cameraX, 150 - (fin.shipLift || 0), fin.phase === 'takeoff', fin.t);
+                }
+                ctx.textAlign = 'center';
+                if (fin.phase === 'collapse') {
+                    if (!this.reduceEffects && fin.t % 28 < 4) {
+                        ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                    }
+                    ctx.fillStyle = '#ff3366'; ctx.font = 'bold 14px "Orbitron", sans-serif';
+                    ctx.fillText('¡LA RED SE DERRUMBA!', GAME_WIDTH / 2, 70);
+                } else if (fin.phase === 'ship') {
+                    ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 12px "Orbitron", sans-serif';
+                    ctx.fillText('¡A LA NAVE!', GAME_WIDTH / 2, 70);
+                } else if (fin.phase === 'takeoff' && fin.t > 120) {
+                    // fundido a blanco del despegue (también con reduceEffects: es un fundido, no un parpadeo)
+                    ctx.fillStyle = `rgba(255,255,255,${Math.min(1, (fin.t - 120) / 70)})`;
+                    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                }
+                ctx.textAlign = 'left';
+            }
+
             // Tormenta iónica: capa visual del ciclo (la lógica de daño vive en update()).
             // Aviso: tinte ámbar pulsante + cartel. Descarga: tinte violeta + rayos verticales
             // (visual puro: Math.random, no RNG). En ambas fases, un resplandor cian bajo cada
             // plataforma elevada señala dónde hay techo — la regla de refugio, dibujada.
             // Con reduceEffects: tintes fijos, sin pulso ni rayos (nada que parpadee).
-            if (level.ionStorm) {
+            if (level.ionStorm && !this.finale) {
                 const phase = this.stormPhase(level.ionStorm);
                 if (phase !== 'calm') {
                     for (const p of this.platforms) {
                         if (!p.solid || p.y >= 150) continue; // solo lo elevado da techo útil
+                        // con tormenta zonal, el resplandor de refugio solo dentro de su dominio
+                        if (level.ionStorm.zone && (p.x + p.w < level.ionStorm.zone[0] || p.x > level.ionStorm.zone[1])) continue;
                         const sx = p.x - this.cameraX;
                         if (sx > GAME_WIDTH || sx + p.w < 0) continue;
                         const shelterGrad = ctx.createLinearGradient(0, p.y + p.h, 0, p.y + p.h + 22);

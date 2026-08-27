@@ -361,32 +361,48 @@ const LEVELS = [
     },
     {
         name: 'Nodo Cero', world: 4, variant: 'metal',
+        // LA PRUEBA FINAL, en tres actos cortos y legibles (no "el nivel más difícil" a secas):
+        //   ACTO 1 · PRECISIÓN (0→470): piedras estrechas a alturas alternas, frágiles
+        //     encadenadas y una puerta — puro examen de salto, con huecos al límite del
+        //     estándar (≤26) pero nunca por encima.
+        //   ACTO 2 · LOS DOMINIOS ABSORBIDOS (470→980): la Red combina lo aprendido de cada
+        //     mundo (el eco mecánico de su lore): tormenta iónica ZONAL con refugios, cinta en
+        //     contra con puerta encima y un tramo de hielo.
+        //   ACTO 3 · LA HUIDA (980→arena): al cruzar x=980 la Red despierta — muro de energía
+        //     con disparador por posición (triggerX) persiguiéndote hasta la arena, donde el
+        //     tope de cámara lo deja PARADO en el borde: no hay vuelta atrás durante el duelo.
+        // El final no es cruzar una bandera: ganar el duelo derrumba la Red en pantalla y
+        // escapas EN LA NAVE (la finale scriptada vive en Game.startFinale/finishGame).
+        ionStorm: { calm: 240, warn: 60, strike: 110, zone: [470, 985] },
+        forcedScroll: { speed: 0.6, startDelay: 0, triggerX: 980, label: 'LA RED' },
         platforms: [
-            [0, 150, 80, 15], [150, 150, 55, 15], [255, 130, 45, 6, 'fragile'],
-            [350, 150, 55, 15], [440, 110, 45, 6], [530, 150, 55, 15],
-            [620, 125, 45, 6, 'fragile'], [710, 150, 55, 15],
-            // Antesala añadida al alargar el nivel: la arena de Nodo Cero se desplaza a la
-            // derecha y estos dos tramos rellenan el camino — el último es una cinta que
-            // arrastra hacia atrás, el peaje final antes del jefe.
-            [790, 150, 55, 15], [870, 150, 80, 15, 'beltL'], [980, 150, 320, 15],
-            // Camino bajo con salto simple (ver Grietas de Hielo) — hasta el nivel del jefe final
-            // absoluto debe poder cruzarse con cualquier piloto, Scrap incluido.
-            [105, 150, 20, 6], [230, 150, 20, 6], [328, 140, 20, 6],
-            // [478,150,28] tapa un agujero real del camino bajo (80 de hueco entre [430,150,20]
-            // y [530,150,55], con solo un flotante a subida de 40) — mismo bug de BFS que en
-            // Núcleo del Reactor; hasta el nivel del jefe final tenía a Scrap atascado aquí.
-            [430, 150, 20, 6], [478, 150, 28, 6], [610, 150, 20, 6], [693, 135, 20, 6]
+            // ACTO 1 — precisión: piedras w16 a alturas alternas y frágiles sobre el vacío.
+            [0, 150, 80, 15],
+            [104, 150, 16, 6], [144, 138, 16, 6], [186, 150, 16, 6], [228, 132, 16, 6], [270, 144, 16, 6],
+            [312, 132, 26, 6, 'fragile'], [360, 142, 26, 6, 'fragile'],
+            [408, 150, 62, 15],
+            // ACTO 2 — refugios de tormenta (isla+techo), techo-flotante de emergencia, cinta
+            // en contra con puerta encima (peaje triple con la tormenta) y tramo de hielo.
+            [494, 150, 70, 15], [500, 112, 58, 8],
+            [588, 150, 20, 6], [610, 118, 40, 6], [634, 150, 20, 6],
+            [678, 150, 80, 15, 'beltL'],
+            [782, 150, 64, 15], [788, 112, 52, 8],
+            [870, 150, 56, 15, 'ice'], [900, 115, 40, 6], [950, 150, 16, 6],
+            // ACTO 3 — el gauntlet de la huida y la arena final.
+            [980, 150, 70, 15], [1076, 150, 20, 6], [1122, 136, 24, 6, 'fragile'],
+            [1170, 150, 260, 15]
         ],
-        movingPlatforms: [[905, 100, 40, 6, 16, 0.02]],
-        // Doble puerta desfasada en la arena, el último control antes de Nodo Cero.
-        beams: [[1010, 110, 40, 0], [1075, 110, 40, 75]],
-        enemies: [[160, 138, 'magnetite'], [265, 118, 'ionwisp', 45], [360, 138, 'spiker'], [450, 98, 'hoverbot', 45], [540, 138, 'magnetite'], [630, 113, 'ionwisp', 50], [720, 138, 'spiker'], [805, 138, 'crawler'], [885, 138, 'magnetite'], [1130, 130, 'nodo_cero']],
-        // final: completar ESTE nivel termina el juego. Antes la victoria era "el último índice
-        // de LEVELS", pero con el nivel Extra detrás eso habría movido el final de la historia.
-        // Cristales de Señal: la frágil del arranque (con espectro rondando), la frágil del
-        // medio y el punto alto de la móvil de la arena final.
-        crystals: [[270, 112], [635, 107], [925, 74]],
-        goal: 1260, boss: 'nodo_cero', final: true
+        movingPlatforms: [[1330, 95, 40, 6, 16, 0.02]],
+        beams: [[436, 110, 40, 0], [716, 110, 40, 75], [1210, 110, 40, 0], [1258, 110, 40, 75]],
+        // Acto 1 casi sin fauna (el examen es el salto); el 2 con los esbirros de todos los
+        // mundos — dos magnetitas okupan los propios refugios: cobijarse tiene peaje.
+        enemies: [[430, 138, 'spiker', 12], [530, 138, 'magnetite'], [620, 105, 'ionwisp', 40], [710, 138, 'hoverbot', 35], [800, 138, 'magnetite'], [885, 139, 'crawler'], [1005, 138, 'spiker', 15], [1195, 138, 'magnetite'], [1235, 120, 'ionwisp', 35], [1290, 130, 'nodo_cero']],
+        // Cristales de Señal: acto 1 (sobre la piedra alta), acto 2 (sobre el techo-flotante)
+        // y la móvil de la arena.
+        crystals: [[230, 114], [620, 100], [1345, 61]],
+        // final: completar ESTE nivel termina el juego (ver Game.finishGame — con la Red viva
+        // no se cruza, y con la Red caída la meta es la nave, no la bandera).
+        goal: 1370, boss: 'nodo_cero', final: true
     },
 
     // ===== NIVEL EXTRA (sin nodo en el mapa todavía — se entra con ?level=13) =====

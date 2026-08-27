@@ -401,3 +401,18 @@ Dos arreglos que arrastró:
 - **El "Tu turno. Elige acción:" deja de ser un `setTimeout` de reloj real** y pasa a frames de combate (`promptTimer`, cancelado si actúas antes): el temporizador viejo pisaba el mensaje de tu acción si jugabas rápido — un bug latente que el acelerador habría convertido en la norma.
 
 La pista «≫ mantén pulsado para acelerar» solo se dibuja mientras hay pausa de mensaje que acelerar. Medido en un duelo real corto: la pelea entera tarda la mitad (las pausas van a 4×; los frames de acción no se pueden comprimir).
+
+
+### 2.29 Nodo Cero: la prueba final en tres actos, y el final en pantalla
+
+El nivel 12 era «el más difícil» genérico — misma estructura que cualquier otro, con más de todo. La revisión lo convierte en el EXAMEN del juego, con tres actos cortos y legibles y un final scriptado. Dos extensiones mínimas de motor lo hacen posible reutilizando lo ya construido:
+
+- **`forcedScroll.triggerX` (+ `label`)**: el muro del Túnel, pero dormido hasta que el jugador cruza una x — sin cuenta atrás, con cartel propio («¡LA RED DESPIERTA!») y arrancando desde la cámara. El acto 3 es la huida; el tope de cámara existente deja el muro PARADO en el borde de la arena: no hay vuelta atrás durante el duelo, gratis.
+- **`ionStorm.zone`**: la tormenta del N5 acotada al acto 2 — la descarga solo muerde dentro de su dominio (el cielo entero se tiñe igual: la ves venir desde el acto 1, pero es SU territorio el peligroso).
+
+Los tres actos responden al encargo «claramente diferente, no simplemente más difícil»: el 1 examina el salto (piedras w16 y frágiles encadenadas, huecos al límite del estándar ≤26 pero jamás por encima), el 2 examina TODAS las mecánicas del juego a la vez (tormenta+cinta+puerta+hielo — el eco mecánico del lore del jefe, que absorbió a los tres guardianes), y el 3 examina el temple (el muro detrás, sin marcha atrás).
+
+**La finale** (`startFinale`/`finishGame` en game.js): ganar el duelo no te deja simplemente cruzar la bandera —
+1. **Colapso** (~2,5s): ráfagas de partículas con los colores de los 4 guardianes desde el jefe, los esbirros caen en cascada, y TODOS los peligros se apagan (muro parado, tormenta muda, puertas dormidas y congeladas) — la calma súbita tras la caída cuenta la historia sin una línea de diálogo. La meta retiene mientras tanto, como un jefe vivo.
+2. **La nave**: en la meta aparece el cohete (drawShip — la promesa de TODO el lore: reparar la nave y escapar, por fin en pantalla) en lugar de la bandera.
+3. **Despegue** (~3,3s): el piloto embarca (deja de dibujarse), la nave acelera hacia arriba con estela, fundido a blanco... y la pantalla de victoria. `finishGame` queda extraído del cruce de meta para que la animación pueda dispararlo — y como ruta defensiva, cruzar la meta final sin finale (tests que matan al jefe a mano) sigue dando victoria directa.
