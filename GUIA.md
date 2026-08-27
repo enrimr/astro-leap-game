@@ -291,7 +291,7 @@ La torre difícil de verdad: el mismo serpentín de tres pisos que la Torre de V
 
 ## 7. Reto Diario
 
-El mismo desafío para todo el mundo cada día: nivel (rota entre los sectores 1–2), piloto (entre los 4) y dificultad, deterministas según la fecha, con el azar del combate sembrado. Arrancas siempre con un piloto nuevo a Lv1 — tu progreso real no se toca.
+El mismo desafío para todo el mundo cada día: nivel (rota entre los sectores 1–2) y dificultad, deterministas según la fecha, con el azar del combate sembrado. El piloto es **siempre Kes** — el punto de comparación más limpio: así los tiempos de días distintos también son comparables entre sí. Arrancas siempre a Lv1 — tu progreso real no se toca.
 
 | Dificultad | HP y ATQ de los enemigos |
 |---|---|

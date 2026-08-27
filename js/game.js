@@ -123,12 +123,12 @@ function todayDateString() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-// El piloto de hoy: determinista a partir de la fecha, rota entre los 4. Todos comparten las
-// mismas stats de combate (solo cambian traversal + nombre de Habilidad), así que forzar
-// cualquiera de los 4 es igual de justo para cualquier visitante, tenga o no progreso guardado.
+// El piloto del reto: SIEMPRE Kes. Antes rotaba entre los 4 por fecha, pero Kes es el punto de
+// comparación más limpio — el piloto de arranque, la habilidad más neutra (doble salto), y los
+// tiempos de días distintos siguen siendo comparables entre sí sin el factor "hoy tocó Bolt".
+// Se mantiene la firma con fecha para no tocar a quien la llama (menú, duelos, fantasmas).
 function dailyHeroFor(dateStr) {
-    const seed = hashStringToSeed(dateStr + ':hero');
-    return HERO_ORDER[Math.abs(seed) % HERO_ORDER.length];
+    return 'kes';
 }
 // El nivel de hoy: determinista, rota SOLO entre los del Mundo 1 sin jefe (Cráter de Amerizaje,
 // Grietas de Hielo) — es la única zona diseñada para completarse con un personaje recién creado,
@@ -468,7 +468,7 @@ class Game {
         const todayDifficulty = dailyDifficultyFor(today).label;
         const dailyNote = playedToday
             ? `Hoy: ${formatTime(this.dailyRecord.time)} con ${HEROES[this.dailyRecord.hero].name} (${todayLevelName})`
-            : `Hoy: ${todayLevelName} · dificultad ${todayDifficulty} · piloto sorpresa`;
+            : `Hoy: ${todayLevelName} · dificultad ${todayDifficulty} · piloto Kes`;
         return `
             <div class="menu-header">
                 <div class="menu-header-art">${MENU_HEADER_ART_SVG}</div>

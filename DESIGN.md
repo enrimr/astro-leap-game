@@ -278,6 +278,8 @@ Pensado como el gancho de "vuelve mañana" del juego, al estilo Wordle: mismo de
 
 **Por qué no hay marcador global**: comparar tiempos hoy en día depende de que dos personas se manden el resultado (compartir con `buildShareHTML()`, texto con fecha+piloto+tiempo). Un marcador de verdad entre desconocidos necesitaría un servidor — el proyecto entero es HTML/CSS/JS estático sin build ni backend (ver README), y añadir eso cambia esa naturaleza. Ver el punto pendiente en la lista de mejoras.
 
+**Cambio posterior (agosto 2026): el piloto del reto es SIEMPRE Kes.** La rotación entre los 4 era justa (comparten stats) pero ensuciaba la comparación entre días — «hoy hice peor tiempo... porque tocó Bolt» — y Kes es el punto neutro: piloto de arranque y doble salto estándar. `dailyHeroFor(fecha)` conserva su firma y devuelve `'kes'`.
+
 ### 2.17 Anti-farmeo de XP al reentrar a un nivel
 
 Rejugar un nivel ya *completado* siempre dio media XP (§1.2 B), pero había un agujero: salir de un nivel a medias con ESC y reentrar regeneraba a todos los enemigos con XP completa — farmeable infinito, y encima `exitLevel()` rellena HP/Energía gratis al volver al mapa. Ahora cada enemigo derrotado (pisotón o duelo) se apunta en `Game.collectedPickups` con la clave `xp-<nivel>-<índice>` — el mismo Set, la misma protección y el mismo ciclo de vida (se reinicia en Game Over completo o victoria) que cápsulas, células y refuerzos. Al recargar el nivel (por salir, o por perder una vida) el enemigo reaparece, pero con la mitad de XP: la misma regla "se puede repetir, pero rinde la mitad" que ya regía para los niveles completados, sin prohibir nada.
