@@ -298,11 +298,12 @@ Se puede reintentar sin límite; queda tu mejor tiempo del día, con botón de c
 
 ### Duelos a distancia ⚔️
 
-Al completar un reto, el botón **«Retar a un amigo con este tiempo»** comparte una URL con un token (`?duelo=...`) que codifica **la fecha del reto, tu tiempo y tu nombre** (se pide una vez, opcional). Quien la abra verá un botón de duelo en el menú y jugará **exactamente el mismo desafío** — el reto es determinista por fecha, así que el enlace reproduce ese nivel, piloto, dificultad y azar aunque se abra días después — contra tu **fantasma de ritmo**: una silueta translúcida de tu piloto que recorre el nivel al ritmo exacto para llegar a la meta en tu tiempo, con un delta en el HUD (`−1.2s` verde / `+2.3s` rojo) según vaya la carrera.
+Al completar un reto, el botón **«Retar a un amigo con este tiempo»** comparte una URL con un token (`?duelo=...`) que codifica **la fecha del reto, tu tiempo, tu nombre** (se pide una vez, opcional) **y tu ruta grabada**. Quien la abra verá un botón de duelo en el menú y jugará **exactamente el mismo desafío** — el reto es determinista por fecha, así que el enlace reproduce ese nivel, piloto, dificultad y azar aunque se abra días después — contra tu **fantasma**: una silueta translúcida de tu piloto que **reproduce tu recorrido real** (posición muestreada cada 12 frames): tus saltos, tus caídas, tus muertes... y **tus pausas de combate**, clavado donde te quedaste tú, con una estela que delata por dónde vino y un delta en el HUD (`−1.2s` verde / `+2.3s` rojo) según vaya la carrera.
 
 - Al terminar: veredicto (**¡DUELO GANADO!** / **DUELO PERDIDO** y por cuántos segundos) y botón de **revancha** con tu nuevo tiempo.
 - Un duelo de otra fecha **no toca tu mejor tiempo de hoy**; si el duelo es del día de hoy, sí cuenta.
-- El fantasma marca el ritmo, no la ruta (ignora el terreno) — y no consume el azar sembrado: la comparación es justa.
+- El fantasma es un replay de posiciones, no una re-simulación — no consume el azar sembrado: la comparación es justa. Los enlaces antiguos (sin ruta) siguen valiendo: su fantasma marca el ritmo lineal.
+- La ruta viaja comprimida (cuantizada a 4px, ≤600 puntos): una partida de minuto y medio cabe en ~1.200 caracteres de URL.
 - El token lleva checksum: un enlace truncado o manipulado se ignora en silencio. Si pierdes, el duelo se puede reintentar desde el menú sin recargar.
 
 ## 8. Reglas de la sesión (vidas y farmeo)

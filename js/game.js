@@ -169,8 +169,44 @@ function dailyDifficultyFor(dateStr) {
 function sanitizeDuelName(name) {
     return String(name || '').replace(/[^0-9A-Za-zÀ-öø-ÿÑñ _-]/g, '').trim().slice(0, 14);
 }
-function encodeDuelToken(dateStr, timeMs, name = '') {
-    const payload = `v1|${dateStr}|${Math.round(timeMs)}|${sanitizeDuelName(name)}`;
+// Ruta del fantasma (v2): posiciones (x,y) muestreadas cada 12 frames durante el reto,
+// submuestreadas a ≤600 puntos y empaquetadas a 2 bytes por punto — x/4 en 9 bits (niveles de
+// hasta 2047px) e y/4 en 6. Formato "<strideFrames>:<base64url>". La cuantización de 4px es
+// invisible en un fantasma translúcido y deja el token en ~1.2K caracteres para una partida de
+// minuto y medio. Grabar POSICIONES y no inputs es deliberado: reproducirlas no exige
+// re-simular nada (ni duplicar el RNG global sembrado), y las pausas de combate del retador
+// quedan registradas tal cual — su fantasma se queda clavado donde se quedó él.
+function encodeDuelRoute(samples) {
+    const pairs = Math.floor(samples.length / 2);
+    if (pairs < 2) return '';
+    const k = Math.max(1, Math.ceil(pairs / 600)); // submuestreo adaptativo: partidas largas, stride mayor
+    let bin = '';
+    for (let i = 0; i < pairs; i += k) {
+        const x4 = Math.max(0, Math.min(511, Math.round(samples[2 * i] / 4)));
+        const y4 = Math.max(0, Math.min(63, Math.round(samples[2 * i + 1] / 4)));
+        bin += String.fromCharCode(x4 & 0xFF, ((x4 >> 8) & 1) | (y4 << 1));
+    }
+    return (12 * k) + ':' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function decodeDuelRoute(str) {
+    try {
+        const sep = String(str).indexOf(':');
+        if (sep < 1) return null;
+        const stride = parseInt(str.slice(0, sep), 10);
+        if (!Number.isFinite(stride) || stride < 6 || stride > 600) return null;
+        const bin = atob(str.slice(sep + 1).replace(/-/g, '+').replace(/_/g, '/'));
+        const points = [];
+        for (let i = 0; i + 1 < bin.length; i += 2) {
+            const b0 = bin.charCodeAt(i), b1 = bin.charCodeAt(i + 1);
+            points.push({ x: (((b1 & 1) << 8) | b0) * 4, y: (b1 >> 1) * 4 });
+        }
+        return points.length >= 2 ? { stride, points } : null;
+    } catch (e) { return null; }
+}
+function encodeDuelToken(dateStr, timeMs, name = '', route = '') {
+    const payload = route
+        ? `v2|${dateStr}|${Math.round(timeMs)}|${sanitizeDuelName(name)}|${route}`
+        : `v1|${dateStr}|${Math.round(timeMs)}|${sanitizeDuelName(name)}`;
     const b64 = btoa(unescape(encodeURIComponent(payload))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const check = (hashStringToSeed(payload) >>> 0).toString(36);
     return `${b64}.${check}`;
@@ -181,12 +217,14 @@ function decodeDuelToken(token) {
         if (!b64 || !check) return null;
         const payload = decodeURIComponent(escape(atob(b64.replace(/-/g, '+').replace(/_/g, '/'))));
         if (((hashStringToSeed(payload) >>> 0).toString(36)) !== check) return null;
-        const [v, date, timeRaw, name] = payload.split('|');
-        if (v !== 'v1' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+        const [v, date, timeRaw, name, routeRaw] = payload.split('|');
+        // v1 (sin ruta, los enlaces ya compartidos) y v2 (con ruta) conviven: la ruta es un
+        // extra — si falta o llega ilegible, el duelo cae al fantasma de ritmo de siempre.
+        if ((v !== 'v1' && v !== 'v2') || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
         const time = parseInt(timeRaw, 10);
         // 5s–30min: fuera de ese rango, o el token llegó roto o alguien está trolleando
         if (!Number.isFinite(time) || time < 5000 || time > 30 * 60000) return null;
-        return { date, time, name: sanitizeDuelName(name) };
+        return { date, time, name: sanitizeDuelName(name), route: (v === 'v2' && routeRaw) ? decodeDuelRoute(routeRaw) : null };
     } catch (e) { return null; }
 }
 
@@ -399,7 +437,7 @@ class Game {
             <div class="menu-panel" id="menuMain">
                 ${this.pendingDuel ? `
                 <button class="menu-btn daily-btn" data-action="duel">⚔️ DUELO: ganar a ${this.pendingDuel.name || 'tu rival'} — ${formatTime(this.pendingDuel.time)}</button>
-                <p class="daily-note">Reto del ${this.pendingDuel.date}: ${LEVELS[dailyLevelFor(this.pendingDuel.date)].name} · dificultad ${dailyDifficultyFor(this.pendingDuel.date).label} · piloto ${HEROES[dailyHeroFor(this.pendingDuel.date)].name}</p>` : ''}
+                <p class="daily-note">Reto del ${this.pendingDuel.date}: ${LEVELS[dailyLevelFor(this.pendingDuel.date)].name} · dificultad ${dailyDifficultyFor(this.pendingDuel.date).label} · piloto ${HEROES[dailyHeroFor(this.pendingDuel.date)].name} · ${this.pendingDuel.route ? 'fantasma con ruta real' : 'fantasma de ritmo'}</p>` : ''}
                 <button class="menu-btn" data-action="play">${hasSave ? 'CONTINUAR PARTIDA' : 'JUGAR'}</button>
                 ${hasSave ? '<button class="menu-btn" data-action="newgame">NUEVA PARTIDA</button>' : ''}
                 <button class="menu-btn daily-btn" data-action="daily">RETO DIARIO${playedToday ? ' ✓' : ''}</button>
@@ -484,7 +522,11 @@ class Game {
                 if (name) localStorage.setItem('astroLeapDuelName', name);
             } catch (e) { /* prompt bloqueado o sin almacenamiento: duelo anónimo */ }
         }
-        const url = `${location.origin}${location.pathname}?duelo=${encodeDuelToken(dateStr, timeMs, name)}`;
+        // La ruta grabada viaja en el token SOLO si el botón corresponde al último run
+        // completado (misma fecha y mismo tiempo) — si no, duelo v1 sin ruta.
+        const run = this.lastDuelRun;
+        const route = (run && run.date === dateStr && Math.round(run.time) === Math.round(timeMs)) ? run.route : '';
+        const url = `${location.origin}${location.pathname}?duelo=${encodeDuelToken(dateStr, timeMs, name, route)}`;
         const text = `⚔️ Te reto en ASTRO LEAP: el Reto Diario del ${dateStr} en ${formatTime(timeMs)}. Mi fantasma te espera — ¿me ganas?`;
         if (navigator.share) {
             navigator.share({ title: 'Astro Leap — Duelo', text, url }).catch(() => { /* cancelado: no pasa nada */ });
@@ -552,10 +594,13 @@ class Game {
         RNG = mulberry32(hashStringToSeed(dateStr));
         this.dailyMode = true; this.dailyDate = dateStr; this.dailyHero = hero;
         this.dailyLevelIdx = levelIdx; this.dailyDifficulty = difficulty;
-        // Duelo: rival + su fantasma de ritmo (una instancia de Player SOLO para dibujar — no
-        // consume RNG ni toca físicas: la comparación de tiempos sigue siendo justa).
-        this.duelRival = duel ? { time: duel.time, name: duel.name || 'RIVAL' } : null;
+        // Duelo: rival + su fantasma (una instancia de Player SOLO para dibujar — no consume
+        // RNG ni toca físicas: la comparación de tiempos sigue siendo justa). Si el token trae
+        // ruta grabada (v2), el fantasma la reproduce; si no, marca el ritmo lineal.
+        this.duelRival = duel ? { time: duel.time, name: duel.name || 'RIVAL', route: duel.route || null } : null;
         this.duelGhost = duel ? new Player(20, 137, hero) : null;
+        // Caja negra: TODO reto graba su ruta (ver update()), por si al acabar quieres retar.
+        this.duelRec = []; this.duelRecFrame = 0; this.lastDuelRun = null;
 
         this.player = new Player(20, 100, hero);
         this.unlockedCharacters = new Set([hero]);
@@ -1455,6 +1500,14 @@ class Game {
     update() {
         if (!this.gameStarted) return;
         this.runElapsed = performance.now() - this.runStartTime; // reloj real, corre incluso en menús/pantallas de pausa
+        // Caja negra del Reto Diario: muestrea la posición cada 12 frames para el fantasma de
+        // los duelos. ANTES de los early-returns a propósito: durante un combate (o un aviso)
+        // la posición no cambia pero se sigue grabando — la pausa del retador queda registrada
+        // tal cual, que es la gracia. Tope de 3000 puntos (10 min).
+        if (this.dailyMode && this.duelRec && this.duelRec.length < 6000) {
+            this.duelRecFrame++;
+            if (this.duelRecFrame % 12 === 0) this.duelRec.push(this.player.x, this.player.y);
+        }
         if (this.unlockScreen) {
             if (this.shake > 0) this.shake *= 0.85; // por si acaso, aunque no se dibuje con temblor aquí
             if (this.keys.Space || this.keys.Enter) { this.dismissUnlockScreen(); this.keys.Space = false; this.keys.Enter = false; }
@@ -1737,6 +1790,8 @@ class Game {
                     // diario — el fantasma de un amigo no debe pisar tu mejor tiempo de hoy.
                     const isToday = this.dailyDate === todayDateString();
                     const isRecord = isToday ? this.saveDailyRecord(this.dailyDate, finalTime, this.dailyHero) : false;
+                    // La ruta grabada de ESTE run, lista para el botón de retar/revancha.
+                    this.lastDuelRun = { date: this.dailyDate, time: finalTime, route: encodeDuelRoute(this.duelRec || []) };
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
                     const heroName = HEROES[this.dailyHero].name;
                     const levelName = LEVELS[this.dailyLevelIdx].name;
@@ -1927,11 +1982,45 @@ class Game {
             // la meta EN el tiempo del rival (ignora el terreno — marca ritmo, no ruta). El
             // delta bajo el cronómetro compara tu posición con el tiempo al que él pasó por ahí.
             if (this.dailyMode && this.duelRival && this.duelGhost) {
-                const progress = Math.min(1, this.runElapsed / this.duelRival.time);
-                this.duelGhost.x = 20 + progress * (level.goal - 20);
-                this.duelGhost.y = 137;
-                this.duelGhost.facing = 1;
+                const route = this.duelRival.route;
+                let trailAt = -1;
+                if (route) {
+                    // Ruta REAL grabada por el retador: interpola entre muestras (la simulación
+                    // corre a 60Hz fijos, así que tiempo↔frames están amarrados). Se ven sus
+                    // saltos, sus caídas... y sus pausas de combate, clavado donde se quedó él.
+                    const idx = this.runElapsed / (route.stride * STEP_MS);
+                    const i0 = Math.max(0, Math.min(route.points.length - 1, Math.floor(idx)));
+                    const i1 = Math.min(route.points.length - 1, i0 + 1);
+                    const t = Math.max(0, Math.min(1, idx - i0));
+                    const p0 = route.points[i0], p1 = route.points[i1];
+                    this.duelGhost.x = p0.x + (p1.x - p0.x) * t;
+                    this.duelGhost.y = p0.y + (p1.y - p0.y) * t;
+                    this.duelGhost.facing = p1.x >= p0.x ? 1 : -1;
+                    trailAt = i0;
+                } else {
+                    // Token v1 (sin ruta): fantasma de ritmo — avance lineal que pisa la meta
+                    // exactamente en su tiempo.
+                    const progress = Math.min(1, this.runElapsed / this.duelRival.time);
+                    this.duelGhost.x = 20 + progress * (level.goal - 20);
+                    this.duelGhost.y = 137;
+                    this.duelGhost.facing = 1;
+                }
                 this.duelGhost.animT += 0.35; // camina siempre, incansable
+                // Estela: el tramo recién recorrido de la ruta, desvaneciéndose tras el fantasma.
+                if (trailAt > 0) {
+                    ctx.save();
+                    ctx.strokeStyle = PALETTE.accent2; ctx.lineWidth = 1;
+                    const trailStart = Math.max(0, trailAt - 10);
+                    for (let j = trailStart; j < trailAt; j++) {
+                        const a = route.points[j], b = route.points[j + 1];
+                        ctx.globalAlpha = 0.06 + 0.24 * ((j - trailStart) / 10);
+                        ctx.beginPath();
+                        ctx.moveTo(a.x - this.cameraX + 4, a.y + 7);
+                        ctx.lineTo(b.x - this.cameraX + 4, b.y + 7);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
                 ctx.save();
                 ctx.globalAlpha = 0.35;
                 this.duelGhost.draw(ctx, this.cameraX);
@@ -1940,7 +2029,7 @@ class Game {
                 if (gx > -40 && gx < GAME_WIDTH + 40) {
                     ctx.save();
                     ctx.globalAlpha = 0.75; ctx.fillStyle = PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
-                    ctx.fillText(this.duelRival.name, gx + 4, 130);
+                    ctx.fillText(this.duelRival.name, gx + 4, this.duelGhost.y - 4);
                     ctx.textAlign = 'left';
                     ctx.restore();
                 }

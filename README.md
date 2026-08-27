@@ -92,7 +92,7 @@ El jugador arranca con HP 22 · EN 10 · ATQ 5 · DEF 2 y 3 vidas (`♥` en el H
 
 Botón propio en el menú, al estilo Wordle: **el mismo desafío para todo el mundo cada día** — nivel (rota entre los sectores 1-2), piloto (entre los 4) y dificultad, deterministas según la fecha, con el azar del combate sembrado para que comparar tiempos signifique algo. No toca tu partida guardada en ningún caso. Se guarda tu mejor tiempo de hoy y hay botón de compartir al terminar.
 
-**Duelos a distancia ⚔️**: al terminar, «Retar a un amigo» comparte una URL con tu fecha+tiempo+nombre; quien la abra jugará exactamente ese reto contra tu **fantasma de ritmo** (una silueta que llega a la meta en tu tiempo), con veredicto y botón de revancha al acabar.
+**Duelos a distancia ⚔️**: al terminar, «Retar a un amigo» comparte una URL con tu fecha+tiempo+nombre **y tu ruta grabada**; quien la abra jugará exactamente ese reto contra tu **fantasma**, que reproduce tu recorrido real — saltos, caídas y pausas de combate incluidas — con veredicto y botón de revancha al acabar.
 
 | Dificultad | Multiplicador de HP/ATQ enemigo |
 |---|---|
