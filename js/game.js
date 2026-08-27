@@ -164,6 +164,10 @@ function dailyDifficultyFor(dateStr) {
 // 'https://s.enri.me') cuando esté desplegado y las URLs de duelo se compartirán acortadas.
 // Vacío = apagado. Es un Game field (this.urlShortener) para poder probarlo en tests.
 const URL_SHORTENER = '';
+// Métricas de uso (mismo servicio que el acortador): base del colector, '' = apagado.
+// Contadores agregados sin nada personal — ver POST /api/metrics en el repo link-shortener.
+const METRICS_URL = '';
+const METRICS_SITE = 'astroleap';
 
 // ---- Duelo a distancia: reta a un amigo con tu tiempo del Reto Diario. El token viaja en la
 // URL (?duelo=...) y codifica versión|fecha|tiempo|nombre; quien lo abre juega EXACTAMENTE el
@@ -346,6 +350,7 @@ class Game {
         this.dailyRecord = this.loadDailyRecord();
         this.pendingDuel = null; // {date, time, name} decodificado de ?duelo= — el menú ofrece el duelo
         this.urlShortener = URL_SHORTENER; // base del acortador propio ('' = compartir la URL larga)
+        this.metricsBase = METRICS_URL; // base del colector de métricas ('' = apagado)
         this.duelRival = null; this.duelGhost = null; // rival y su fantasma durante un duelo en marcha
         this.loadProgress();
         this.setupInput();
@@ -593,6 +598,19 @@ class Game {
             fallbackCopy();
         }
     }
+    // Baliza de métricas: un contador agregado (sitio+evento), sin nada personal. sendBeacon
+    // porque es fire-and-forget y sobrevive al cierre de la pestaña; fetch keepalive de
+    // respaldo. TODO tragado en try/catch: las métricas jamás pueden romper el juego.
+    track(event) {
+        if (!this.metricsBase) return;
+        try {
+            const url = `${this.metricsBase.replace(/\/$/, '')}/api/metrics`;
+            const payload = JSON.stringify({ site: METRICS_SITE, event });
+            if (navigator.sendBeacon) navigator.sendBeacon(url, payload);
+            else if (typeof fetch === 'function') fetch(url, { method: 'POST', body: payload, keepalive: true }).catch(() => {});
+        } catch (e) { /* nunca es culpa del jugador */ }
+    }
+
     // Acorta la URL con el acortador propio, si está configurado. Cosmética, jamás dependencia:
     // cualquier fallo (apagado, sin red, timeout de 2.5s, respuesta rara) devuelve la URL larga.
     async shortenUrl(longUrl) {
@@ -659,6 +677,7 @@ class Game {
     // decide nivel/piloto/dificultad/semilla, se abra el enlace el día que se abra.
     startDailyChallenge(duel = null) {
         if (this.gameStarted) return;
+        this.track(duel ? 'duelo' : 'reto');
         this._realPlayer = this.player;
         this._realWorldMap = this.worldMap;
         this._realUnlocked = this.unlockedCharacters;
@@ -806,6 +825,7 @@ class Game {
 
     startGame() {
         if (this.gameStarted) return;
+        this.track('partida');
         if (window.SFX) { SFX.unlock(); SFX.boot(); SFX.music.playExplore(); }
         this.gameStarted = true;
         this.runStartTime = performance.now(); this.runElapsed = 0;
@@ -1338,6 +1358,7 @@ class Game {
     // del nivel 12 (despegue de la nave) pueda dispararlo al terminar su animación — y para la
     // ruta defensiva de cruzar la meta final sin finale (p.ej. tests que matan al jefe a mano).
     finishGame() {
+        this.track('victoria');
         this.levelCompleting = false; this.gameStarted = false;
         const finalTime = performance.now() - this.runStartTime;
         const isRecord = this.saveBestTime(finalTime);
@@ -1379,6 +1400,7 @@ class Game {
     }
 
     fullGameOver() {
+        this.track('gameover');
         if (window.SFX) { SFX.music.stop(); SFX.gameOver(); }
         this.gameStarted = false;
         // Captura el nivel/tiempo ANTES de resetear currentLevel (lo hace loadLevel(0) más abajo).
@@ -1967,6 +1989,7 @@ class Game {
                 // Reto Diario: termina aquí, ANTES de tocar worldMap.completeLevel()/saveProgress()
                 // — nunca debe escribir nada en el progreso guardado real (ver restoreAfterDaily()).
                 if (this.dailyMode) {
+                    this.track('reto_ok');
                     this.levelCompleting = false; this.gameStarted = false;
                     const finalTime = performance.now() - this.runStartTime;
                     // Un duelo puede ser de OTRA fecha: solo el reto de HOY toca tu registro
@@ -2474,6 +2497,7 @@ if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => wind
 //   y que el mejor tiempo se resetea de un día a otro sin tener que esperar días de verdad.
 // Combinables: ?level=1&char=scrap&unlock=all para entrar al nivel 1 pilotando a Scrap, por ejemplo.
 (function setupDebugMode() {
+    game.track('visita'); // la página cargó y el juego arrancó: una visita
     const params = new URLSearchParams(location.search);
     // ?duelo=TOKEN -> duelo a distancia: el menú ofrece jugar el reto de la fecha del token
     // contra el fantasma del rival. Token inválido (corrupto/troll) → se ignora en silencio.

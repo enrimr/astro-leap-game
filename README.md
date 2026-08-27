@@ -165,6 +165,10 @@ ffmpeg -i gameplay-bolt.webm -vf scale=1280:-2 -c:v libx264 -pix_fmt yuv420p -cr
 
 El bot lee el estado real del juego (plataformas, enemigos, combate) y juega: salta huecos con la física de verdad, pisotea enemigos, usa la habilidad aérea de cada piloto y gana duelos dejando el menú de acciones en pantalla el tiempo suficiente para leerse.
 
+## Métricas (opcional)
+
+El juego puede mandar **contadores agregados** (visitas, partidas, retos, duelos, victorias) al backend propio del repo `link-shortener` — sin cookies, sin IPs, sin identificadores: solo `(evento, día, total)`. Apagado por defecto: se activa rellenando `METRICS_URL` en `js/game.js` cuando el servicio esté desplegado.
+
 ## Progreso guardado
 
 El progreso (nivel del jugador, stats, sectores, pilotos desbloqueados) se guarda en `localStorage` al completar cada sector, y se limpia al terminar el juego o en un Game Over completo.

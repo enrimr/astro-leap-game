@@ -1364,6 +1364,54 @@ describe('Regresión: el salto de Bolt (contra js/entities.js real)', () => {
     });
 });
 
+describe('Métricas de uso — balizas opcionales sin datos personales (contra el código real)', () => {
+    test('apagadas (por defecto): ni una llamada', () => {
+        const { game, window } = loadGame();
+        let beacons = 0;
+        window.navigator.sendBeacon = () => { beacons++; return true; };
+        expect(game.metricsBase).toBe('');
+        game.track('visita');
+        game.startGame();
+        expect(beacons).toBe(0);
+    });
+
+    test('encendidas: cada evento manda su baliza con sitio y evento, y nada más', () => {
+        const { game, window } = loadGame();
+        game.metricsBase = 'https://s.enri.me/';
+        const sent = [];
+        window.navigator.sendBeacon = (url, body) => { sent.push({ url, body: JSON.parse(body) }); return true; };
+        game.track('visita');
+        game.startGame();          // → partida
+        expect(sent.length).toBe(2);
+        expect(sent[0].url).toBe('https://s.enri.me/api/metrics'); // la barra final se normaliza
+        expect(sent[0].body).toEqual({ site: 'astroleap', event: 'visita' });
+        expect(sent[1].body).toEqual({ site: 'astroleap', event: 'partida' });
+        expect(Object.keys(sent[0].body).sort()).toEqual(['event', 'site']); // sin nada personal: solo sitio y evento
+    });
+
+    test('el reto y el duelo emiten eventos distintos; sin sendBeacon cae a fetch keepalive', () => {
+        const { game, window, todayDateString, encodeDuelToken, decodeDuelToken } = loadGame();
+        game.metricsBase = 'https://s.enri.me';
+        const sent = [];
+        delete window.navigator.sendBeacon; // navegador viejo: fallback
+        window.fetch = (url, opts) => { sent.push(JSON.parse(opts.body).event); return Promise.resolve({ ok: true }); };
+        game.startDailyChallenge();
+        game.exitLevel();
+        game.startDailyChallenge(decodeDuelToken(encodeDuelToken(todayDateString(), 60000, 'Rival')));
+        expect(sent).toEqual(['reto', 'duelo']);
+    });
+
+    test('un colector caído no rompe nada: track nunca lanza', () => {
+        const { game, window } = loadGame();
+        game.metricsBase = 'https://s.enri.me';
+        window.navigator.sendBeacon = () => { throw new Error('bloqueado'); };
+        expect(() => game.track('visita')).not.toThrow();
+        delete window.navigator.sendBeacon;
+        window.fetch = () => Promise.reject(new Error('sin red'));
+        expect(() => game.track('visita')).not.toThrow();
+    });
+});
+
 describe('Acortador de URLs de duelo — opcional y con degradación (contra el código real)', () => {
     test('apagado (por defecto): devuelve la URL larga sin llamar a nada', async () => {
         const { game, window } = loadGame();
