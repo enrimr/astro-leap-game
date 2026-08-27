@@ -392,6 +392,7 @@ El Reto Diario comparaba tiempos por texto («¿lo superas?»); el duelo lo conv
 - **El duelo de otra fecha no pisa tu récord de hoy**: `saveDailyRecord` solo se llama si `dailyDate === hoy` — el registro diario es "tu mejor tiempo DE HOY", no un cajón de duelos.
 - El nombre del token se sanea a `[letras/números/espacio/_-]` y 14 caracteres ANTES de codificar y también al decodificar: entra en `innerHTML` del menú y en texto de canvas, así que jamás debe llegar un `<` vivo. Token inválido → se ignora en silencio (menú normal, sin error).
 - La revancha es el mismo botón de retar con tu tiempo recién hecho: el bucle social se cierra solo — reto → duelo → revancha → duelo...
+- **Acortador opcional** (`URL_SHORTENER`/`this.urlShortener` + `shortenUrl()`): las URLs con ruta rondan 1.2K caracteres — feas de compartir. Los acortadores gratuitos no sirven desde el navegador (sin CORS) y son frágiles, así que el acortado usa un backend propio (repo `link-shortener`: POST /api/shorten + 301, con lista blanca de dominios de destino). Cosmética, jamás dependencia: timeout de 2.5s y cualquier fallo comparte la URL larga; una respuesta corrupta/maliciosa (shortUrl que no sea http) tampoco cuela. Si share() pierde el gesto por la espera (Safari), se cae a copiar al portapapeles.
 
 ### 2.28 Acelerador de turnos: pulsar decide, mantener acelera
 

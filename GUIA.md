@@ -309,7 +309,7 @@ Al completar un reto, el botón **«Retar a un amigo con este tiempo»** compart
 - Al terminar: veredicto (**¡DUELO GANADO!** / **DUELO PERDIDO** y por cuántos segundos) y botón de **revancha** con tu nuevo tiempo.
 - Un duelo de otra fecha **no toca tu mejor tiempo de hoy**; si el duelo es del día de hoy, sí cuenta.
 - El fantasma es un replay de posiciones, no una re-simulación — no consume el azar sembrado: la comparación es justa. Los enlaces antiguos (sin ruta) siguen valiendo: su fantasma marca el ritmo lineal.
-- La ruta viaja comprimida (cuantizada a 4px, ≤600 puntos): una partida de minuto y medio cabe en ~1.200 caracteres de URL.
+- La ruta viaja comprimida (cuantizada a 4px, ≤600 puntos): una partida de minuto y medio cabe en ~1.200 caracteres de URL. Si el acortador propio está configurado (repo `link-shortener`), el enlace compartido es corto (`s.enri.me/Xk3mP2a`); si el servicio no responde, se comparte la URL larga sin más.
 - El token lleva checksum: un enlace truncado o manipulado se ignora en silencio. Si pierdes, el duelo se puede reintentar desde el menú sin recargar.
 
 ## 8. Reglas de la sesión (vidas y farmeo)

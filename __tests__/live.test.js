@@ -1364,6 +1364,40 @@ describe('Regresión: el salto de Bolt (contra js/entities.js real)', () => {
     });
 });
 
+describe('Acortador de URLs de duelo — opcional y con degradación (contra el código real)', () => {
+    test('apagado (por defecto): devuelve la URL larga sin llamar a nada', async () => {
+        const { game, window } = loadGame();
+        let called = false;
+        window.fetch = () => { called = true; return Promise.resolve({ ok: true }); };
+        expect(game.urlShortener).toBe('');
+        expect(await game.shortenUrl('https://x.test/?duelo=abc')).toBe('https://x.test/?duelo=abc');
+        expect(called).toBe(false);
+    });
+
+    test('encendido y con respuesta válida: usa la URL corta', async () => {
+        const { game, window } = loadGame();
+        game.urlShortener = 'https://s.enri.me';
+        window.fetch = (url, opts) => {
+            expect(url).toBe('https://s.enri.me/api/shorten');
+            expect(JSON.parse(opts.body).url).toBe('https://x.test/?duelo=abc');
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ code: 'Xk3mP2a', shortUrl: 'https://s.enri.me/Xk3mP2a' }) });
+        };
+        expect(await game.shortenUrl('https://x.test/?duelo=abc')).toBe('https://s.enri.me/Xk3mP2a');
+    });
+
+    test('cualquier fallo cae a la URL larga: error de red, HTTP no-ok y respuesta rara', async () => {
+        const { game, window } = loadGame();
+        game.urlShortener = 'https://s.enri.me';
+        const LONG = 'https://x.test/?duelo=abc';
+        window.fetch = () => Promise.reject(new Error('sin red'));
+        expect(await game.shortenUrl(LONG)).toBe(LONG);
+        window.fetch = () => Promise.resolve({ ok: false });
+        expect(await game.shortenUrl(LONG)).toBe(LONG);
+        window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ shortUrl: 'javascript:alert(1)' }) });
+        expect(await game.shortenUrl(LONG)).toBe(LONG); // una respuesta maliciosa/corrupta no cuela
+    });
+});
+
 describe('Fantasma con ruta real — grabación y reproducción (contra el código real)', () => {
     test('encodeDuelRoute/decodeDuelRoute: ida y vuelta con cuantización de 4px y flag de combate', () => {
         const { encodeDuelRoute, decodeDuelRoute } = loadGame();

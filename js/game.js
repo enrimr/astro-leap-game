@@ -160,6 +160,11 @@ function dailyDifficultyFor(dateStr) {
     return DAILY_DIFFICULTIES[Math.abs(seed) % DAILY_DIFFICULTIES.length];
 }
 
+// Acortador de enlaces propio (repo link-shortener): pon aquí su URL base (p.ej.
+// 'https://s.enri.me') cuando esté desplegado y las URLs de duelo se compartirán acortadas.
+// Vacío = apagado. Es un Game field (this.urlShortener) para poder probarlo en tests.
+const URL_SHORTENER = '';
+
 // ---- Duelo a distancia: reta a un amigo con tu tiempo del Reto Diario. El token viaja en la
 // URL (?duelo=...) y codifica versión|fecha|tiempo|nombre; quien lo abre juega EXACTAMENTE el
 // mismo desafío (el reto ya es determinista por fecha: nivel, piloto, dificultad y azar
@@ -340,6 +345,7 @@ class Game {
         this.dailyMode = false; // true durante un intento del Reto Diario — ver startDailyChallenge()
         this.dailyRecord = this.loadDailyRecord();
         this.pendingDuel = null; // {date, time, name} decodificado de ?duelo= — el menú ofrece el duelo
+        this.urlShortener = URL_SHORTENER; // base del acortador propio ('' = compartir la URL larga)
         this.duelRival = null; this.duelGhost = null; // rival y su fantasma durante un duelo en marcha
         this.loadProgress();
         this.setupInput();
@@ -556,7 +562,7 @@ class Game {
     }
     // Comparte una URL de duelo con TU tiempo como fantasma a batir. El nombre se pide una vez
     // (prompt, opcional) y se recuerda — es lo que verá el rival en su menú y sobre el fantasma.
-    shareDuelChallenge(dateStr, timeMs) {
+    async shareDuelChallenge(dateStr, timeMs) {
         let name = '';
         try { name = localStorage.getItem('astroLeapDuelName') || ''; } catch (e) { /* noop */ }
         if (!name) {
@@ -569,14 +575,43 @@ class Game {
         // completado (misma fecha y mismo tiempo) — si no, duelo v1 sin ruta.
         const run = this.lastDuelRun;
         const route = (run && run.date === dateStr && Math.round(run.time) === Math.round(timeMs)) ? run.route : '';
-        const url = `${location.origin}${location.pathname}?duelo=${encodeDuelToken(dateStr, timeMs, name, route)}`;
+        const longUrl = `${location.origin}${location.pathname}?duelo=${encodeDuelToken(dateStr, timeMs, name, route)}`;
+        const url = await this.shortenUrl(longUrl);
         const text = `⚔️ Te reto en ASTRO LEAP: el Reto Diario del ${dateStr} en ${formatTime(timeMs)}. Mi fantasma te espera — ¿me ganas?`;
+        const fallbackCopy = () => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(`${text} ${url}`).then(() => window.alert('Enlace del duelo copiado — pégaselo a tu rival.')).catch(() => window.prompt('Copia el enlace del duelo:', url));
+            } else {
+                window.prompt('Copia el enlace del duelo:', url);
+            }
+        };
         if (navigator.share) {
-            navigator.share({ title: 'Astro Leap — Duelo', text, url }).catch(() => { /* cancelado: no pasa nada */ });
-        } else if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(`${text} ${url}`).then(() => window.alert('Enlace del duelo copiado — pégaselo a tu rival.')).catch(() => window.prompt('Copia el enlace del duelo:', url));
+            // Si share() falla por gesto caducado (el acortador tardó y Safari es estricto),
+            // caemos a copiar; si el usuario canceló a propósito (AbortError), no insistimos.
+            navigator.share({ title: 'Astro Leap — Duelo', text, url }).catch(e => { if (!e || e.name !== 'AbortError') fallbackCopy(); });
         } else {
-            window.prompt('Copia el enlace del duelo:', url);
+            fallbackCopy();
+        }
+    }
+    // Acorta la URL con el acortador propio, si está configurado. Cosmética, jamás dependencia:
+    // cualquier fallo (apagado, sin red, timeout de 2.5s, respuesta rara) devuelve la URL larga.
+    async shortenUrl(longUrl) {
+        if (!this.urlShortener || typeof fetch !== 'function') return longUrl;
+        try {
+            const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+            const timer = ctrl ? setTimeout(() => ctrl.abort(), 2500) : null;
+            const res = await fetch(`${this.urlShortener.replace(/\/$/, '')}/api/shorten`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: longUrl }),
+                signal: ctrl ? ctrl.signal : undefined
+            });
+            if (timer) clearTimeout(timer);
+            if (!res.ok) return longUrl;
+            const data = await res.json();
+            return (data && typeof data.shortUrl === 'string' && /^https?:\/\//.test(data.shortUrl)) ? data.shortUrl : longUrl;
+        } catch (e) {
+            return longUrl;
         }
     }
     // Botón nativo de compartir (X, Facebook, WhatsApp, Instagram... lo que tenga instalado el
