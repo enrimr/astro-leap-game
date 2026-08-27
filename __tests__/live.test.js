@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -1246,7 +1246,7 @@ describe('Duelo a distancia — retos por URL con fantasma de ritmo (contra js/g
     test('el token codifica y decodifica fecha, tiempo y nombre (saneado)', () => {
         const { encodeDuelToken, decodeDuelToken } = loadGame();
         const token = encodeDuelToken('2026-08-24', 83450, 'Enrique');
-        expect(decodeDuelToken(token)).toEqual({ date: '2026-08-24', time: 83450, name: 'Enrique' });
+        expect(decodeDuelToken(token)).toEqual({ date: '2026-08-24', time: 83450, name: 'Enrique', route: null });
         // sin nombre, y con nombre malicioso (HTML fuera, tope de 14)
         expect(decodeDuelToken(encodeDuelToken('2026-08-24', 60000)).name).toBe('');
         const evil = decodeDuelToken(encodeDuelToken('2026-08-24', 60000, '<img src=x onerror=1>MuyLargoDeVerdad'));
@@ -1277,7 +1277,7 @@ describe('Duelo a distancia — retos por URL con fantasma de ritmo (contra js/g
         expect(game.dailyDate).toBe(duelDate);
         expect(game.currentLevel).toBe(dailyLevelFor(duelDate));       // el nivel de ESA fecha
         expect(game.player.character).toBe(dailyHeroFor(duelDate));    // y su piloto
-        expect(game.duelRival).toEqual({ time: 83450, name: 'Rival' });
+        expect(game.duelRival).toEqual({ time: 83450, name: 'Rival', route: null });
         expect(game.duelGhost).not.toBeNull();
         expect(window.localStorage.getItem('astroLeapSave_v1')).toBe(savedBefore);
     });
@@ -1329,6 +1329,136 @@ describe('Duelo a distancia — retos por URL con fantasma de ritmo (contra js/g
         expect(html).toContain('data-action="duel"');
         expect(html).toContain('Rival');
         expect(html).toContain('Reto del 2026-08-24');
+    });
+});
+
+describe('Regresión: el salto de Bolt (contra js/entities.js real)', () => {
+    test('un toque de salto da el impulso completo — el vuelo no pisa el despegue', () => {
+        const { Player, Platform } = loadGame();
+        const floor = new Platform(0, 150, 400, 15);
+        const bolt = new Player(20, 137, 'bolt');
+        bolt.onGround = true;
+        const particles = { burst() {} };
+        // toque de un frame (con Energía llena, que era cuando fallaba)
+        bolt.update({ Space: true }, [floor], particles);
+        expect(bolt.vy).toBeCloseTo(-4.3 + 0.32, 5); // impulso completo + un frame de gravedad
+        let minFeet = 150;
+        for (let f = 0; f < 40; f++) {
+            bolt.update({}, [floor], particles);
+            minFeet = Math.min(minFeet, bolt.y + bolt.h);
+        }
+        expect(150 - minFeet).toBeGreaterThan(20); // el salto sube de verdad (~27), no ~1px
+    });
+
+    test('mantener pulsado tras despegar sigue siendo su vuelo lento de siempre', () => {
+        const { Player, Platform } = loadGame();
+        const floor = new Platform(0, 150, 400, 15);
+        const bolt = new Player(20, 137, 'bolt');
+        bolt.onGround = true;
+        const particles = { burst() {} };
+        bolt.update({ Space: true }, [floor], particles);   // despegue con impulso completo
+        for (let f = 0; f < 30; f++) bolt.update({ Space: true }, [floor], particles); // y de ahí, vuelo
+        expect(bolt.vy).toBeCloseTo(-1.1 + 0.32, 5); // ascenso sostenido del vuelo
+        expect(bolt.energy).toBeLessThan(10);        // pagando Energía por tiempo, como siempre
+        expect(bolt.y + bolt.h).toBeLessThan(125);   // y de verdad ha ganado altura (asciende ~0.78/frame)
+    });
+});
+
+describe('Fantasma con ruta real — grabación y reproducción (contra el código real)', () => {
+    test('encodeDuelRoute/decodeDuelRoute: ida y vuelta con cuantización de 4px', () => {
+        const { encodeDuelRoute, decodeDuelRoute } = loadGame();
+        const samples = []; // trayectoria con salto: x avanza, y hace un arco
+        for (let i = 0; i < 50; i++) samples.push(20 + i * 15, 137 - Math.round(Math.sin(i / 8) * 25));
+        const route = decodeDuelRoute(encodeDuelRoute(samples));
+        expect(route).not.toBeNull();
+        expect(route.stride).toBe(12);
+        expect(route.points.length).toBe(50);
+        route.points.forEach((p, i) => {
+            expect(Math.abs(p.x - samples[2 * i])).toBeLessThanOrEqual(2);
+            expect(Math.abs(p.y - samples[2 * i + 1])).toBeLessThanOrEqual(2);
+        });
+        // rutas rotas → null
+        expect(decodeDuelRoute('')).toBeNull();
+        expect(decodeDuelRoute('nada')).toBeNull();
+        expect(decodeDuelRoute('9999:AAAA')).toBeNull(); // stride absurdo
+    });
+
+    test('una partida larga se submuestrea a ≤600 puntos con el stride multiplicado', () => {
+        const { encodeDuelRoute, decodeDuelRoute } = loadGame();
+        const samples = [];
+        for (let i = 0; i < 1500; i++) samples.push(i, 137); // 1500 pares = 5 min de reto
+        const route = decodeDuelRoute(encodeDuelRoute(samples));
+        expect(route.points.length).toBeLessThanOrEqual(600);
+        expect(route.stride).toBe(36); // 12 × 3
+    });
+
+    test('el token v2 lleva la ruta y el v1 (enlaces antiguos) sigue decodificando sin ella', () => {
+        const { encodeDuelToken, decodeDuelToken, encodeDuelRoute } = loadGame();
+        const samples = [];
+        for (let i = 0; i < 40; i++) samples.push(20 + i * 20, 137);
+        const routeStr = encodeDuelRoute(samples);
+        const v2 = decodeDuelToken(encodeDuelToken('2026-08-24', 83450, 'Rival', routeStr));
+        expect(v2.route).not.toBeNull();
+        expect(v2.route.points.length).toBe(40);
+        const v1 = decodeDuelToken(encodeDuelToken('2026-08-24', 83450, 'Rival'));
+        expect(v1.route).toBeNull();
+    });
+
+    test('presupuesto de URL: una partida de ~90s cabe en un token de menos de 2000 caracteres', () => {
+        const { encodeDuelToken, encodeDuelRoute } = loadGame();
+        const samples = [];
+        for (let i = 0; i < 450; i++) samples.push(Math.min(1300, i * 3), 100 + (i % 40)); // 450 muestras = 90s
+        const token = encodeDuelToken('2026-08-24', 90000, 'Enrique', encodeDuelRoute(samples));
+        expect(token.length).toBeLessThan(2000);
+    });
+
+    test('todo Reto Diario graba la ruta: una muestra cada 12 frames, también durante un combate', () => {
+        const { game, CombatSystem, Enemy } = loadGame();
+        game.startDailyChallenge();
+        game.enemies.forEach(e => { e.x = -2500; e.initialX = -2500; });
+        game.hintsSeen.add('ice-slide');
+        for (let f = 0; f < 48; f++) { if (game.hintScreen) game.dismissHintScreen(); game.update(); }
+        const afterLevel = game.duelRec.length;
+        expect(afterLevel).toBeGreaterThanOrEqual(6); // ~4 muestras × 2 coordenadas
+        // en combate, la posición se congela pero la grabación sigue (la pausa queda registrada)
+        game.combat = new CombatSystem(game.player, new Enemy(0, 0, 'drone'));
+        const frozenX = game.player.x;
+        for (let f = 0; f < 48; f++) game.update();
+        expect(game.duelRec.length).toBeGreaterThan(afterLevel);
+        const tail = game.duelRec.slice(afterLevel);
+        for (let i = 0; i < tail.length; i += 2) expect(tail[i]).toBe(frozenX);
+        game.combat = null;
+        game.exitLevel(); // limpieza: restaura la partida real
+    });
+
+    test('al completar, lastDuelRun guarda la ruta y el botón de retar la adjunta solo para ESE run', () => {
+        const { game, LEVELS, decodeDuelToken, encodeDuelToken } = loadGame();
+        game.startDailyChallenge();
+        game.enemies.forEach(e => { e.x = -2500; e.initialX = -2500; });
+        game.hintsSeen.add('ice-slide');
+        for (let f = 0; f < 60; f++) { if (game.hintScreen) game.dismissHintScreen(); game.update(); }
+        game.player.x = LEVELS[game.dailyLevelIdx].goal;
+        game.update(); // completa
+        expect(game.lastDuelRun).not.toBeNull();
+        expect(game.lastDuelRun.route).toMatch(/^\d+:/);
+        // el token del run correcto lleva la ruta; el de otro tiempo, no
+        const withRoute = decodeDuelToken(encodeDuelToken(game.lastDuelRun.date, Math.max(5000, game.lastDuelRun.time), '', game.lastDuelRun.route));
+        expect(withRoute.route).not.toBeNull();
+    });
+
+    test('el fantasma reproduce la ruta interpolada, con los saltos del retador', () => {
+        const { game, encodeDuelRoute, decodeDuelToken, encodeDuelToken, todayDateString } = loadGame();
+        // ruta sintética con un salto claro en medio
+        const samples = [];
+        for (let i = 0; i < 60; i++) samples.push(20 + i * 10, i >= 20 && i <= 26 ? 110 : 137);
+        const duel = decodeDuelToken(encodeDuelToken(todayDateString(), 12000, 'Rival', encodeDuelRoute(samples)));
+        game.startDailyChallenge(duel);
+        expect(game.duelRival.route).not.toBeNull();
+        // reproducción manual del mismo cálculo que draw(): a mitad del salto del retador
+        const route = game.duelRival.route;
+        const idx = 23; // muestra en pleno salto
+        expect(route.points[idx].y).toBeLessThan(120); // el fantasma estará EN EL AIRE ahí
+        expect(route.points[10].y).toBeGreaterThan(130); // y en el suelo antes
     });
 });
 

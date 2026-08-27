@@ -257,7 +257,10 @@ class Player {
         }
         // Bolt no gasta su habilidad en un solo toque: mientras se mantenga pulsado salto en
         // el aire, asciende despacio consumiendo Energía por tiempo, no de golpe.
-        if (this.character === 'bolt' && !this.onGround && jumpKey && this.energy > 0) {
+        // !jumpPressed: en el frame del DESPEGUE no debe entrar el vuelo — sin esta guarda, el
+        // vy=-1.1 del vuelo pisaba el impulso del salto (-4.3) en ese mismo frame y el salto de
+        // Bolt con un toque medía ~1px (solo saltaba de verdad con la Energía a cero).
+        if (this.character === 'bolt' && !this.onGround && jumpKey && !jumpPressed && this.energy > 0) {
             // Velocidad fija de ascenso: se fija cada frame (no se acumula), así que la gravedad
             // de más abajo solo la frena un poco en vez de cancelarla — asciende de verdad.
             this.vy = -1.1;
