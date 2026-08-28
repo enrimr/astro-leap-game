@@ -1290,6 +1290,12 @@ class Game {
     // y la música de combate entran YA, con el primer destello — como en Pokémon, el audio
     // anuncia el combate antes de que se vea la pantalla de duelo.
     startCombatTransition(enemy) {
+        // Parar EN SECO la trayectoria: el duelo congela la partida pero vy/vx sobrevivían
+        // al combate, y al cerrarlo el salto retomaba su arco con toda la caída acumulada —
+        // aterrizar era una lotería. Así, al salir del duelo caes recto y predecible desde
+        // el punto del encuentro. Incluye la inercia de hielo y el dash de Shade.
+        this.player.vx = 0; this.player.vy = 0;
+        this.player.iceMomentum = false; this.player.dashTimer = 0;
         this.combatTransition = {
             t: 0, enemy,
             x: enemy.x - this.cameraX + enemy.w / 2,

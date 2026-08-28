@@ -1483,6 +1483,19 @@ describe('Pisotones con carácter — el Erizo pincha y la Magnetita repele (con
         expect(game.combatTransition).not.toBeNull();
     });
 
+    test('entrar en combate corta en seco la trayectoria: al salir del duelo caes recto, sin arco heredado', () => {
+        const { game, enemy } = setupStomp('spiker');
+        // contacto lateral en plena caída y con inercia de hielo arrastrada: el peor caso
+        game.player.y = enemy.y; game.player.vy = 3;
+        game.player.vx = 2.4; game.player.iceMomentum = true;
+        game.update();
+        expect(game.combatTransition).not.toBeNull();
+        expect(game.player.vy).toBe(0);
+        expect(game.player.vx).toBe(0);
+        expect(game.player.iceMomentum).toBe(false);
+        expect(game.player.dashTimer).toBe(0);
+    });
+
     test('la puerta de energía quita un 20% de la vida máxima, sin diluirse con la defensa', () => {
         const { game } = loadGame();
         game.gameStarted = true;

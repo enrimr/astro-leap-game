@@ -77,6 +77,8 @@ El daño que recibes sin defender es `ATQ enemigo × (0.8–1.2) − tu DEF` (m�
 
 **El pisotón**: si caes sobre la mitad superior de un enemigo (`vy > 0`) **y tu nivel supera al suyo**, muere al instante — XP completa, +2 EN, sin duelo, y rebotas hacia arriba. Es la forma rápida de limpiar niveles. Si no te da el nivel (o el contacto es lateral), transición de encuentro y duelo. Dos enemigos rompen la regla: el **Erizo de Púas** no se pisa NUNCA (te pincha un 10% de tu vida máxima y te rebota — solo cae en duelo) y la **Magnetita** sí muere, pero su campo te **repele en diagonal** al descargarse (ver Bestiario).
 
+**El encuentro corta tu impulso**: si el contacto te pilla en pleno salto (o deslizándote con carrerilla), la trayectoria se para en seco — al terminar el duelo caes recto desde el punto del encuentro, sin arrastrar la velocidad que llevabas.
+
 ## 4. Bestiario
 
 | Enemigo | Nv | HP | ATQ | DEF | XP | Comportamiento | Pisoteable desde |

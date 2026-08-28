@@ -62,6 +62,7 @@ Este ciclo es la columna vertebral: **explorar → decidir si arriesgas un salto
 - Colisión AABB jugador↔enemigo. Dos resultados posibles, decididos en el momento del contacto:
   1. **Pisotón** (`player.vy > 0` y el jugador golpea la mitad superior del enemigo) + `enemy.level < player.level` → el enemigo muere al instante, XP directa, sin abrir el menú de combate. Recompensa la habilidad de plataformas. Dos excepciones por identidad de enemigo (ver §2.32): el Erizo de Púas pincha en vez de morir, y la Magnetita muere pero repele en diagonal.
   2. Cualquier otro contacto → se abre el **combate por turnos**.
+- El contacto **corta en seco la trayectoria** (vy/vx a cero, inercia de hielo y dash incluidos): el duelo congela la partida, pero sin esto la velocidad sobrevivía al combate y el salto retomaba su arco con toda la caída acumulada — aterrizar tras un duelo iniciado en el aire era una lotería. Al cerrar el duelo caes recto desde el punto del encuentro.
 - Tras huir de un combate, el jugador es invulnerable ~3 segundos para no quedar atrapado en un bucle de reencuentro inmediato.
 
 **D. Combate por turnos**
