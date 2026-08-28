@@ -60,7 +60,7 @@ Este ciclo es la columna vertebral: **explorar → decidir si arriesgas un salto
 
 **C. Trigger de encuentro**
 - Colisión AABB jugador↔enemigo. Dos resultados posibles, decididos en el momento del contacto:
-  1. **Pisotón** (`player.vy > 0` y el jugador golpea la mitad superior del enemigo) + `enemy.level < player.level` → el enemigo muere al instante, XP directa, sin abrir el menú de combate. Recompensa la habilidad de plataformas.
+  1. **Pisotón** (`player.vy > 0` y el jugador golpea la mitad superior del enemigo) + `enemy.level < player.level` → el enemigo muere al instante, XP directa, sin abrir el menú de combate. Recompensa la habilidad de plataformas. Dos excepciones por identidad de enemigo (ver §2.32): el Erizo de Púas pincha en vez de morir, y la Magnetita muere pero repele en diagonal.
   2. Cualquier otro contacto → se abre el **combate por turnos**.
 - Tras huir de un combate, el jugador es invulnerable ~3 segundos para no quedar atrapado en un bucle de reencuentro inmediato.
 
@@ -438,3 +438,13 @@ Los cuatro finales con botón de compartir contaban historias distintas en panta
 - **Duelo**: el mismo formato del reto **más el veredicto** (`⚔️ Duelo ganado a X por N.Ns` / `perdido contra… — quiero la revancha` / `empate exacto`) — antes ganar o perder un duelo compartía el texto genérico del reto, como si el duelo no hubiera pasado.
 
 Todos comparten el formato multilínea (los saltos sobreviven a `navigator.share` y a los enlaces de respaldo vía `%0A`). Tests fijan que la victoria no contiene el reto de tiempos, que el game over nombra el sector y que el veredicto del duelo aparece solo cuando hubo rival.
+
+### 2.32 Pisotones con carácter: el Erizo pincha, la Magnetita repele — y la puerta ahora duele
+
+El pisotón era la respuesta universal a todo enemigo con nivel inferior: rentable, seguro e idéntico seis veces. Dos enemigos rompen ahora la regla desde su propia identidad, y con ellos el reflejo de «caigo encima y listo» pasa a ser una lectura por tipo — el patrón Spiny de Mario: el primer enemigo que castiga tu movimiento favorito te obliga a mirar antes de saltar.
+
+- **Erizo de Púas — no se pisa NUNCA** (ni con nivel de sobra): las púas hacen un 10% de la vida máxima, rebote y tregua de invulnerabilidad, sin abrir duelo. Sigue cayendo en duelo por los lados, así que su XP no se pierde — solo su atajo. Ya saltaba cada ~2s «para hacer difícil el pisotón»; esto lleva esa identidad hasta el final.
+- **Magnetita — muere pisada, pero repele**: su campo se descarga en un empujón **diagonal con rumbo aleatorio** (`RNG()` sembrado: en el Reto Diario el empujón es igual para todos). El arco monta sobre la inercia del hielo (`vx` + `iceMomentum`): decae suave y pulsar la dirección contraria devuelve el control — física ya testeada, cero mecanismos nuevos. Riesgo/recompensa: la XP es tuya, el aterrizaje es tu problema.
+- **Puerta de energía — del daño simbólico al peaje real**: hacía base 4 que `takeDamage` pasaba por la defensa — a media partida quitaba 1 y cruzarla a pelo era gratis. Ahora quita un **20% de la vida máxima sin pasar por la defensa** (el Erizo usa la misma idea con su 10%): un porcentaje pega igual a nivel 1 que a nivel 10, así que la decisión esperar/saltar/pagar no caduca con la progresión. Aislante lo deja en 10% — el nodo gana valor de paso.
+
+Regla que sale de aquí: los daños de contacto «ambientales» (púas, puertas) son **porcentuales sobre la vida máxima e ignoran defensa**; los duelos siguen siendo el territorio de ATQ/DEF. Tormenta, barrido y muro quedan con su daño plano de momento — si la defensa alta los vuelve triviales, ya hay patrón al que migrarlos.

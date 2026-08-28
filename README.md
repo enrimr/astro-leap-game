@@ -28,7 +28,7 @@ Hay clips en vídeo de la habilidad de cada piloto, grabados por un bot que jueg
 
 La Energía es un recurso **único** que alimenta tanto la habilidad aérea en plataformas como la Habilidad en combate (daño ×1.5, cuesta 3). No se regenera con el tiempo — solo derrotando enemigos (+2 por derrota, sea pisotón o duelo) o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo.
 
-Y cada enemigo es una elección de riesgo: **si le caes encima desde arriba y tu nivel supera al suyo, muere al instante** (pisotón, XP directa, sin menú). Cualquier otro contacto abre el duelo por turnos: Atacar, Habilidad, Defender (mitad de daño ese turno) o Huir (50%).
+Y cada enemigo es una elección de riesgo: **si le caes encima desde arriba y tu nivel supera al suyo, muere al instante** (pisotón, XP directa, sin menú). Cualquier otro contacto abre el duelo por turnos: Atacar, Habilidad, Defender (mitad de daño ese turno) o Huir (50%). Dos excepciones con carácter: el **Erizo de Púas** no se pisa (pincha) y la **Magnetita** muere pisada pero **te repele en diagonal**.
 
 ## Los 4 pilotos
 
@@ -68,9 +68,9 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 |---|---|---|---|---|---|
 | Dron | 1 | 7 | 3 | 5 | Patrulla |
 | Reptante | 2 | 11 | 4 | 8 | Patrulla más rápido |
-| Erizo de Púas | 3 | 15 | 6 | 12 | Salta |
+| Erizo de Púas | 3 | 15 | 6 | 12 | Salta · **no pisable: pincha** |
 | Hoverbot | 4 | 16 | 6 | 14 | Vuela |
-| Magnetita | 5 | 22 | 8 | 18 | Tanque |
+| Magnetita | 5 | 22 | 8 | 18 | Tanque · **repele al pisarla** |
 | Espectro Iónico | 6 | 20 | 9 | 22 | Vuela, rápido |
 | **Reina Larva** | 8 | 55 | 12 | 60 | Jefe · se regenera |
 | **Centinela** | 12 | 90 | 17 | 120 | Jefe · carga + golpe doble |

@@ -1797,15 +1797,46 @@ class Game {
                 if (!enemy.alive) continue;
                 enemy.update(this.platforms);
                 if (this.player.collides(enemy) && this.playerInvulnerable === 0) {
-                    if (this.player.collidesFromAbove(enemy) && enemy.level < this.player.level) {
+                    const fromAbove = this.player.collidesFromAbove(enemy);
+                    if (fromAbove && enemy.type === 'spiker') {
+                        // Las púas del Erizo castigan el reflejo del pisotón tenga el nivel que
+                        // tenga el jugador: 10% de la vida MÁXIMA sin pasar por la defensa (un
+                        // porcentaje no debe diluirse subiendo de nivel) y rebote con tregua.
+                        // Al duelo se le entra por los lados.
+                        this.player.hp -= Math.max(1, Math.ceil(this.player.maxHp * 0.1));
+                        this.player.checkEmergency();
+                        this.playerInvulnerable = 45;
+                        this.player.vy = -3;
+                        this.shake = Math.max(this.shake, 4);
+                        if (window.SFX) SFX.zap();
+                        this.particles.burst(this.player.x + this.player.w / 2, this.player.y + this.player.h, enemy.color, 8, { speed: 1.6, life: 16, size: 2 });
+                        this.showHint('spiker-prick', 'Las púas del Erizo no se pisan: pinchan y quitan vida. Para vencerlo, éntrale por un lado y gana el duelo.');
+                        if (this.player.hp <= 0) { this.loseLife(); return; }
+                    } else if (fromAbove && enemy.level < this.player.level) {
                         enemy.alive = false; enemy.defeated = true;
                         const leveled = this.player.gainXP(enemy.xpReward);
                         this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + this.energyPerKill());
                         if (enemy.xpKey) this.collectedPickups.add(enemy.xpKey);
                         // El cartel de subida de nivel solo si de verdad subiste — antes se
                         // mostraba en CADA pisotón, hubiera nivel o no.
-                        this.player.vy = -3; this.levelUpMessage = leveled ? 80 : 0;
+                        this.levelUpMessage = leveled ? 80 : 0;
                         if (leveled) this.showHint('skill-point', 'Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o tecla T.');
+                        if (enemy.type === 'magnetite') {
+                            // El campo de la Magnetita muere con ella pero te REPELE: arco en
+                            // diagonal con rumbo aleatorio, montado sobre la inercia del hielo —
+                            // decae suave y pulsar la dirección contraria devuelve el control,
+                            // como cualquier derrape. RNG sembrado: en el Reto Diario el empujón
+                            // es el mismo para todo el mundo.
+                            const dir = RNG() < 0.5 ? -1 : 1;
+                            this.player.vx = dir * 2.4;
+                            this.player.vy = -3.5;
+                            this.player.iceMomentum = true;
+                            this.player.onGround = false;
+                            this.shake = Math.max(this.shake, 4);
+                            this.showHint('magnet-repel', 'El campo de la Magnetita se descarga al pisarla: te repele en diagonal. El empujón se corrige pulsando la dirección contraria.');
+                        } else {
+                            this.player.vy = -3;
+                        }
                         if (window.SFX) SFX.stomp();
                         this.particles.burst(enemy.x + enemy.w / 2, enemy.y, enemy.color, 10, { speed: 1.8, life: 20, size: 2.5 });
                     } else {
@@ -1844,7 +1875,11 @@ class Game {
             if (!this.finale) for (const beam of this.beams) {
                 beam.update();
                 if (this.playerInvulnerable === 0 && beam.collides(this.player)) {
-                    this.player.takeDamage(this.hazardDamage(4));
+                    // 20% de la vida MÁXIMA, sin pasar por la defensa (antes: base 4 que la
+                    // defensa dejaba en 1 enseguida — cruzarla a pelo salía casi gratis). Un
+                    // porcentaje pega igual a nivel 1 que a nivel 10; el nodo Aislante lo halva.
+                    this.player.hp -= this.hazardDamage(Math.ceil(this.player.maxHp * 0.2));
+                    this.player.checkEmergency();
                     this.playerInvulnerable = 50;
                     this.player.x += this.player.x + this.player.w / 2 < beam.x ? -10 : 10;
                     this.player.vy = Math.min(this.player.vy, -1.5);

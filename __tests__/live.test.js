@@ -331,7 +331,7 @@ describe('Árbol de mejoras (contra el código real)', () => {
         expect(game.player.energy).toBe(8);
     });
 
-    test('Aislante: una puerta de energía activa hace la mitad de daño', () => {
+    test('Aislante: una puerta de energía activa hace la mitad de daño (10% en vez de 20%)', () => {
         const { game } = loadGame();
         game.gameStarted = true;
         game.loadLevel(6); // Muelle de Carga, primer nivel con puertas
@@ -343,7 +343,8 @@ describe('Árbol de mejoras (contra el código real)', () => {
         game.player.x = beam.x - 6; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
         const hp0 = game.player.hp;
         game.update();
-        expect(game.player.hp).toBe(hp0 - Math.max(1, Math.ceil(4 / 2) - game.player.defense));
+        // porcentual y SIN pasar por la defensa: el Aislante halva el 20% de la vida máxima
+        expect(game.player.hp).toBe(hp0 - Math.ceil(Math.ceil(game.player.maxHp * 0.2) / 2));
     });
 
     test('Sistema de emergencia: un golpe letal deja a 1 HP, y solo una vez', () => {
@@ -1412,6 +1413,92 @@ describe('Regresión: el salto de Bolt (contra js/entities.js real)', () => {
     });
 });
 
+describe('Pisotones con carácter — el Erizo pincha y la Magnetita repele (contra el código real)', () => {
+    // Monta al jugador cayendo justo encima del primer enemigo del tipo pedido, en el primer
+    // nivel del mapa que lo tenga — el mismo patrón que el test del Reciclador.
+    function setupStomp(type) {
+        const { game, LEVELS, setRNG } = loadGame();
+        game.gameStarted = true;
+        const idx = LEVELS.findIndex(l => (l.enemies || []).some(e => e[2] === type));
+        expect(idx).toBeGreaterThanOrEqual(0);
+        game.loadLevel(idx);
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        const enemy = game.enemies.find(e => e.type === type);
+        game.player.x = enemy.x; game.player.y = enemy.y - 12; game.player.vy = 0.5;
+        game.player.onGround = false; game.playerInvulnerable = 0;
+        return { game, enemy, setRNG };
+    }
+
+    test('pisar al Erizo no lo mata NUNCA: pincha un 10% de la vida máxima (sin defensa) y rebota', () => {
+        const { game, enemy } = setupStomp('spiker');
+        game.player.level = 10; // muy por encima del suyo: las púas no entienden de niveles
+        const hp0 = game.player.hp;
+        game.update();
+        expect(enemy.alive).toBe(true);
+        expect(game.combatTransition).toBeNull(); // ni muere ni abre duelo
+        expect(hp0 - game.player.hp).toBe(Math.max(1, Math.ceil(game.player.maxHp * 0.1)));
+        expect(game.player.vy).toBeLessThan(0); // rebote
+        expect(game.playerInvulnerable).toBeGreaterThan(0); // tregua: no re-pincha en cadena
+    });
+
+    test('al Erizo se le sigue pudiendo entrar por un lado: abre duelo, como siempre', () => {
+        const { game, enemy } = setupStomp('spiker');
+        game.player.x = enemy.x - game.player.w + 2; // solape lateral, no desde arriba
+        game.player.y = enemy.y; game.player.vy = 0; game.player.onGround = true;
+        game.update();
+        expect(game.combatTransition).not.toBeNull();
+        expect(enemy.alive).toBe(true);
+    });
+
+    test('pisar a la Magnetita con nivel la mata, pero su campo te repele en diagonal (RNG sembrado)', () => {
+        const { game, enemy, setRNG } = setupStomp('magnetite');
+        game.player.level = enemy.level + 1;
+        game.player.xpToNextLevel = 9999;
+        setRNG(() => 0.9); // ≥0.5 → empujón hacia la derecha, determinista
+        game.update();
+        setRNG(Math.random);
+        expect(enemy.defeated).toBe(true); // el pisotón con nivel sigue matando
+        expect(game.player.vx).toBeCloseTo(2.4); // diagonal: impulso lateral...
+        expect(game.player.vy).toBeCloseTo(-3.5); // ...y hacia arriba
+        expect(game.player.iceMomentum).toBe(true); // decae como el derrape de hielo (cancelable)
+        expect(game.player.onGround).toBe(false);
+    });
+
+    test('el rumbo del empujón depende del RNG: con la otra mitad del rango sale hacia la izquierda', () => {
+        const { game, enemy, setRNG } = setupStomp('magnetite');
+        game.player.level = enemy.level + 1;
+        game.player.xpToNextLevel = 9999;
+        setRNG(() => 0.1);
+        game.update();
+        setRNG(Math.random);
+        expect(enemy.defeated).toBe(true);
+        expect(game.player.vx).toBeCloseTo(-2.4);
+    });
+
+    test('pisar a la Magnetita SIN nivel abre duelo, como cualquier enemigo', () => {
+        const { game, enemy } = setupStomp('magnetite');
+        game.player.level = enemy.level; // no basta: hace falta superarlo
+        game.update();
+        expect(enemy.alive).toBe(true);
+        expect(game.combatTransition).not.toBeNull();
+    });
+
+    test('la puerta de energía quita un 20% de la vida máxima, sin diluirse con la defensa', () => {
+        const { game } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(6); // Muelle de Carga, primer nivel con puertas
+        game.inWorldMap = false; game.inLevel = true; game.combat = null; game.levelCompleting = false;
+        game.enemies.forEach(e => { e.x = -500; e.initialX = -500; });
+        game.player.defense = 50; // ni una defensa absurda la rebaja: es porcentual a propósito
+        const beam = game.beams[0];
+        beam.t = beam.PERIOD - beam.ON;
+        game.player.x = beam.x - 6; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
+        const hp0 = game.player.hp;
+        game.update();
+        expect(hp0 - game.player.hp).toBe(Math.ceil(game.player.maxHp * 0.2));
+    });
+});
+
 describe('Métricas de uso — balizas opcionales sin datos personales (contra el código real)', () => {
     test('por defecto apuntan al colector desplegado (mismo servicio que el acortador)', () => {
         const { game } = loadGame();
@@ -1687,7 +1774,7 @@ describe('Peligros: frágiles, móviles, rayos y cintas (contra el código real)
         game.player.x = beam.x - 6; game.player.y = 137; game.player.vy = 0; game.player.onGround = true;
         const hp0 = game.player.hp;
         game.update();
-        expect(game.player.hp).toBe(hp0 - Math.max(1, 4 - game.player.defense));
+        expect(game.player.hp).toBe(hp0 - Math.ceil(game.player.maxHp * 0.2)); // 20% de la vida máxima, sin defensa
         expect(game.playerInvulnerable).toBe(50); // tregua: no re-golpea cada frame
         expect(game.player.x).toBeLessThan(beam.x - 6); // el empujón lo devuelve por donde venía
     });
