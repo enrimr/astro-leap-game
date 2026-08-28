@@ -1309,6 +1309,54 @@ describe('Duelo a distancia — retos por URL con fantasma de ritmo (contra js/g
         expect(decodeDuelToken(encodeDuelToken(m[1], Math.max(5000, parseFloat(m[2])), 'yo'))).not.toBeNull();
     });
 
+    // Cada final comparte SU mensaje: victoria = celebración, game over = derrota con invitación,
+    // duelo = veredicto incluido. El texto vive en data-share-text del botón nativo.
+    const shareTextOnScreen = (window) => {
+        const btn = window.document.querySelector('#startScreen [data-action="share"]');
+        return btn ? btn.dataset.shareText : null;
+    };
+
+    test('terminar el juego comparte una celebración, no un reto de tiempos', () => {
+        const { game, window } = loadGame();
+        window.navigator.share = () => Promise.resolve();
+        game.runStartTime = performance.now() - 60000;
+        game.finishGame();
+        const text = shareTextOnScreen(window);
+        expect(text).toContain('¡MISIÓN CUMPLIDA!');
+        expect(text).toContain('escapé del Sistema Ceniza');
+        expect(text).not.toContain('¿Me bajas el tiempo?');
+        expect(text).not.toContain('☠️');
+    });
+
+    test('el game over comparte la derrota con el sector alcanzado, distinto de la victoria', () => {
+        const { game, window } = loadGame();
+        window.navigator.share = () => Promise.resolve();
+        game.runStartTime = performance.now() - 60000;
+        game.currentLevel = 2;
+        game.fullGameOver();
+        const text = shareTextOnScreen(window);
+        expect(text).toContain('misión perdida en el sector 3/12');
+        expect(text).toContain('¿Llegas más lejos?');
+        expect(text).not.toContain('MISIÓN CUMPLIDA');
+    });
+
+    test('el resultado de un duelo comparte el veredicto; el reto sin rival, no', () => {
+        const { game, window, LEVELS, todayDateString } = loadGame();
+        window.navigator.share = () => Promise.resolve();
+        // rival lentísimo: la victoria del duelo está garantizada → veredicto determinista
+        game.startDailyChallenge({ date: todayDateString(), time: 3600000, name: 'Flash' });
+        game.player.x = LEVELS[game.dailyLevelIdx].goal;
+        game.update();
+        expect(shareTextOnScreen(window)).toContain('⚔️ Duelo ganado a Flash');
+
+        game.startDailyChallenge(); // el reto normal no lleva línea de duelo
+        game.player.x = LEVELS[game.dailyLevelIdx].goal;
+        game.update();
+        const text = shareTextOnScreen(window);
+        expect(text).toContain('Reto Diario');
+        expect(text).not.toContain('⚔️');
+    });
+
     test('el fantasma marca el ritmo exacto: 0 al salir, la meta a su tiempo, y clava el clamp', () => {
         const { game, LEVELS, todayDateString } = loadGame();
         game.startDailyChallenge({ date: todayDateString(), time: 60000, name: 'Rival' });

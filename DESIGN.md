@@ -427,3 +427,14 @@ Los tres actos responden al encargo «claramente diferente, no simplemente más 
 Para saber cuánta gente juega (visitas, partidas, retos, duelos, victorias, game overs) sin meter un tercero ni un banner de cookies: el colector vive en el MISMO servicio que el acortador (repo `link-shortener`), y el diseño es **privacidad por construcción** — la tabla solo guarda `(sitio, evento, día, total)` vía UPSERT. Ni IP, ni user-agent, ni cookies, ni identificadores por-visitante: no hay dato personal que proteger porque no existe. (Se valoró GoatCounter, gratuito para uso personal y respetuoso — descartado por preferir el backend propio ya construido y cero dependencias externas.)
 
 En el juego: `track(evento)` con `navigator.sendBeacon` (fire-and-forget, sobrevive al cierre de pestaña; los cuerpos llegan como text/plain y el colector los parsea igual) y fallback `fetch keepalive`, todo tragado en try/catch — las métricas jamás pueden romper el juego. Apuntan al servicio desplegado (`METRICS_URL = 'https://s.enri.me'`; vaciar la constante las apaga). Siete eventos: `visita`, `partida`, `reto`, `duelo`, `reto_ok`, `victoria`, `gameover`. La lectura (`GET /api/metrics/astroleap`) es privada tras `ADMIN_PASSWORD`; la escritura es abierta pero validada y con límite por IP — lo peor que puede hacer un gracioso es inflar un contador.
+
+### 2.31 Cada final comparte su propio mensaje
+
+Los cuatro finales con botón de compartir contaban historias distintas en pantalla pero se parecían demasiado en el texto compartido — y el de la victoria remataba con «¿Me bajas el tiempo?», un desafío de speedrun que sonaba a derrota justo cuando tocaba celebrar. La regla ahora: **el texto compartido es el estado emocional del final, no una plantilla con huecos**.
+
+- **Victoria (juego completo)**: celebración pura con el cierre del lore (Nodo Cero, la nave, el Sistema Ceniza) y el tiempo total. Sin retar a nadie: retar es del Reto Diario.
+- **Game over**: la derrota con contexto — sector alcanzado, piloto y tiempo resistido — y la invitación «¿Llegas más lejos?».
+- **Reto Diario**: el formato Wordle de líneas (fecha, desafío de un vistazo, tiempo) que ya existía.
+- **Duelo**: el mismo formato del reto **más el veredicto** (`⚔️ Duelo ganado a X por N.Ns` / `perdido contra… — quiero la revancha` / `empate exacto`) — antes ganar o perder un duelo compartía el texto genérico del reto, como si el duelo no hubiera pasado.
+
+Todos comparten el formato multilínea (los saltos sobreviven a `navigator.share` y a los enlaces de respaldo vía `%0A`). Tests fijan que la victoria no contiene el reto de tiempos, que el game over nombra el sector y que el veredicto del duelo aparece solo cuando hubo rival.

@@ -1366,7 +1366,13 @@ class Game {
         const isRecord = this.saveBestTime(finalTime);
         if (window.SFX) { SFX.music.stop(); SFX.victory(); }
         const sectors = this.worldMap.mainCount; // los 12 del recorrido — las torres Extra no cuentan en el marcador
-        const shareText = `🏆 ASTRO LEAP completado: ${sectors}/${sectors} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal! ⏱️' : ''}. ¿Me bajas el tiempo? 🚀`;
+        // Terminar el juego se CELEBRA — nada de retar con el tiempo aquí: ese tono es del
+        // Reto Diario. Mismo formato en líneas que el resto de textos de compartir.
+        const shareText = [
+            '🏆 ¡MISIÓN CUMPLIDA! ASTRO LEAP completado 🚀',
+            '🛰️ Nodo Cero derrotado, nave reparada: escapé del Sistema Ceniza',
+            `⏱️ Los ${sectors} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal!' : ''}`
+        ].join('\n');
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
@@ -1413,7 +1419,11 @@ class Game {
         // caíste en una torre Extra, se nombra sin numerar — no es un sector del recorrido.
         const isExtra = !!levelReached.extra;
         const sectorLabel = isExtra ? `el nivel extra (${levelReached.name})` : `el sector ${this.currentLevel + 1}/${this.worldMap.mainCount} (${levelReached.name})`;
-        const shareText = `☠️ Caí en ${sectorLabel} de ASTRO LEAP, pilotando a ${pilotName} — ${formatTime(elapsed)} de misión. ¿Llegas más lejos? 🚀`;
+        const shareText = [
+            `☠️ ASTRO LEAP — misión perdida en ${sectorLabel}`,
+            `🧑‍🚀 ${pilotName} resistió ${formatTime(elapsed)} en el Sistema Ceniza`,
+            '🎮 ¿Llegas más lejos?'
+        ].join('\n');
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
         this.worldMap = new WorldMap();
@@ -2006,23 +2016,38 @@ class Game {
                     const diffLabel = this.dailyDifficulty.label;
                     const rival = this.duelRival; // capturado ANTES de restoreAfterDaily(), que lo anula
                     const duelDate = this.dailyDate;
-                    // Veredicto del duelo, si lo hay: gana el tiempo menor.
+                    // Veredicto del duelo, si lo hay: gana el tiempo menor. El veredicto viaja
+                    // también en el texto de compartir — sin él, ganar o perder un duelo
+                    // compartía el mismo texto genérico del reto.
                     let title = '¡RETO SUPERADO!';
                     let duelLine = '';
+                    let duelShareLine = '';
                     if (rival) {
                         const secs = (Math.abs(finalTime - rival.time) / 1000).toFixed(1);
                         const rname = rival.name || 'tu rival';
-                        if (finalTime < rival.time) { title = '¡DUELO GANADO!'; duelLine = `<p class="run-time">⚔️ Ganaste a ${rname} por ${secs}s (su tiempo: ${formatTime(rival.time)})</p>`; }
-                        else if (finalTime > rival.time) { title = 'DUELO PERDIDO'; duelLine = `<p class="run-time">⚔️ ${rname} te ganó por ${secs}s (su tiempo: ${formatTime(rival.time)})</p>`; }
-                        else { title = 'EMPATE EXACTO'; duelLine = `<p class="run-time">⚔️ Empate al milisegundo con ${rname}: ${formatTime(rival.time)}</p>`; }
+                        if (finalTime < rival.time) {
+                            title = '¡DUELO GANADO!';
+                            duelLine = `<p class="run-time">⚔️ Ganaste a ${rname} por ${secs}s (su tiempo: ${formatTime(rival.time)})</p>`;
+                            duelShareLine = `⚔️ Duelo ganado a ${rname} por ${secs}s`;
+                        } else if (finalTime > rival.time) {
+                            title = 'DUELO PERDIDO';
+                            duelLine = `<p class="run-time">⚔️ ${rname} te ganó por ${secs}s (su tiempo: ${formatTime(rival.time)})</p>`;
+                            duelShareLine = `⚔️ Duelo perdido contra ${rname} por ${secs}s — quiero la revancha`;
+                        } else {
+                            title = 'EMPATE EXACTO';
+                            duelLine = `<p class="run-time">⚔️ Empate al milisegundo con ${rname}: ${formatTime(rival.time)}</p>`;
+                            duelShareLine = `⚔️ Empate exacto con ${rname}`;
+                        }
                     }
-                    // Formato compacto en 3 líneas, estilo Wordle: cabecera con la fecha, el
-                    // desafío de un vistazo, y el tiempo con el reto al receptor. Los saltos de
-                    // línea sobreviven tanto a navigator.share como a los enlaces de respaldo
-                    // de buildShareHTML (encodeURIComponent los convierte en %0A).
+                    // Formato compacto en líneas, estilo Wordle: cabecera con la fecha, el
+                    // desafío de un vistazo, el veredicto del duelo si lo hubo, y el tiempo con
+                    // el reto al receptor. Los saltos de línea sobreviven tanto a
+                    // navigator.share como a los enlaces de respaldo de buildShareHTML
+                    // (encodeURIComponent los convierte en %0A).
                     const shareText = [
                         `🛰️ ASTRO LEAP — Reto Diario ${duelDate}`,
                         `📍 ${levelName} · ${this.dailyDifficulty.emoji} ${diffLabel} · 🧑‍🚀 ${heroName}`,
+                        ...(duelShareLine ? [duelShareLine] : []),
                         `⏱️ ${formatTime(finalTime)} — ¿lo superas?`
                     ].join('\n');
                     const recordLine = isToday
