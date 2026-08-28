@@ -819,6 +819,10 @@ describe('Diseño de niveles — completables con salto SIMPLE (Scrap), contra j
             if (a.twin && !visited.has(a.twin)) { visited.add(a.twin); queue.push(a.twin); }
             for (const b of plats) {
                 if (visited.has(b) || b === a) continue;
+                // Un techo macizo ('roof') no se puede aterrizar viniendo de justo debajo: es
+                // la única plataforma que no se atraviesa en el ascenso. Si el despegue queda
+                // bajo su span, la arista no vale (de lado o desde arriba, sí).
+                if (b.variant === 'roof' && b.y < a.y && b.x < a.x + a.w && a.x < b.x + b.w) continue;
                 const gap = Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w));
                 const dy = b.y - a.y;
                 const reach = (a.variant === 'ice' && a.w >= 100 && maxIceReach) ? maxIceReach(dy) : maxReach(dy);
@@ -1410,6 +1414,75 @@ describe('Regresión: el salto de Bolt (contra js/entities.js real)', () => {
         expect(bolt.vy).toBeCloseTo(-1.1 + 0.32, 5); // ascenso sostenido del vuelo
         expect(bolt.energy).toBeLessThan(10);        // pagando Energía por tiempo, como siempre
         expect(bolt.y + bolt.h).toBeLessThan(125);   // y de verdad ha ganado altura (asciende ~0.78/frame)
+    });
+});
+
+describe('Techos macizos (variant roof) — no se atraviesan desde abajo (contra el código real)', () => {
+    const parts = { burst: () => {} };
+    // Deja al jugador asentado en el suelo antes de cada maniobra.
+    function settle(p, plats) { for (let i = 0; i < 20; i++) p.update({}, plats, parts); }
+
+    test('el doble salto se estampa contra la cara inferior: corta el ascenso y jamás lo cruza', () => {
+        const { Platform, Player } = loadGame();
+        const ground = new Platform(0, 150, 200, 10);
+        const roof = new Platform(0, 90, 200, 8, 'roof'); // cara inferior en y=98
+        const p = new Player(50, 100, 'kes');
+        settle(p, [ground, roof]);
+        p.update({ Space: true }, [ground, roof], parts); // salto
+        let minY = p.y, bonked = false;
+        for (let i = 0; i < 8; i++) { p.update({}, [ground, roof], parts); minY = Math.min(minY, p.y); }
+        p.update({ Space: true }, [ground, roof], parts); // doble salto cerca del ápice
+        for (let i = 0; i < 60; i++) {
+            p.update({}, [ground, roof], parts);
+            if (p.roofBonk) bonked = true;
+            minY = Math.min(minY, p.y);
+        }
+        expect(bonked).toBe(true);
+        expect(minY).toBeGreaterThanOrEqual(roof.y + roof.h); // la cabeza nunca entra en el techo
+        expect(p.onGround).toBe(true); // y cae de vuelta al suelo con normalidad
+    });
+
+    test('el salto simple bajo el mismo techo pasa limpio, y encima del techo se aterriza normal', () => {
+        const { Platform, Player } = loadGame();
+        const ground = new Platform(0, 150, 200, 10);
+        const roof = new Platform(0, 90, 200, 8, 'roof');
+        const p = new Player(50, 100, 'kes');
+        settle(p, [ground, roof]);
+        p.update({ Space: true }, [ground, roof], parts);
+        let bonked = false;
+        for (let i = 0; i < 60; i++) { p.update({}, [ground, roof], parts); if (p.roofBonk) bonked = true; }
+        expect(bonked).toBe(false); // el techo castiga la habilidad aérea, no el salto normal
+        const q = new Player(50, 40, 'kes'); // cae desde arriba
+        settle(q, [roof]);
+        expect(q.onGround).toBe(true);
+        expect(q.y).toBe(roof.y - q.h); // de pie sobre el techo, como en cualquier plataforma
+    });
+
+    test('regla de diseño: el salto simple desde CUALQUIER plataforma bajo un techo pasa sin tocarlo', () => {
+        // Los techos son obstáculos para la habilidad aérea, jamás para la ruta de salto
+        // simple: si un techo baja (o una plataforma sube) hasta comerse el arco normal,
+        // este test lo canta antes de que un jugador se estampe en una ruta obligatoria.
+        const { LEVELS, Platform, Player } = loadGame();
+        // ápice real del salto simple, medido con la física del motor
+        const g = new Platform(0, 150, 400, 10);
+        const p = new Player(50, 100, 'kes');
+        settle(p, [g]);
+        const y0 = p.y;
+        p.update({ Space: true }, [g], parts);
+        let minY = p.y;
+        for (let i = 0; i < 60; i++) { p.update({}, [g], parts); minY = Math.min(minY, p.y); }
+        const apex = y0 - minY;
+        const offenders = [];
+        LEVELS.forEach(lvl => (lvl.platforms || []).forEach(r => {
+            if (r[4] !== 'roof') return;
+            lvl.platforms.forEach(q => {
+                if (q === r || q[1] <= r[1]) return; // solo plataformas por debajo del techo
+                if (!(q[0] < r[0] + r[2] && r[0] < q[0] + q[2])) return; // sin solape horizontal, no hay choque
+                const headAtApex = q[1] - p.h - apex;
+                if (headAtApex <= r[1] + r[3]) offenders.push(`${lvl.name}: techo y=${r[1]} sobre plataforma y=${q[1]} (cabeza a ${headAtApex.toFixed(1)})`);
+            });
+        }));
+        expect(offenders).toEqual([]);
     });
 });
 

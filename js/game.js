@@ -1745,6 +1745,12 @@ class Game {
             const level = LEVELS[this.currentLevel];
             let outcome = null;
             if (!this.levelCompleting) outcome = this.player.update(this.keys, this.platforms, this.particles);
+            // Cabezazo contra un techo macizo (variant 'roof'): feedback y aviso de una vez.
+            if (this.player.roofBonk) {
+                this.player.roofBonk = false;
+                this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.dim, 5, { speed: 0.8, life: 10, size: 1.5 });
+                this.showHint('roof-bonk', 'Ese techo es macizo: no se atraviesa saltando desde abajo. Rodéalo — busca por dónde quiere el nivel que subas.');
+            }
             if (outcome === 'fell') { this.loseLife(); return; }
             if (this.player.hp <= 0) { this.loseLife(); return; }
             this.particles.update();

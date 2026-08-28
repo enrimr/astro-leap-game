@@ -313,7 +313,12 @@ const LEVELS = [
             // Suelo de la bóveda bajo el refuerzo [700,150,20,8] — como en Cráter de Amerizaje:
             // sin él, Scrap rozaba la cápsula en plena caída y moría (premio y castigo se
             // anulaban), y el agujero quedaba como pozo mortal para cualquier piloto después.
-            [695, 172, 30, 6]
+            [695, 172, 30, 6],
+            // EL PASILLO SELLADO (debut del techo macizo, variant 'roof'): cubre el corredor de
+            // la doble puerta — su cara inferior queda en y=100, así que el salto simple (cabeza
+            // a ~109 desde el suelo) pasa limpio, pero el doble salto/vuelo que hasta ahora
+            // saltaba las puertas por arriba se estampa: aquí las puertas SE CRONOMETRAN.
+            [706, 92, 158, 8, 'roof']
         ],
         // Pasillo de doble puerta desfasada justo tras la bóveda del refuerzo: el set piece del nivel.
         beams: [[720, 110, 40, 0], [800, 110, 40, 75]],
@@ -348,7 +353,11 @@ const LEVELS = [
             // Tramo final añadido al alargar el nivel (huecos ≤25, subida suave de 5).
             [1105, 150, 55, 15], [1185, 145, 45, 6, 'fragile'], [1255, 150, 70, 15],
             // Suelo de la bóveda bajo el refuerzo [945,150,20,8] (ver Bóveda Sellada).
-            [940, 172, 30, 6]
+            [940, 172, 30, 6],
+            // Techo macizo sobre la puerta del tramo final (ver el pasillo sellado de Bóveda
+            // Sellada): cara inferior en y=100 — el salto simple pasa, saltarse la puerta con
+            // habilidad aérea ya no.
+            [1015, 92, 80, 8, 'roof']
         ],
         movingPlatforms: [[368, 95, 36, 6, 16, 0.02], [698, 95, 36, 6, 16, 0.025]],
         beams: [[1040, 110, 40, 0]],
@@ -434,9 +443,16 @@ const LEVELS = [
             // de 85, cruzarla andando (47-49 frames) rozaba su cuenta atrás de 50 y el margen
             // real era de 1-3 frames — injugable. Dos de 38 con temporizador propio se cruzan
             // con margen de sobra... si no te paras en ninguna.
-            [440, 92, 65, 8], [330, 92, 80, 8],
+            // Pisos 2 y 3 con TECHO MACIZO ('roof') salvo dos aterrizajes: [440,92] (donde
+            // desemboca la escalera derecha, saltando A TRAVÉS desde el peldaño) y [26,34]
+            // (ídem con la izquierda) — y las frágiles, que ya tienen su propio drama. Sella
+            // el atajo de Bolt (volar a través de los suelos) sin tocar la ruta de nadie: el
+            // serpentín por las escaleras es LA ruta. Ojo con el margen vertical: desde un
+            // piso (y=92) el salto simple deja la cabeza a ~51, y la cara inferior del techo
+            // de arriba queda en 42 — pasa limpio; el doble salto ahí se estampa (a propósito).
+            [440, 92, 65, 8], [330, 92, 80, 8, 'roof'],
             [215, 92, 38, 8, 'fragile'], [262, 92, 38, 8, 'fragile'],
-            [95, 92, 90, 8], [30, 92, 40, 8],
+            [95, 92, 90, 8, 'roof'], [30, 92, 40, 8, 'roof'],
             // Escalera izquierda (piso 2 → piso 3), en zigzag: arranca en x=34 y no en el borde
             // para no pisar el x=20 del spawn (el BFS de los tests elige como salida la
             // plataforma MÁS ALTA que cubre x=20 — si el peldaño lo cubriera, validaría un
@@ -444,7 +460,7 @@ const LEVELS = [
             [34, 63, 24, 6],
             // Piso 3 (izquierda → derecha), con la meta al final. Sus huecos caen siempre sobre
             // tramo sólido del piso 2 (o del suelo de recogida), nunca sobre un pozo encadenado.
-            [26, 34, 80, 8], [130, 34, 85, 8], [240, 34, 105, 8], [370, 34, 85, 8], [480, 34, 65, 8], [568, 34, 150, 8]
+            [26, 34, 80, 8], [130, 34, 85, 8, 'roof'], [240, 34, 105, 8, 'roof'], [370, 34, 85, 8, 'roof'], [480, 34, 65, 8, 'roof'], [568, 34, 150, 8, 'roof']
         ],
         beams: [[310, 110, 40, 0]],
         enemies: [[180, 138, 'crawler'], [400, 138, 'spiker', 20], [355, 80, 'magnetite'], [130, 77, 'hoverbot', 40], [270, 27, 'ionwisp', 45], [600, 22, 'spiker', 25]],

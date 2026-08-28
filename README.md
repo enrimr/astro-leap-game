@@ -56,7 +56,7 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 | 3 · Estación Colapsada | 7 | Muelle de Carga | **Debutan las puertas de energía** (columnas cíclicas que bloquean el paso); despierta el núcleo |
 | | 8 | Túnel de Escape | **Scroll forzado**: tras 5s de cuenta atrás, un muro de energía avanza solo — con islotes frágiles bajo presión |
 | | 9 | Núcleo del Reactor | **Jefe: Overlord** — ignora Defender cada 3 turnos; **debuta la cinta magnética** en contra |
-| 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; todos los peligros combinados |
+| 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; todos los peligros combinados y **debutan los techos macizos** (no se atraviesan saltando desde abajo) |
 | | 11 | Galería de Ecos | Huecos largos + móviles, frágiles y una puerta de energía |
 | | 12 | Nodo Cero | **La prueba final en 3 actos**: precisión → todos los peligros combinados (tormenta zonal, cinta+puerta, hielo) → huida con el muro detrás. **Jefe final: Nodo Cero**, y al ganar... la Red se derrumba y escapas EN LA NAVE |
 | Extra | 13 | Torre de Vigía | **Vertical en serpentín**: tres pisos, escaleras alternas y la BASE arriba del todo — aparece al reunir **8 ◆** |

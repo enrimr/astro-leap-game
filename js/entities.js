@@ -279,6 +279,13 @@ class Player {
                 if (this.vy > 0 && this.y + this.h <= p.y + 10) {
                     this.y = p.y - this.h; this.vy = 0; this.onGround = true; this.jumping = false; this.usedAirAbility = false;
                     this.groundPlatform = p; // qué suelo pisas — el frame siguiente decide si resbala (hielo)
+                } else if (p.variant === 'roof' && this.vy < 0 && this.y >= p.y + p.h - 10) {
+                    // Techo macizo ('roof'): la ÚNICA plataforma que no se atraviesa desde
+                    // abajo — el ascenso se corta en seco contra su cara inferior. Banda de 10
+                    // espejo de la de aterrizaje (el ascenso máximo es |jumpPower|=4.3/frame:
+                    // no hay tunneling). Se aterriza encima con normalidad, como cualquiera.
+                    this.y = p.y + p.h; this.vy = 0;
+                    this.roofBonk = true; // lo lee (y limpia) game.js: aviso + partículas
                 }
             }
         });
@@ -727,6 +734,7 @@ class Platform {
         else if (this.variant === 'metal') { grad.addColorStop(0, '#8892b0'); grad.addColorStop(1, '#4a5170'); }
         else if (this.variant === 'reinforced') { grad.addColorStop(0, '#5a4a2a'); grad.addColorStop(1, '#3a2a0f'); }
         else if (this.variant === 'fragile') { grad.addColorStop(0, '#7a6f9e'); grad.addColorStop(1, '#3f3660'); }
+        else if (this.variant === 'roof') { grad.addColorStop(0, '#565e80'); grad.addColorStop(1, '#20253d'); }
         else if (this.variant === 'beltL' || this.variant === 'beltR') { grad.addColorStop(0, '#6c7a9c'); grad.addColorStop(1, '#3b4460'); }
         else { grad.addColorStop(0, PALETTE.panelLight); grad.addColorStop(1, PALETTE.panel); }
         ctx.fillStyle = grad;
@@ -769,6 +777,16 @@ class Platform {
                 ctx.closePath(); ctx.fill();
             }
             ctx.restore();
+        }
+        if (this.variant === 'roof') {
+            // borde inferior grueso + remaches: se lee "macizo, esto no se atraviesa" antes
+            // de estamparse contra él (los demás variantes marcan su rareza por arriba;
+            // este la marca por abajo, que es donde muerde)
+            ctx.fillStyle = '#12162a';
+            ctx.fillRect(sx, this.y + this.h - 2, this.w, 2);
+            ctx.fillStyle = PALETTE.accent3; ctx.globalAlpha = 0.75;
+            for (let rx = 4; rx < this.w - 3; rx += 10) ctx.fillRect(sx + rx, this.y + this.h - 3.5, 2, 2);
+            ctx.globalAlpha = 1;
         }
         ctx.fillStyle = PALETTE.accent; ctx.globalAlpha = 0.5;
         ctx.fillRect(sx, this.y, this.w, 1);

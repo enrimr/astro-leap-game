@@ -10,6 +10,7 @@ Todo lo que hay en el juego: pilotos, fórmulas de combate, bestiario, estrategi
 - **♥** — cápsula de vida (+1 vida) · **⚡** — célula de energía (+1 Energía máxima, permanente) · **◆ dorado** — Cristal de Señal (objetivo secundario, ver §4c).
 - **Franjas ámbar** en una plataforma — refuerzo que solo Scrap rompe al caminar encima.
 - **Plataforma agrietada** — frágil: se desmorona al pisarla (ver Peligros).
+- **Remaches en la cara inferior** — techo macizo: no se atraviesa saltando desde abajo (ver Peligros).
 - **Raíl punteado vertical** — plataforma móvil que sube y baja por ese recorrido.
 - **Columna cian vertical entre dos emisores ámbar** — puerta de energía (dibujada activa en el mapa).
 - **Chevrones animados** en una plataforma — cinta que te arrastra en esa dirección.
@@ -104,6 +105,7 @@ El Mundo 1 estrena el terreno con un solo giro (el hielo del nivel 2 — que ade
 | **Tormenta iónica** (ciclo de cielo) | Mundo 2 (nivel 5) | Ciclo global de 8,5s: **5s de calma** → **1,5s de aviso** (tinte ámbar, «⚠ TORMENTA INMINENTE») → **2s de descarga** (tinte violeta y rayos). Durante la descarga, estar **al raso** hace 5 de daño con tregua de invulnerabilidad (~hasta 3 golpes si aguantas fuera la descarga entera) | La regla del techo: estás a salvo con **cualquier plataforma sólida encima de la cabeza** — el resplandor cian bajo las plataformas te marca dónde. Corre de refugio en refugio durante la calma; si el aviso te pilla a medias, métete bajo la flotante más cercana o paga el peaje en HP |
 | **Barrido del Centinela** (franja roja en el suelo) | Mundo 2 (nivel 6) | Solo mientras el jefe viva: ciclo de 5s — **3s de calma** → **1s apuntando** (la franja del suelo se enciende en rojo) → **1s de onda** a ras de suelo por TODA su zona. Pisar el suelo durante la onda hace **6 de daño**, con tregua corta (quedarte el barrido entero cuesta dos golpes) | Súbete a una **cobertura elevada** (brillan en cian al apuntar; dos son frágiles...) o gasta habilidad aérea para aguantar en el aire — un salto simple (27f) NO dura lo que la onda (60f). Al ganar el duelo, la zona se apaga |
 | **Puerta de energía** (columna vertical entre emisores) | Mundo 3 (nivel 7) | Bloquea el paso a ras de suelo con ciclo fijo de 2,5s: 1,5s apagada → 0,25s de aviso (chisporroteo) → 0,75s activa. Activa quita un **20% de tu vida máxima** (porcentual: la defensa no lo rebaja; el nodo Aislante lo deja en 10%) y te empuja hacia atrás, con tregua de invulnerabilidad | Tres opciones: **esperar** el ciclo (el chisporroteo es tu semáforo), **saltarla por arriba** con habilidad aérea (40 de alto: el salto simple no llega, el doble salto/vuelo/dash sí — la Energía compra tiempo), o **atravesarla pagando** el 20% de tu vida y aprovechando la tregua — un peaje que ahora se siente: cinco cruces a pelo son casi una vida. Las puertas de un mismo nivel van desfasadas |
+| **Techo macizo** (remaches en la cara inferior) | Mundo 4 (nivel 10) | La única plataforma que **no se atraviesa saltando desde abajo**: el ascenso se corta en seco contra su cara inferior y caes. Encima se aterriza y camina con normalidad | Es un obstáculo para la **habilidad aérea**, nunca para el salto simple (la ruta obligatoria siempre pasa limpia por debajo). Léelo como una señal: si hay techo, el nivel quiere que subas por otro sitio — o que cruces por abajo pagando el peaje que custodia |
 | **Cinta magnética** (chevrones) | Mundo 3 (nivel 9) | Te arrastra ~30% de tu velocidad en la dirección de los chevrones — siempre en contra | Camina sin pararte (avanzas igual, más despacio) y no te detengas cerca de un borde |
 
 Todos los peligros con ciclo van con reloj **de frames, no de tiempo real**: el patrón es idéntico en cualquier máquina, y en el Reto Diario es el mismo para todo el mundo (de los niveles del reto, 1–2, solo el 2 tiene peligro — el hielo, que no depende de ningún reloj).
@@ -243,14 +245,14 @@ El nivel más largo de enemigos antes del [Overlord](#️-overlord--núcleo-del-
 
 ![Mapa del nivel 10](guia/nivel-10.png)
 
-El mundo que solo se entiende con Scrap desbloqueado. Mundo 4 = todo junto: un **pasillo de doble puerta desfasada** justo después de la bóveda del refuerzo, un islote **frágil** y una **cinta** en contra en el tramo final.
+El mundo que solo se entiende con Scrap desbloqueado. Mundo 4 = todo junto: un **pasillo de doble puerta desfasada** justo después de la bóveda del refuerzo — ahora **sellado por un techo macizo** (debut): saltar las puertas por arriba con habilidad aérea ya no vale, aquí las puertas **se cronometran** (o se paga su 20%) —, un islote **frágil** y una **cinta** en contra en el tramo final.
 - **♥ Cápsula**: bóveda bajo el **refuerzo ámbar** del último tramo — solo Scrap.
 
 ### Nivel 11 · Galería de Ecos (Núcleo Expuesto)
 
 ![Mapa del nivel 11](guia/nivel-11.png)
 
-Huecos largos estilo Tormenta de Iones, con piedras de paso para la ruta baja — pero una de las piedras es **frágil**, hay **dos móviles** de atajo en la ruta alta, otro islote frágil y una puerta de energía custodiando el tramo tras la bóveda.
+Huecos largos estilo Tormenta de Iones, con piedras de paso para la ruta baja — pero una de las piedras es **frágil**, hay **dos móviles** de atajo en la ruta alta, otro islote frágil y una puerta de energía custodiando el tramo tras la bóveda — con **techo macizo** encima: esa puerta también se cronometra, no se salta.
 - **⚡ Célula**: bóveda bajo el **refuerzo ámbar** cerca del final — solo Scrap. La última mejora permanente del juego.
 
 ### Nivel 12 · Nodo Cero (Núcleo Expuesto) — JEFE FINAL
@@ -269,7 +271,7 @@ La **prueba final del juego, en tres actos**:
 
 ![Mapa del nivel extra](guia/nivel-13.png)
 
-El primer nivel **vertical** del juego: tres pisos (suelo, y=92 y y=34) recorridos en **serpentín** — derecha por el suelo, escalera al fondo derecho, izquierda por el piso 2, escalera en zigzag al fondo izquierdo, y derecha por el piso 3 hasta la BASE, que espera arriba del todo. La separación entre pisos (**58**) no la sube **ni el doble salto** (su ápice + ventana de aterrizaje llega a ~56): de piso a piso solo se sube por los peldaños de las escaleras (subidas de 29, salto simple) — únicamente el vuelo sostenido de Bolt puede saltárselas.
+El primer nivel **vertical** del juego: tres pisos (suelo, y=92 y y=34) recorridos en **serpentín** — derecha por el suelo, escalera al fondo derecho, izquierda por el piso 2, escalera en zigzag al fondo izquierdo, y derecha por el piso 3 hasta la BASE, que espera arriba del todo. La separación entre pisos (**58**) no la sube **ni el doble salto** (su ápice + ventana de aterrizaje llega a ~56): de piso a piso solo se sube por los peldaños de las escaleras (subidas de 29, salto simple). Y desde que los pisos 2-3 son **techo macizo** (remaches en su cara inferior), tampoco el vuelo de Bolt se cuela a través de ellos: solo quedan pasables los dos tramos donde desembocan las escaleras (saltas *a través* desde el peldaño) y las frágiles. El serpentín es LA ruta para los cuatro pilotos.
 
 - **Caerse de un piso cuesta tiempo, no vidas**: cada hueco de los pisos 2-3 tiene suelo debajo (incluido un suelo de recogida bajo la escalera derecha). Los únicos huecos letales son los dos del suelo.
 - El piso 2 se cruza de derecha a izquierda sobre **dos frágiles seguidas** — el peaje del serpentín: crúzalas de una pasada, cada una con su propia cuenta atrás. Si caen contigo, aterrizas en el suelo firme de abajo y a re-subir.
