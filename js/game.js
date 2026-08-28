@@ -160,13 +160,15 @@ function dailyDifficultyFor(dateStr) {
     return DAILY_DIFFICULTIES[Math.abs(seed) % DAILY_DIFFICULTIES.length];
 }
 
-// Acortador de enlaces propio (repo link-shortener): pon aquí su URL base (p.ej.
-// 'https://s.enri.me') cuando esté desplegado y las URLs de duelo se compartirán acortadas.
-// Vacío = apagado. Es un Game field (this.urlShortener) para poder probarlo en tests.
-const URL_SHORTENER = '';
+// Acortador de enlaces propio (repo link-shortener) desplegado en s.enri.me. Vacío = apagado.
+// Es un Game field (this.urlShortener) para poder probarlo en tests. Si el servidor exige
+// contraseña (ADMIN_PASSWORD), el prefijo de abajo debe estar en su PUBLIC_PREFIXES: este
+// código corre en el navegador del jugador y una contraseña embebida sería pública.
+const URL_SHORTENER = 'https://s.enri.me';
+const SHORTENER_PREFIX = 'astroleap'; // los duelos quedan como s.enri.me/astroleap/Xk3mP2a
 // Métricas de uso (mismo servicio que el acortador): base del colector, '' = apagado.
 // Contadores agregados sin nada personal — ver POST /api/metrics en el repo link-shortener.
-const METRICS_URL = '';
+const METRICS_URL = 'https://s.enri.me';
 const METRICS_SITE = 'astroleap';
 
 // ---- Duelo a distancia: reta a un amigo con tu tiempo del Reto Diario. El token viaja en la
@@ -621,7 +623,7 @@ class Game {
             const res = await fetch(`${this.urlShortener.replace(/\/$/, '')}/api/shorten`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: longUrl }),
+                body: JSON.stringify({ url: longUrl, prefix: SHORTENER_PREFIX }),
                 signal: ctrl ? ctrl.signal : undefined
             });
             if (timer) clearTimeout(timer);

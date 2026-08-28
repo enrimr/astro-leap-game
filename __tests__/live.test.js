@@ -1365,11 +1365,16 @@ describe('Regresión: el salto de Bolt (contra js/entities.js real)', () => {
 });
 
 describe('Métricas de uso — balizas opcionales sin datos personales (contra el código real)', () => {
-    test('apagadas (por defecto): ni una llamada', () => {
+    test('por defecto apuntan al colector desplegado (mismo servicio que el acortador)', () => {
+        const { game } = loadGame();
+        expect(game.metricsBase).toBe('https://s.enri.me');
+    });
+
+    test('apagadas (base vacía): ni una llamada', () => {
         const { game, window } = loadGame();
         let beacons = 0;
         window.navigator.sendBeacon = () => { beacons++; return true; };
-        expect(game.metricsBase).toBe('');
+        game.metricsBase = '';
         game.track('visita');
         game.startGame();
         expect(beacons).toBe(0);
@@ -1413,24 +1418,33 @@ describe('Métricas de uso — balizas opcionales sin datos personales (contra e
 });
 
 describe('Acortador de URLs de duelo — opcional y con degradación (contra el código real)', () => {
-    test('apagado (por defecto): devuelve la URL larga sin llamar a nada', async () => {
+    test('por defecto apunta al acortador desplegado', () => {
+        const { game } = loadGame();
+        expect(game.urlShortener).toBe('https://s.enri.me');
+    });
+
+    test('apagado (base vacía): devuelve la URL larga sin llamar a nada', async () => {
         const { game, window } = loadGame();
         let called = false;
         window.fetch = () => { called = true; return Promise.resolve({ ok: true }); };
-        expect(game.urlShortener).toBe('');
+        game.urlShortener = '';
         expect(await game.shortenUrl('https://x.test/?duelo=abc')).toBe('https://x.test/?duelo=abc');
         expect(called).toBe(false);
     });
 
-    test('encendido y con respuesta válida: usa la URL corta', async () => {
+    test('encendido y con respuesta válida: usa la URL corta y pide el prefijo del juego', async () => {
         const { game, window } = loadGame();
         game.urlShortener = 'https://s.enri.me';
         window.fetch = (url, opts) => {
             expect(url).toBe('https://s.enri.me/api/shorten');
-            expect(JSON.parse(opts.body).url).toBe('https://x.test/?duelo=abc');
-            return Promise.resolve({ ok: true, json: () => Promise.resolve({ code: 'Xk3mP2a', shortUrl: 'https://s.enri.me/Xk3mP2a' }) });
+            const body = JSON.parse(opts.body);
+            expect(body.url).toBe('https://x.test/?duelo=abc');
+            // El prefijo va SIEMPRE: con ADMIN_PASSWORD en el servidor, solo los prefijos de
+            // PUBLIC_PREFIXES pueden acortar sin contraseña desde el navegador del jugador.
+            expect(body.prefix).toBe('astroleap');
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ code: 'Xk3mP2a', prefix: 'astroleap', shortUrl: 'https://s.enri.me/astroleap/Xk3mP2a' }) });
         };
-        expect(await game.shortenUrl('https://x.test/?duelo=abc')).toBe('https://s.enri.me/Xk3mP2a');
+        expect(await game.shortenUrl('https://x.test/?duelo=abc')).toBe('https://s.enri.me/astroleap/Xk3mP2a');
     });
 
     test('cualquier fallo cae a la URL larga: error de red, HTTP no-ok y respuesta rara', async () => {

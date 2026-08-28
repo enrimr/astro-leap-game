@@ -167,7 +167,7 @@ El bot lee el estado real del juego (plataformas, enemigos, combate) y juega: sa
 
 ## Métricas (opcional)
 
-El juego puede mandar **contadores agregados** (visitas, partidas, retos, duelos, victorias) al backend propio del repo `link-shortener` — sin cookies, sin IPs, sin identificadores: solo `(evento, día, total)`. Apagado por defecto: se activa rellenando `METRICS_URL` en `js/game.js` cuando el servicio esté desplegado.
+El juego manda **contadores agregados** (visitas, partidas, retos, duelos, victorias) al backend propio del repo `link-shortener`, desplegado en `s.enri.me` — sin cookies, sin IPs, sin identificadores: solo `(evento, día, total)`. Se apaga vaciando `METRICS_URL` en `js/game.js`. El mismo servicio acorta los enlaces de duelo (`s.enri.me/astroleap/…`).
 
 ## Progreso guardado
 
