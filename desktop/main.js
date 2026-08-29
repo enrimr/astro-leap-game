@@ -112,7 +112,10 @@ function createWindow() {
         }
     });
 
-    win.loadFile(path.join(__dirname, '..', 'index.html'));
+    // ASTRO_PADSIM=1 npm run desktop -> arranca con el simulador de mando por teclado
+    // (?padsim, ver installPadSim en js/game.js) — para probar el soporte de mando sin hardware.
+    win.loadFile(path.join(__dirname, '..', 'index.html'),
+        process.env.ASTRO_PADSIM ? { query: { padsim: '1' } } : undefined);
 
     // Herramienta de desarrollo: ASTRO_SHOT=/ruta.png captura la ventana a los 3s y cierra la
     // app — permite verificar la build de escritorio desde un script, sin interacción manual.

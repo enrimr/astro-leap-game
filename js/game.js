@@ -2767,6 +2767,33 @@ if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => wind
 //   "¿ya jugaste hoy?" dependen de esta fecha en vez de la real) — para probar que rota de piloto
 //   y que el mejor tiempo se resetea de un día a otro sin tener que esperar días de verdad.
 // Combinables: ?level=1&char=scrap&unlock=all para entrar al nivel 1 pilotando a Scrap, por ejemplo.
+// ?padsim=1 -> simulador de mando, para desarrollar sin hardware: instala un gamepad falso en
+// navigator.getGamepads y lo conduce con el teclado — IJKL = cruceta, U/O/P/N = A/B/X/Y. Las
+// teclas del simulador se tragan en la fase de CAPTURA de window, antes de que nada más las
+// vea: no ensucian this.keys ni cuentan como "teclado" para inputDevice — para el juego entero
+// (js/gamepad.js incluido) lo que hay conectado es un mando de verdad. El resto del teclado
+// sigue funcionando normal, así que se puede alternar y probar la conmutación de dispositivo.
+function installPadSim() {
+    const pad = {
+        id: 'ASTRO LEAP PadSim', index: 0, connected: true, mapping: 'standard',
+        buttons: Array.from({ length: 16 }, () => ({ pressed: false, touched: false, value: 0 })),
+        axes: [0, 0, 0, 0], timestamp: 0
+    };
+    const MAP = { KeyU: 0, KeyO: 1, KeyP: 2, KeyN: 3, KeyI: 12, KeyK: 13, KeyJ: 14, KeyL: 15 };
+    const handle = (e, pressed) => {
+        const idx = MAP[e.code];
+        if (idx === undefined) return;
+        e.preventDefault(); e.stopPropagation();
+        const btn = pad.buttons[idx];
+        btn.pressed = pressed; btn.value = pressed ? 1 : 0;
+        pad.timestamp = performance.now();
+    };
+    window.addEventListener('keydown', (e) => handle(e, true), true);
+    window.addEventListener('keyup', (e) => handle(e, false), true);
+    navigator.getGamepads = () => [pad];
+    console.log('🎮 PadSim activo — IJKL: cruceta · U: A · O: B · P: X · N: Y');
+}
+
 (function setupDebugMode() {
     game.track('visita'); // la página cargó y el juego arrancó: una visita
     const params = new URLSearchParams(location.search);
@@ -2780,6 +2807,7 @@ if (IS_TOUCH_DEVICE) window.addEventListener('load', () => setTimeout(() => wind
             game.showMainMenu(); // reconstruye el menú, ya con el botón del duelo delante
         }
     }
+    if (params.get('padsim')) installPadSim();
     if (params.get('unlock') === 'all') {
         game.worldMap.nodes.forEach(n => { n.unlocked = true; });
     }

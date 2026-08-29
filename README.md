@@ -141,6 +141,7 @@ Para generar los instalables (`dist/`): `npm run dist:mac` (.dmg/.zip), `dist:wi
 - `?char=bolt|shade|scrap` — pilota ese héroe directamente (se da por desbloqueado).
 - `?unlock=all` — desbloquea todos los nodos del mapa.
 - `?dailyDate=YYYY-MM-DD` — simula "hoy" para el Reto Diario sin esperar días reales.
+- `?padsim=1` — **simulador de mando** por teclado, para probar el soporte de gamepad sin hardware: `IJKL` cruceta, `U`/`O`/`P`/`N` = A/B/X/Y. Esas teclas se tragan antes de llegar al juego: para él hay un mando de verdad conectado (los textos dicen A/B, el mando virtual táctil se esconde). En escritorio: `ASTRO_PADSIM=1 npm run desktop`.
 - Combinables: `?level=8&char=scrap&unlock=all`. Dentro de un nivel, `R` lo reinicia al instante.
 
 ## Estructura del proyecto
