@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE, keyName, setInputDevice, getInputDevice: () => inputDevice };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, DAILY_START_LEVELS, DAILY_LEVEL_POOL, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE, keyName, setInputDevice, getInputDevice: () => inputDevice };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -1029,7 +1029,7 @@ describe('Reto Diario (contra js/game.js real)', () => {
     });
 
     test('startDailyChallenge() carga el nivel/piloto/dificultad de hoy, sin tocar el guardado real', () => {
-        const { game, window, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor } = loadGame();
+        const { game, window, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, DAILY_START_LEVELS } = loadGame();
         // Progreso real "de mentira", para comprobar después que el reto no lo ha tocado.
         game.player.level = 5; game.player.attack = 99;
         game.unlockedCharacters = new Set(['kes', 'bolt']);
@@ -1042,9 +1042,52 @@ describe('Reto Diario (contra js/game.js real)', () => {
         expect(game.dailyMode).toBe(true);
         expect(game.currentLevel).toBe(dailyLevelFor(today));
         expect(game.dailyDifficulty.label).toBe(dailyDifficultyFor(today).label);
-        expect(game.player.level).toBe(1); // jugador NUEVO del reto, no el de nivel 5
+        // Jugador NUEVO del reto (no el de nivel 5/ataque 99): arranca al nivel del sector del día
+        expect(game.player.level).toBe(DAILY_START_LEVELS[dailyLevelFor(today)]);
+        expect(game.player.attack).not.toBe(99);
         expect(game.player.character).toBe(dailyHeroFor(today));
         expect(window.localStorage.getItem('astroLeapSave_v1')).toBe(savedBefore); // intacto
+    });
+
+    test('Reto Diario v2: las fechas ANTERIORES al corte conservan el reto v1 exacto (Mundo 1, Kes, Lv1)', () => {
+        const { dailyLevelFor, dailyHeroFor } = loadGame();
+        // Los duelos compartidos derivan todo de su fecha: cambiar el pasado rompería enlaces vivos
+        for (const d of ['2026-08-24', '2026-05-01', '2025-12-31']) {
+            expect([0, 1]).toContain(dailyLevelFor(d));
+            expect(dailyHeroFor(d)).toBe('kes');
+        }
+    });
+
+    test('Reto Diario v2: desde el corte rotan los 8 niveles sin jefe y los 4 pilotos', () => {
+        const { dailyLevelFor, dailyHeroFor, DAILY_LEVEL_POOL, HERO_ORDER, LEVELS } = loadGame();
+        const levels = new Set(), heroes = new Set();
+        for (let m = 9; m <= 11; m++) {
+            for (let day = 1; day <= 28; day++) {
+                const d = `2026-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                levels.add(dailyLevelFor(d));
+                heroes.add(dailyHeroFor(d));
+            }
+        }
+        // 84 fechas: la probabilidad de que falte un nivel del pool de 8 es despreciable
+        expect([...levels].sort((a, b) => a - b)).toEqual(DAILY_LEVEL_POOL);
+        expect(heroes.size).toBe(HERO_ORDER.length);
+        DAILY_LEVEL_POOL.forEach(idx => expect(LEVELS[idx].boss).toBeUndefined()); // jefes fuera, siempre
+    });
+
+    test('Reto Diario v2: en un sector del Mundo 4 el piloto arranca a Lv5 con las subidas de la partida real', () => {
+        const { game, dailyLevelFor } = loadGame();
+        let date = null;
+        for (let day = 1; day <= 28 && !date; day++) {
+            const d = `2026-09-${String(day).padStart(2, '0')}`;
+            if (dailyLevelFor(d) === 9 || dailyLevelFor(d) === 10) date = d;
+        }
+        expect(date).not.toBeNull();
+        game.startDailyChallenge({ date, time: 60000, name: 'X', route: null });
+        expect(game.player.level).toBe(5);
+        expect(game.player.attack).toBe(5 + 2 * 4);   // +2 por subida, como gainXP
+        expect(game.player.defense).toBe(2 + 4);      // +1 por subida
+        expect(game.player.maxEnergy).toBe(10 + 2 * 4);
+        expect(game.player.hp).toBe(game.player.maxHp);
     });
 
     test('la dificultad de hoy escala HP y ataque de los enemigos del nivel (Defensa intacta)', () => {

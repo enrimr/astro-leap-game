@@ -517,3 +517,15 @@ El combate se cierra en el mismo frame del golpe final (sin pantalla de resultad
 Se barajaron una pantalla de «toca para continuar» (protege al 100% pero cobra un toque a CADA duelo — inaceptable en un juego con docenas por partida y una mecánica entera dedicada a no cortar el ritmo) y mover los botones de combate arriba (rompe la ergonomía de pulgares justo en la parte táctica, y no protege del dedo que ya bajaba). Lo elegido es el patrón estándar de los juegos táctiles: **ventana de gracia con fade** (`COMBAT_INPUT_GRACE_MS`, 600ms). Al cerrarse el duelo —ganando o huyendo; perder va a respawn— los botones de movimiento renacen atenuados y sordos (`.cooldown`), y el fade al encenderse hace legible por qué ese toque no respondió. Quien no venía machacando ni lo nota: cero fricción añadida.
 
 Solo pagan la gracia los botones en pantalla (la guardia vive en el `press` de `bindHold`): teclado y mando no comparten posiciones con el menú de combate, así que sus entradas pasan limpias — fijado con test en ambos sentidos.
+
+### 2.40 Reto Diario v2: ocho mapas, cuatro pilotos — y el pasado no se toca
+
+El diario rotaba entre DOS mapas (los del Mundo 1 sin jefe), siempre con Kes: 8 combinaciones contando la dificultad, ~50% de repetir mapa respecto a ayer. La sensación reportada — «todos los días es el mismo mapa con los mismos rivales» — era literalmente cierta. El bloqueo era conocido y estaba comentado en el código: los mundos tardíos aplastan a un Lv1 recién creado.
+
+v2 lo desbloquea con las tres piezas que faltaban:
+
+- **Pool de ocho niveles** (los dos sin jefe de cada mundo). Los de jefe siguen fuera — un jefe es el examen de su mundo, no un reto de velocidad — igual que las torres Extra (habilidad aérea pura, injustas para Scrap).
+- **Arranque escalado al sector** (`DAILY_START_LEVELS`: Mundo 2 → Lv3, Mundo 3 → Lv4, Mundo 4 → Lv5), aplicando las MISMAS subidas que la partida real (`Player.levelUpOnce`, extraído de gainXP para que las stats por nivel vivan en un único sitio). Calibrado contra los niveles reales de los enemigos de cada sector: los débiles siguen pisables, los Lv5-6 exigen duelo.
+- **El piloto rota** entre los cuatro. Esto REVIERTE una decisión anterior (Kes fijo, «los tiempos de días distintos son comparables sin el factor hoy-tocó-Bolt») con un argumento que entonces se infravaloró: el formato Wordle compara el MISMO día, donde piloto, nivel y semilla son idénticos para todos — la comparabilidad entre días distintos nunca fue la que importaba, y costaba 4× variedad.
+
+La regla que lo hace seguro: **el reto de una fecha es EL MISMO para siempre**. Los duelos compartidos derivan nivel/piloto/dificultad de su fecha — un enlace viejo debe seguir apuntando al reto (y al MAPA del fantasma) con el que se grabó. Por eso el cambio corta por fecha (`DAILY_V2_FROM = '2026-08-30'`), no por versión de código: las fechas anteriores conservan el comportamiento v1 exacto, fijado con test.

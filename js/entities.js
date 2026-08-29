@@ -303,15 +303,22 @@ class Player {
     }
     collides(e) { return this.x < e.x + e.w && this.x + this.w > e.x && this.y < e.y + e.h && this.y + this.h > e.y; }
     collidesFromAbove(e) { return this.vy > 0 && this.y + this.h <= e.y + e.h / 2 && this.collides(e); }
+    // Una subida de nivel con TODOS sus efectos (stats, curación completa, punto de mejora).
+    // La comparten gainXP y el arranque escalado del Reto Diario (DAILY_START_LEVELS en
+    // game.js): las stats por nivel viven en un único sitio.
+    levelUpOnce() {
+        this.level++; this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5);
+        this.maxHp += 5; this.hp = this.maxHp; this.maxEnergy += 2; this.energy = this.maxEnergy;
+        this.attack += 2; this.defense += 1;
+        this.skillPoints++; // árbol de mejoras: cada subida da un punto que se gasta en el mapa
+    }
     gainXP(amt) {
         this.xp += amt;
         let leveled = false;
         while (this.xp >= this.xpToNextLevel) {
             this.xp -= this.xpToNextLevel;
-            this.level++; this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5);
-            this.maxHp += 5; this.hp = this.maxHp; this.maxEnergy += 2; this.energy = this.maxEnergy;
-            this.attack += 2; this.defense += 1; leveled = true;
-            this.skillPoints++; // árbol de mejoras: cada subida da un punto que se gasta en el mapa
+            this.levelUpOnce();
+            leveled = true;
         }
         return leveled;
     }

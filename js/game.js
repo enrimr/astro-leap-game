@@ -155,24 +155,36 @@ function todayDateString() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-// El piloto del reto: SIEMPRE Kes. Antes rotaba entre los 4 por fecha, pero Kes es el punto de
-// comparación más limpio — el piloto de arranque, la habilidad más neutra (doble salto), y los
-// tiempos de días distintos siguen siendo comparables entre sí sin el factor "hoy tocó Bolt".
-// Se mantiene la firma con fecha para no tocar a quien la llama (menú, duelos, fantasmas).
+// ---- Reto Diario v2 (desde DAILY_V2_FROM) ----
+// El reto de una fecha debe ser EL MISMO para siempre: los duelos compartidos derivan nivel,
+// piloto y dificultad de su fecha, y un enlace viejo tiene que seguir apuntando al reto (y al
+// MAPA del fantasma) con el que se grabó. Por eso el cambio de reglas corta por fecha, no por
+// versión de código: las fechas anteriores conservan el comportamiento v1 exacto (solo Mundo 1,
+// siempre Kes, arranque a Lv1). La comparación de strings vale porque son ISO YYYY-MM-DD.
+const DAILY_V2_FROM = '2026-08-30';
+const DAILY_LEVEL_POOL_V1 = [0, 1];
+// v2: los dos niveles sin jefe de cada mundo. Los de jefe siguen fuera — un jefe es el examen
+// de su mundo, no un reto de velocidad; y la Torre/Aguja (12-13) son de habilidad aérea pura,
+// injustas para el Scrap que ahora rota.
+const DAILY_LEVEL_POOL = [0, 1, 3, 4, 6, 7, 9, 10];
+// Nivel inicial del piloto según el sector del día: los mundos tardíos están diseñados para
+// alguien que ya progresó — un Lv1 recién salido de fábrica contra enemigos Lv5-6 no es un reto,
+// es una paliza. El escalado (mismas subidas que la partida real, ver Player.levelUpOnce) deja
+// pisables a los enemigos débiles del sector y exige duelo a los gordos, como en una partida
+// normal a esa altura: Mundo 2 → Lv3, Mundo 3 → Lv4, Mundo 4 → Lv5.
+const DAILY_START_LEVELS = { 0: 1, 1: 1, 3: 3, 4: 3, 6: 4, 7: 4, 9: 5, 10: 5 };
+// El piloto del reto: en v1 era siempre Kes ("los tiempos de días distintos son comparables sin
+// el factor hoy-tocó-Bolt"). v2 lo hace rotar: el formato Wordle compara el MISMO día — donde
+// piloto, nivel y semilla son idénticos para todos — y dos mapas con un solo piloto hacían que
+// cada día se sintiera el mismo reto. La variedad gana; los duelos siguen siendo justos.
 function dailyHeroFor(dateStr) {
-    return 'kes';
+    if (dateStr < DAILY_V2_FROM) return 'kes';
+    return HERO_ORDER[Math.abs(hashStringToSeed(dateStr + ':hero')) % HERO_ORDER.length];
 }
-// El nivel de hoy: determinista, rota SOLO entre los del Mundo 1 sin jefe (Cráter de Amerizaje,
-// Grietas de Hielo) — es la única zona diseñada para completarse con un personaje recién creado,
-// sin ningún nivel/stat previo (el Reto Diario siempre arranca un jugador desde cero, nunca usa
-// el progreso guardado real). Los niveles con jefe se quedan fuera a propósito: un jefe pensado
-// para alguien que ya subió de nivel en 2 sectores previos aplastaría a un nivel 1 recién salido
-// de fábrica — añadirlos a la rotación es la mejora obvia siguiente, pero necesita antes escalar
-// las stats iniciales del jugador según el nivel, no solo elegir el mapa.
-const DAILY_LEVEL_POOL = [0, 1];
 function dailyLevelFor(dateStr) {
+    const pool = dateStr < DAILY_V2_FROM ? DAILY_LEVEL_POOL_V1 : DAILY_LEVEL_POOL;
     const seed = hashStringToSeed(dateStr + ':level');
-    return DAILY_LEVEL_POOL[Math.abs(seed) % DAILY_LEVEL_POOL.length];
+    return pool[Math.abs(seed) % pool.length];
 }
 // La dificultad de hoy: multiplicador determinista sobre HP/ataque de los enemigos del nivel
 // (incluida la Reina Larva si algún día entra en DAILY_LEVEL_POOL) — para que rejugar el MISMO
@@ -802,6 +814,10 @@ class Game {
         this.duelRec = []; this.duelRecFrame = 0; this.lastDuelRun = null;
 
         this.player = new Player(20, 100, hero);
+        // v2: el piloto arranca a la altura del sector del día (ver DAILY_START_LEVELS) con las
+        // mismas subidas que la partida real. Los puntos de mejora que esto regala no se pueden
+        // gastar (el reto no tiene mapa) — el reto se juega con el piloto pelado, como siempre.
+        for (let i = 1; i < (DAILY_START_LEVELS[levelIdx] || 1); i++) this.player.levelUpOnce();
         this.unlockedCharacters = new Set([hero]);
         this.worldMap = new WorldMap();
         this.collectedPickups = new Set();

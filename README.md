@@ -90,7 +90,7 @@ El jugador arranca con HP 22 · EN 10 · ATQ 5 · DEF 2 y 3 vidas (`♥` en el H
 
 ## Reto Diario
 
-Botón propio en el menú, al estilo Wordle: **el mismo desafío para todo el mundo cada día** — nivel (rota entre los sectores 1-2) y dificultad, deterministas según la fecha, con **Kes siempre a los mandos**, con el azar del combate sembrado para que comparar tiempos signifique algo. No toca tu partida guardada en ningún caso. Se guarda tu mejor tiempo de hoy y hay botón de compartir al terminar.
+Botón propio en el menú, al estilo Wordle: **el mismo desafío para todo el mundo cada día** — nivel (rota entre los **ocho sectores sin jefe**, dos por mundo), **piloto del día** (rotan los cuatro) y dificultad, todo determinista según la fecha, con el azar del combate sembrado para que comparar tiempos signifique algo. En los sectores tardíos el piloto arranca subido de nivel a la altura del mundo (Lv3/Lv4/Lv5), con las mismas subidas que la partida real. No toca tu partida guardada en ningún caso. Se guarda tu mejor tiempo de hoy y hay botón de compartir al terminar.
 
 **Duelos a distancia ⚔️**: al terminar, «Retar a un amigo» comparte una URL con tu fecha+tiempo+nombre **y tu ruta grabada**; quien la abra jugará exactamente ese reto contra tu **fantasma**, que reproduce tu recorrido real — saltos, caídas y pausas de combate incluidas — con veredicto y botón de revancha al acabar. Si el enlace no se puede abrir directamente (la app de escritorio no tiene barra de direcciones, o el juego ya está abierto), el menú tiene «¿Te han retado?»: pega ahí el enlace — corto o largo — o el propio token, y el duelo se arma igual.
 
