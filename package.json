@@ -2,9 +2,10 @@
   "name": "astro-leap",
   "version": "1.0.0",
   "description": "Plataformas + duelos por turnos ambientado en dos lunas alienígenas. Construido sobre la mecánica de Monster Jump.",
-  "main": "js/game.js",
+  "main": "desktop/main.js",
   "scripts": {
     "test": "jest",
+    "desktop": "electron .",
     "test:watch": "jest --watch",
     "generate-og-image": "node scripts/generate-og-image.js",
     "generate-level-maps": "node scripts/generate-level-maps.js",
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@jest/globals": "^30.2.0",
     "canvas": "^3.2.0",
+    "electron": "^41.7.1",
     "jest": "^27.5.1",
     "jsdom": "^16.7.0",
     "puppeteer-core": "^24.43.1"

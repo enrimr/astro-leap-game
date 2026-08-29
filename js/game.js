@@ -166,9 +166,16 @@ function dailyDifficultyFor(dateStr) {
 // código corre en el navegador del jugador y una contraseña embebida sería pública.
 const URL_SHORTENER = 'https://s.enri.me';
 const SHORTENER_PREFIX = 'astroleap'; // los duelos quedan como s.enri.me/astroleap/Xk3mP2a
+// Build de escritorio (Electron, ver desktop/main.js): el juego corre desde file://, así que
+// location.href no es una URL compartible — todo lo que se comparte apunta a la versión web,
+// donde el rival juega sin instalar nada. Y la baliza pasiva de métricas se apaga: en una app
+// instalada sería telemetría a declarar (Steam), no un contador de visitas web. El acortador
+// sí queda encendido: solo dispara cuando el jugador pulsa compartir, a propósito.
+const IS_DESKTOP = typeof navigator !== 'undefined' && / electron\//i.test(navigator.userAgent);
+const WEB_HOME = 'https://astroleap.enri.me/';
 // Métricas de uso (mismo servicio que el acortador): base del colector, '' = apagado.
 // Contadores agregados sin nada personal — ver POST /api/metrics en el repo link-shortener.
-const METRICS_URL = 'https://s.enri.me';
+const METRICS_URL = IS_DESKTOP ? '' : 'https://s.enri.me';
 const METRICS_SITE = 'astroleap';
 
 // ---- Duelo a distancia: reta a un amigo con tu tiempo del Reto Diario. El token viaja en la
@@ -582,7 +589,8 @@ class Game {
         // completado (misma fecha y mismo tiempo) — si no, duelo v1 sin ruta.
         const run = this.lastDuelRun;
         const route = (run && run.date === dateStr && Math.round(run.time) === Math.round(timeMs)) ? run.route : '';
-        const longUrl = `${location.origin}${location.pathname}?duelo=${encodeDuelToken(dateStr, timeMs, name, route)}`;
+        const base = IS_DESKTOP ? WEB_HOME : `${location.origin}${location.pathname}`;
+        const longUrl = `${base}?duelo=${encodeDuelToken(dateStr, timeMs, name, route)}`;
         const url = await this.shortenUrl(longUrl);
         const text = `⚔️ Te reto en ASTRO LEAP: el Reto Diario del ${dateStr} en ${formatTime(timeMs)}. Mi fantasma te espera — ¿me ganas?`;
         const fallbackCopy = () => {
@@ -638,7 +646,7 @@ class Game {
     // sistema); solo se renderiza cuando existe soporte, ver buildShareHTML().
     shareRun(text) {
         if (!navigator.share) return;
-        navigator.share({ title: 'Astro Leap', text, url: location.href }).catch(() => { /* cancelado por el usuario: no pasa nada */ });
+        navigator.share({ title: 'Astro Leap', text, url: IS_DESKTOP ? WEB_HOME : location.href }).catch(() => { /* cancelado por el usuario: no pasa nada */ });
     }
     // navigator.share (móvil y navegadores modernos de escritorio) abre el selector nativo con
     // TODAS las apps instaladas (X, Facebook, WhatsApp, Instagram...). Si no existe, alternativa
@@ -648,7 +656,7 @@ class Game {
             return `<button class="menu-btn share-btn" data-action="share" data-share-text="${text.replace(/"/g, '&quot;')}">↗ Compartir</button>`;
         }
         const encodedText = encodeURIComponent(text);
-        const encodedUrl = encodeURIComponent(location.href);
+        const encodedUrl = encodeURIComponent(IS_DESKTOP ? WEB_HOME : location.href);
         return `
             <div class="share-row">
                 <a class="share-icon" href="https://twitter.com/intent/tweet?text=${encodedText}%20${encodedUrl}" target="_blank" rel="noopener" aria-label="Compartir en X">𝕏</a>

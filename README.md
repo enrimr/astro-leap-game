@@ -123,6 +123,15 @@ python3 -m http.server 8000   # abre http://localhost:8000/
 
 O simplemente abre `index.html` en el navegador. El sonido (efectos y dos loops de música) está 100% sintetizado con Web Audio, sin archivos externos — ver `DESIGN.md` §2.10.
 
+## Jugar en escritorio (Electron)
+
+```bash
+npm install --legacy-peer-deps
+npm run desktop
+```
+
+Abre el mismo juego como app de ventana (`desktop/main.js`): F11 alterna pantalla completa y los enlaces de compartir se abren en el navegador del sistema. Dos diferencias con la web, deliberadas: las métricas de uso están apagadas y todo lo que se comparte (duelos incluidos) apunta a <https://astroleap.enri.me/>, donde el rival juega sin instalar nada. Es la base del futuro build para Steam — ver `DESIGN.md` §2.34.
+
 ## Probar/depurar
 
 - `?level=N` (1-14) — entra directo a ese nivel con todo al máximo. Ej: `?level=8` para el Túnel de Escape, `?level=13` para el nivel extra vertical (Torre de Vigía, aún sin nodo en el mapa).

@@ -12,9 +12,9 @@
 
     <!-- URLs ABSOLUTAS a propósito: los scrapers de Open Graph (X, WhatsApp, Facebook...) leen
          el HTML crudo sin ejecutar JS ni resolver rutas relativas, así que og:image/og:url no
-         pueden ser relativas ni calcularse en runtime. Si el juego cambia de dominio, este bloque
-         es el ÚNICO sitio a tocar — los botones de compartir del juego usan location.href y se
-         adaptan solos (ver Game.buildShareHTML en js/game.js). -->
+         pueden ser relativas ni calcularse en runtime. Si el juego cambia de dominio hay que tocar
+         este bloque y WEB_HOME en js/game.js (la URL que comparte la build de escritorio) — los
+         botones de compartir en web usan location.href y se adaptan solos (ver Game.buildShareHTML). -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://astroleap.enri.me/">
     <meta property="og:title" content="ASTRO LEAP — Plataformas + Duelos por turnos">
