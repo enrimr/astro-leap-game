@@ -1660,7 +1660,14 @@ class Game {
             // nada más se cuela detrás.
             if (this.pauseOpen) {
                 if (e.code === 'Escape') this.closePause();
-                else if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) this.pauseAction(this.pauseItems()[this.pauseIndex].id);
+                else if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) {
+                    this.pauseAction(this.pauseItems()[this.pauseIndex].id);
+                    // Consumir la tecla que confirmó: this.keys ya la tenía en true (se asigna
+                    // arriba del todo) y sin esto SALIR DEL NIVEL llegaba al mapa con ESPACIO
+                    // aún "pulsado" — worldMap.update() lo veía en el frame siguiente y
+                    // reentraba al nivel: parecía que salir te mandaba al inicio del nivel.
+                    this.keys.Space = false; this.keys.Enter = false;
+                }
                 return;
             }
             // e.repeat fuera: el autorepeat del navegador al MANTENER una tecla ya no dispara

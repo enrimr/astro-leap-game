@@ -2477,6 +2477,18 @@ describe('Menú de pausa — congela la acción por evento, sin regalar nada', (
         expect(game.inWorldMap).toBe(true);
     });
 
+    test('regresión: SALIR DEL NIVEL no reentra al nivel con la tecla de confirmar aún pulsada', () => {
+        const { game, window, document } = inLevel();
+        press(window, document, 'Escape');
+        game.keys.ArrowDown = true; game.update();
+        game.keys.ArrowDown = true; game.update(); // cursor en SALIR DEL NIVEL
+        press(window, document, 'Space'); // confirma — y todavía no ha habido keyup
+        expect(game.inWorldMap).toBe(true);
+        game.update(); // el frame siguiente: el mapa NO debe tragarse ese mismo ESPACIO y reentrar
+        expect(game.inWorldMap).toBe(true);
+        expect(game.inLevel).toBe(false);
+    });
+
     test('en web no se ofrece SALIR DEL JUEGO (eso es de la app de escritorio)', () => {
         const { game } = inLevel();
         expect(game.pauseItems().map(i => i.id)).toEqual(['resume', 'restart', 'exit']);
