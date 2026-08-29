@@ -1,9 +1,35 @@
 // Proceso principal de Electron: envuelve el juego web TAL CUAL (index.html cargado por
-// file://) en una ventana de escritorio. Sin preload ni IPC a propósito — el juego no necesita
-// nada de Node; la única diferencia de comportamiento vive en js/game.js (IS_DESKTOP, que
-// detecta el user agent de Electron: compartir apunta a la web y las métricas se apagan).
-const { app, BrowserWindow, shell } = require('electron');
+// file://) en una ventana de escritorio. El único puente con Node es el espejo de guardado
+// (preload.js + los dos canales IPC de abajo) — el código del juego no cambia; su única rama
+// de escritorio vive en js/game.js (IS_DESKTOP, que detecta el user agent de Electron:
+// compartir apunta a la web y las métricas se apagan).
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const fs = require('fs');
 const path = require('path');
+
+// Guardado en fichero (ver desktop/preload.js, que hace de espejo del localStorage del juego):
+// save.json en userData es la unidad que Steam Cloud podrá sincronizar. Escritura atómica
+// (tmp + rename) para que un cierre a mitad de escritura nunca deje un save corrupto.
+const savePath = () => path.join(app.getPath('userData'), 'save.json');
+
+ipcMain.on('astro-save-load', (e) => {
+    try { e.returnValue = JSON.parse(fs.readFileSync(savePath(), 'utf8')); }
+    catch (err) { e.returnValue = null; } // sin fichero aún (primera ejecución): no pasa nada
+});
+
+ipcMain.on('astro-save-persist', (e, data) => {
+    try {
+        if (!data || typeof data !== 'object') return;
+        const clean = {};
+        for (const [k, v] of Object.entries(data)) {
+            if (typeof k === 'string' && k.startsWith('astroLeap') && typeof v === 'string') clean[k] = v;
+        }
+        const tmp = savePath() + '.tmp';
+        fs.writeFileSync(tmp, JSON.stringify(clean));
+        fs.renameSync(tmp, savePath());
+    } catch (err) { /* disco lleno o similar: el localStorage sigue siendo el respaldo vivo */ }
+    e.returnValue = true; // el beforeunload usa sendSync y espera esta confirmación
+});
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -16,7 +42,8 @@ function createWindow() {
         title: 'ASTRO LEAP',
         webPreferences: {
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            preload: path.join(__dirname, 'preload.js')
         }
     });
 
