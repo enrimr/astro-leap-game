@@ -371,6 +371,7 @@ class Game {
         this.crystalMessage = 0; this.signalUnlockMessage = 0; this.signalUnlockText = '';
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
         this.charSelectOpen = false; this.charSelectIndex = 0; // hangar de selección de personaje (pausa el juego)
+        this.pauseOpen = false; this.pauseIndex = 0; this.pauseItemRects = []; // menú de pausa (ESC/B/✕ dentro de un nivel)
         this.skillTreeOpen = false; this.skillCursor = { branch: 0, node: 0 }; // árbol de mejoras (pausa el juego, como el hangar)
         this.collectedPickups = new Set(); // "life-N" / "energy-N" / "reinforced-N-N" por nivel, para no poder re-recoger/re-romper saliendo y entrando
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
@@ -547,6 +548,7 @@ class Game {
                     <button class="menu-btn quiet" data-action="times">Mejores tiempos</button>
                     <button class="menu-btn quiet" data-action="help">Ayuda</button>
                     <button class="menu-btn quiet" data-action="duel-paste">¿Te han retado?</button>
+                    ${IS_DESKTOP ? '<button class="menu-btn quiet" data-action="quit">Salir del juego</button>' : ''}
                 </div>
             </div>
             <div class="menu-panel" id="menuDuel" hidden>
@@ -569,7 +571,7 @@ class Game {
                     <b>Pilotos</b> — Kes dobla salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos.
                     Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C.<br>
                     <b>Mejoras</b> — cada subida de nivel da 1 punto para el árbol de mejoras (chapa MEJORAS del mapa, o tecla T)<br>
-                    <b>Salir de un nivel</b> — ESC o el botón ✕<br>
+                    <b>Pausa</b> — ESC o el botón ✕ dentro de un nivel (reanudar, reiniciar o salir; el reloj sigue corriendo)<br>
                     <b>Accesibilidad</b> — el tercer botón de la esquina (junto a música/sonido) reduce el temblor de pantalla y el parpadeo de invulnerabilidad
                 </p>
                 <button class="menu-btn" data-action="back">◂ VOLVER</button>
@@ -618,6 +620,7 @@ class Game {
         else if (action === 'times') this.showMenuPanel('menuTimes');
         else if (action === 'help') this.showMenuPanel('menuHelp');
         else if (action === 'duel-paste') this.showMenuPanel('menuDuel');
+        else if (action === 'quit') window.close(); // solo se ofrece en escritorio (IS_DESKTOP)
         else if (action === 'duel-accept') this.acceptDuelLink((document.getElementById('duelLinkInput') || {}).value);
         else if (action === 'back') this.showMenuPanel('menuMain');
         else if (action === 'menu') this.showMainMenu();
@@ -1108,6 +1111,85 @@ class Game {
         if (id === 'scrap') this.showHint('scrap-reinforced', 'Camina sobre los bloques con franjas de peligro (ámbar) para romperlos con Scrap y revelar lo que esconden.');
     }
     // Input del hangar mientras está abierto: se llama desde update() antes de pausar el resto.
+    // ---- Menú de pausa (ESC / B del mando / botón ✕, dentro de un nivel) ----
+    // Mismo patrón modal que el hangar: update() se congela y el menú se pinta sobre el nivel
+    // oscurecido. El reloj del run NO se detiene (es reloj real a propósito, ver update()):
+    // la pausa congela la acción, no la carrera — pausar el Reto Diario para pensar cuesta
+    // tiempo, exactamente igual que quedarse quieto o abrir el hangar.
+    openPause() {
+        this.pauseOpen = true; this.pauseIndex = 0;
+        if (window.SFX) SFX.select();
+    }
+    closePause() {
+        this.pauseOpen = false;
+        if (window.SFX) SFX.select();
+    }
+    pauseItems() {
+        const items = [
+            { id: 'resume', label: 'REANUDAR' },
+            { id: 'restart', label: 'REINICIAR NIVEL' },
+            { id: 'exit', label: 'SALIR DEL NIVEL' }
+        ];
+        // Una app debe poder cerrarse sin teclado ni ratón (en la práctica, requisito de Steam
+        // Deck); en la web "salir del juego" es cerrar la pestaña, no un botón.
+        if (IS_DESKTOP) items.push({ id: 'quit', label: 'SALIR DEL JUEGO' });
+        return items;
+    }
+    pauseAction(id) {
+        if (window.SFX) SFX.confirm();
+        this.pauseOpen = false;
+        if (id === 'restart') {
+            // Idéntico al atajo R: recarga el nivel al instante con la vida llena
+            this.levelCompleting = false;
+            this.loadLevel(this.currentLevel);
+            this.player.hp = this.player.maxHp;
+        } else if (id === 'exit') {
+            this.exitLevel();
+        } else if (id === 'quit') {
+            window.close(); // el beforeunload vuelca el save antes de morir (ver desktop/preload.js)
+        }
+    }
+    // Solo la navegación se sondea aquí (consumiendo la tecla, como el hangar — así el
+    // autorepeat del mando funciona). Confirmar y cerrar van por EVENTO en setupInput(): un
+    // ESPACIO aún mantenido del salto no debe ejecutar "REANUDAR" en el primer frame.
+    updatePauseScreen(keys) {
+        const items = this.pauseItems();
+        if (keys.ArrowDown || keys.KeyS) {
+            this.pauseIndex = (this.pauseIndex + 1) % items.length;
+            keys.ArrowDown = false; keys.KeyS = false;
+            if (window.SFX) SFX.select();
+        } else if (keys.ArrowUp || keys.KeyW) {
+            this.pauseIndex = (this.pauseIndex + items.length - 1) % items.length;
+            keys.ArrowUp = false; keys.KeyW = false;
+            if (window.SFX) SFX.select();
+        }
+    }
+    drawPauseOverlay(ctx) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(11, 6, 32, 0.8)';
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 15px "Orbitron", sans-serif';
+        ctx.fillText('PAUSA', GAME_WIDTH / 2, 40);
+        const items = this.pauseItems();
+        this.pauseItemRects = [];
+        const w = 160, h = 19, x = (GAME_WIDTH - w) / 2;
+        items.forEach((item, i) => {
+            const y = 56 + i * 25;
+            const sel = i === this.pauseIndex;
+            ctx.fillStyle = sel ? PALETTE.panel : 'rgba(28, 17, 64, 0.55)';
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = sel ? PALETTE.accent : PALETTE.dim; ctx.lineWidth = sel ? 1.6 : 1;
+            ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+            ctx.fillStyle = sel ? PALETTE.accent : PALETTE.dim; ctx.font = 'bold 9px "Rajdhani", sans-serif';
+            ctx.fillText(item.label, GAME_WIDTH / 2, y + 13);
+            this.pauseItemRects.push({ x, y, w, h, id: item.id });
+        });
+        ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
+        ctx.fillText(`↑ ↓ elegir · ${keyName('confirm')} confirmar · ${keyName('back')} reanudar`, GAME_WIDTH / 2, GAME_HEIGHT - 8);
+        ctx.textAlign = 'left';
+        ctx.restore();
+    }
     updateCharSelectScreen(keys) {
         if (keys.ArrowRight || keys.KeyD) {
             this.charSelectIndex = Math.min(HERO_ORDER.length - 1, this.charSelectIndex + 1);
@@ -1573,13 +1655,21 @@ class Game {
                 if (e.code === 'Space' || e.code === 'Enter') this.dismissHintScreen();
                 return;
             }
+            // Con la pausa abierta, confirmar y cerrar van por EVENTO (mismo motivo que los
+            // avisos: un ESPACIO mantenido del salto no debe ejecutar REANUDAR en el acto) y
+            // nada más se cuela detrás.
+            if (this.pauseOpen) {
+                if (e.code === 'Escape') this.closePause();
+                else if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) this.pauseAction(this.pauseItems()[this.pauseIndex].id);
+                return;
+            }
             // e.repeat fuera: el autorepeat del navegador al MANTENER una tecla ya no dispara
             // acciones en cadena ni recorre el menú solo — mantener significa "acelerar los
             // turnos" (ver combatFastForward), pulsar significa "decidir".
             if (this.combat && this.combat.active && !e.repeat) this.combat.handleInput(e.code);
-            // Durante la transición de encuentro no se puede salir ni reiniciar — el combate ya
-            // es inevitable (igual que en Pokémon: cuando la pantalla parpadea, ya estás dentro).
-            if (e.code === 'Escape' && this.inLevel && !this.combat && !this.combatTransition) this.exitLevel();
+            // Durante la transición de encuentro no hay pausa — el combate ya es inevitable
+            // (igual que en Pokémon: cuando la pantalla parpadea, ya estás dentro).
+            if (e.code === 'Escape' && this.inLevel && !this.combat && !this.combatTransition) this.openPause();
             // Atajo de depuración: reiniciar el nivel actual al instante (útil ajustando niveles)
             if (e.code === 'KeyR' && this.inLevel && !this.combat && !this.combatTransition) {
                 this.levelCompleting = false;
@@ -1615,7 +1705,9 @@ class Game {
         bindHold(btnJump, 'Space');
 
         if (btnExit) {
-            const exitTap = (e) => { e.preventDefault(); if (this.hintScreen) return; if (this.inLevel && !this.combat && !this.combatTransition) this.exitLevel(); };
+            // El ✕ ya no sale en seco: abre la pausa — salir de verdad es una de sus opciones,
+            // y un toque accidental deja de costar el progreso del nivel.
+            const exitTap = (e) => { e.preventDefault(); if (this.hintScreen) return; if (this.inLevel && !this.combat && !this.combatTransition) { this.pauseOpen ? this.closePause() : this.openPause(); } };
             btnExit.addEventListener('touchstart', exitTap, { passive: false });
             btnExit.addEventListener('click', exitTap);
         }
@@ -1688,6 +1780,13 @@ class Game {
             const point = e.changedTouches ? e.changedTouches[0] : e;
             const gx = (point.clientX - rect.left) / rect.width * GAME_WIDTH;
             const gy = (point.clientY - rect.top) / rect.height * GAME_HEIGHT;
+            if (this.pauseOpen) {
+                e.preventDefault();
+                const itemHit = (this.pauseItemRects || []).find(r => gx >= r.x && gx <= r.x + r.w && gy >= r.y && gy <= r.y + r.h);
+                if (itemHit) this.pauseAction(itemHit.id);
+                else this.closePause(); // tocar fuera = reanudar, como cerrar el hangar
+                return;
+            }
             if (this.charSelectOpen) {
                 e.preventDefault();
                 const cardHit = (this.hangarCardRects || []).find(r => gx >= r.x && gx <= r.x + r.w && gy >= r.y && gy <= r.y + r.h);
@@ -1743,7 +1842,7 @@ class Game {
 
     updateTouchUI() {
         const inCombat = !!(this.combat && this.combat.active);
-        const paused = this.unlockScreen || this.charSelectOpen || this.skillTreeOpen || this.hintScreen || this.combatTransition;
+        const paused = this.unlockScreen || this.charSelectOpen || this.skillTreeOpen || this.hintScreen || this.combatTransition || this.pauseOpen;
         if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !paused);
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat && !paused);
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
@@ -1777,6 +1876,7 @@ class Game {
         }
         if (this.charSelectOpen) { this.updateCharSelectScreen(this.keys); return; }
         if (this.skillTreeOpen) { this.updateSkillTreeScreen(this.keys); return; }
+        if (this.pauseOpen) { this.updatePauseScreen(this.keys); return; }
         // Aviso contextual (ver showHint()): congela el resto del juego —igual que unlockScreen—
         // pero SIN sustituir el frame dibujado, para que se note oscurecido detrás en vez de
         // desaparecer del todo. El cierre NO se sondea aquí (a diferencia de unlockScreen) —
@@ -2646,6 +2746,7 @@ class Game {
             // La última capa del nivel: la transición de encuentro tapa también el HUD
             this.drawCombatTransition(ctx);
         }
+        if (this.pauseOpen) this.drawPauseOverlay(ctx);
         this.drawHintOverlay(ctx);
         ctx.restore();
     }

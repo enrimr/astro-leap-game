@@ -2430,6 +2430,70 @@ describe('Regresiones: pisotón, Energía por derrota y anti-farmeo de XP (contr
     });
 });
 
+describe('Menú de pausa — congela la acción por evento, sin regalar nada', () => {
+    function inLevel() {
+        const ctx = loadGame();
+        ctx.game.gameStarted = true;
+        ctx.game.loadLevel(0);
+        ctx.game.inWorldMap = false; ctx.game.inLevel = true; ctx.game.levelCompleting = false;
+        return ctx;
+    }
+    const press = (window, document, code) => document.dispatchEvent(new window.KeyboardEvent('keydown', { code }));
+
+    test('ESC abre la pausa y update() se congela; ESC de nuevo reanuda', () => {
+        const { game, window, document } = inLevel();
+        press(window, document, 'Escape');
+        expect(game.pauseOpen).toBe(true);
+        game.keys.ArrowRight = true; // dirección mantenida: el héroe NO debe moverse en pausa
+        const x = game.player.x;
+        game.update();
+        expect(game.player.x).toBe(x);
+        press(window, document, 'Escape');
+        expect(game.pauseOpen).toBe(false);
+    });
+
+    test('un ESPACIO mantenido (this.keys) no ejecuta nada: confirmar va por evento keydown', () => {
+        const { game, window, document } = inLevel();
+        press(window, document, 'Escape');
+        game.keys.Space = true; // venía saltando cuando pausó
+        game.update();
+        expect(game.pauseOpen).toBe(true); // el sondeo no confirma...
+        press(window, document, 'Space');
+        expect(game.pauseOpen).toBe(false); // ...el evento sí (REANUDAR, el elemento por defecto)
+    });
+
+    test('las flechas navegan (consumiendo la tecla) y SALIR DEL NIVEL devuelve al mapa', () => {
+        const { game, window, document } = inLevel();
+        press(window, document, 'Escape');
+        game.keys.ArrowDown = true;
+        game.update();
+        expect(game.pauseIndex).toBe(1);
+        expect(game.keys.ArrowDown).toBe(false); // consumida, como en el hangar
+        game.keys.ArrowDown = true;
+        game.update();
+        expect(game.pauseIndex).toBe(2); // SALIR DEL NIVEL
+        press(window, document, 'Space');
+        expect(game.inLevel).toBe(false);
+        expect(game.inWorldMap).toBe(true);
+    });
+
+    test('en web no se ofrece SALIR DEL JUEGO (eso es de la app de escritorio)', () => {
+        const { game } = inLevel();
+        expect(game.pauseItems().map(i => i.id)).toEqual(['resume', 'restart', 'exit']);
+    });
+
+    test('REINICIAR NIVEL recarga con la vida llena, como el atajo R', () => {
+        const { game, window, document } = inLevel();
+        game.player.hp = 3;
+        press(window, document, 'Escape');
+        game.keys.ArrowDown = true; game.update();
+        press(window, document, 'Space'); // REINICIAR NIVEL
+        expect(game.pauseOpen).toBe(false);
+        expect(game.inLevel).toBe(true);
+        expect(game.player.hp).toBe(game.player.maxHp);
+    });
+});
+
 describe('"¿Te han retado?" — aceptar un duelo pegando el enlace (imprescindible en escritorio)', () => {
     const DATE = '2026-08-29', TIME = 90000;
 

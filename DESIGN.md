@@ -498,3 +498,14 @@ Los controles en pantalla (◀ ▶ SALTO, botones de combate) eran «siempre vis
 La sutileza: los KeyboardEvent sintéticos de `js/gamepad.js` (§2.35) parecerían teclado. El rastreador solo acepta como teclado eventos con `e.isTrusted` — los sintéticos no lo llevan (privilegio del navegador) — y el mando se anuncia él mismo en cada flanco. Fijado con test.
 
 De la misma señal cuelgan los textos: `keyName()` traduce cada acción al dispositivo (`ESPACIO`→`A`, `ESC`→`B`, `C`→`X`, `T`→`Y`) y los rótulos que se repintan cada frame (pies del hangar/árbol/mapa, «PULSA X PARA CONTINUAR» de los avisos) cambian solos al momento; el panel de Ayuda gana una línea fija de Mando. Sin tabla de idiomas ni sistema nuevo: los strings se componen en el punto de pintado, que ya se ejecuta cada frame.
+
+### 2.38 Pausa de verdad: ESC deja de ser un botón de expulsión
+
+ESC (y el ✕, y la B del mando) salía del nivel en seco: todo el avance del intento, perdido por un roce. En escritorio eso es además un suspenso práctico en Steam Deck, donde el juego debe poder pausarse y cerrarse sin teclado. Ahora abre un **menú de pausa** — mismo patrón modal que el hangar: `update()` se congela y el menú se pinta sobre el nivel oscurecido — con REANUDAR / REINICIAR NIVEL (el atajo R de siempre, ahora descubrible) / SALIR DEL NIVEL, y en la app de escritorio SALIR DEL JUEGO (en web, salir es cerrar la pestaña; el menú principal de escritorio gana el mismo botón discreto).
+
+Dos decisiones finas:
+
+- **El reloj no se detiene.** El crono del run es reloj real a propósito («corre incluso en menús», ver `update()`): el hangar y los avisos ya costaban tiempo, y una pausa que congela el reloj sería la trampa perfecta en el Reto Diario — pausar para leer el nivel con calma saldría gratis. La pausa congela la acción, no la carrera, y el pie de Ayuda lo avisa.
+- **Confirmar va por EVENTO, no por sondeo** — la misma lección de los avisos (§ de showHint): si updatePauseScreen leyera `this.keys.Space`, el ESPACIO aún mantenido del salto con el que llegaste ejecutaría REANUDAR en el primer frame. Las flechas sí se sondean consumiendo la tecla (como el hangar), para heredar el autorepeat del mando.
+
+Sin pausa durante combate o transición de encuentro (el duelo ya es su propia pausa y «cuando la pantalla parpadea, ya estás dentro»). Tocar fuera del panel reanuda, como cerrar el hangar de un toque.
