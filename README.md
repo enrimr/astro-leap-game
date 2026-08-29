@@ -26,7 +26,7 @@ Hay clips en vídeo de la habilidad de cada piloto, grabados por un bot que jueg
 
 ## La mecánica central: Energía compartida
 
-La Energía es un recurso **único** que alimenta tanto la habilidad aérea en plataformas como la Habilidad en combate (daño ×1.5, cuesta 3). No se regenera con el tiempo — solo derrotando enemigos (+2 por derrota, sea pisotón o duelo) o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo.
+La Energía es un recurso **único** que alimenta tanto la habilidad aérea en plataformas como la Habilidad en combate (daño ×1.5, cuesta 3). No se regenera con el tiempo — solo derrotando enemigos (+2 por derrota, sea pisotón o duelo) o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo. Y los **jefes drenan Energía** con cada golpe que encajas sin Defender: contra ellos, tu reactor también está en juego.
 
 Y cada enemigo es una elección de riesgo: **si le caes encima desde arriba y tu nivel supera al suyo, muere al instante** (pisotón, XP directa, sin menú). Cualquier otro contacto abre el duelo por turnos: Atacar, Habilidad, Defender (mitad de daño ese turno) o Huir (50%). Dos excepciones con carácter: el **Erizo de Púas** no se pisa (pincha) y la **Magnetita** muere pisada pero **te repele en diagonal**.
 

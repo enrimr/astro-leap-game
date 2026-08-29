@@ -74,6 +74,8 @@ Sin habilidad aérea — la ruta baja de piedras de paso existe para él. A camb
 
 El daño que recibes sin defender es `ATQ enemigo × (0.8–1.2) − tu DEF` (mínimo 1).
 
+**Los jefes drenan Energía**: cada golpe suyo que entra a plena potencia te roba EN además del daño (Reina/Centinela **−1**, Overlord/Nodo Cero **−2**). **Defender también blinda el reactor** (golpe defendido = 0 EN robada) — salvo contra los golpes que ignoran defensas. Cada golpe que encajas son Habilidades y saltos extra que pierdes: contra un jefe, la Energía también es vida.
+
 **Acelerar los turnos**: mantén pulsado **ESPACIO** (o el dedo en la pantalla, en táctil) y las pausas de mensaje corren a 4×. Mantener ya no dispara acciones en cadena — pulsar decide, mantener acelera.
 
 **El pisotón**: si caes sobre la mitad superior de un enemigo (`vy > 0`) **y tu nivel supera al suyo**, muere al instante — XP completa, +2 EN, sin duelo, y rebotas hacia arriba. Es la forma rápida de limpiar niveles. Si no te da el nivel (o el contacto es lateral), transición de encuentro y duelo. Dos enemigos rompen la regla: el **Erizo de Púas** no se pisa NUNCA (te pincha un 10% de tu vida máxima y te rebota — solo cae en duelo) y la **Magnetita** sí muere, pero su campo te **repele en diagonal** al descargarse (ver Bestiario).
@@ -141,25 +143,25 @@ Con salto simple sobran para ambas puertas: **Scrap puede abrir las dos torres �
 
 ## 5. Los 4 jefes
 
-Los jefes no patrullan: te esperan ante la meta. No puedes cruzar la BASE mientras vivan.
+Los jefes no patrullan: te esperan ante la meta. No puedes cruzar la BASE mientras vivan. Todos **drenan Energía** con sus golpes no defendidos (ver §3): llegar con el depósito lleno ya no garantiza poder gastarlo entero en Habilidades.
 
 ### 🌸 Reina Larva — Nido de la Reina Larva (nivel 3)
-**Lv8 · 55 HP · ATQ 12 · DEF 6 · 60 XP** → desbloquea a **Bolt**
+**Lv8 · 55 HP · ATQ 12 · DEF 6 · 60 XP · roba 1 EN por golpe** → desbloquea a **Bolt**
 
 Cada 3er turno suyo **se regenera +6 HP** en vez de atacar. Es una carrera de daño: si tu daño por ronda no supera con margen su curación, la pelea se eterniza. Llega al menos a **Lv4** (ATQ 11): la Habilidad hace 10 fijo por 3 EN. Aprovecha sus turnos de curación (no te daña) para atacar sin miedo en vez de defender.
 
 ### 🛡️ Centinela — Núcleo del Centinela (nivel 6)
-**Lv12 · 90 HP · ATQ 17 · DEF 9 · 120 XP** → desbloquea a **Shade**
+**Lv12 · 90 HP · ATQ 17 · DEF 9 · 120 XP · roba 1 EN por golpe** → desbloquea a **Shade**
 
 Cada 3er turno **carga** ("carga una descarga...", sin daño) y al siguiente **golpea el doble** (27–40 de daño bruto). El aviso es tu ventana: **Defiende justo después de la carga** y el golpe reforzado se queda a la mitad. El resto de turnos, ataca. Recomendado **Lv7–8**.
 
 ### 👁️ Overlord — Núcleo del Reactor (nivel 9)
-**Lv16 · 140 HP · ATQ 23 · DEF 12 · 220 XP** → desbloquea a **Scrap**
+**Lv16 · 140 HP · ATQ 23 · DEF 12 · 220 XP · roba 2 EN por golpe** → desbloquea a **Scrap**
 
-Cada 3er turno **ignora Defender** — defenderse en ese turno es desperdiciarlo. Cuenta sus turnos (1, 2, ⚠️3, 4, 5, ⚠️6…) y reserva Defender para los turnos normales cuando estés bajo de HP. Con su DEF 12, el ataque básico raspa: la Habilidad (fija, sin azar) es tu fuente de daño fiable. Recomendado **Lv10–12**.
+Cada 3er turno **ignora Defender** — defenderse en ese turno es desperdiciarlo. Cuenta sus turnos (1, 2, ⚠️3, 4, 5, ⚠️6…) y reserva Defender para los turnos normales cuando estés bajo de HP — defendido no te roba EN, pero su turno ⚠️ atraviesa también el blindaje del reactor. Con su DEF 12, el ataque básico raspa: la Habilidad (fija, sin azar) es tu fuente de daño fiable. Recomendado **Lv10–12**.
 
 ### 🔴 Nodo Cero — Nodo Cero (nivel 12, jefe final)
-**Lv20 · 190 HP · ATQ 27 · DEF 14 · 380 XP**
+**Lv20 · 190 HP · ATQ 27 · DEF 14 · 380 XP · roba 2 EN por golpe**
 
 Combina los tres patrones en un **ciclo de 6 turnos**:
 
@@ -168,6 +170,8 @@ Combina los tres patrones en un **ciclo de 6 turnos**:
 | Hace | ataca | ataca | **cura +22** | **carga** | **golpe ×2** | **ignora Defender** |
 
 La partitura: ataca con todo en 1–3 (la cura no te daña — turno gratis para ti), **Defiende en tu turno entre la carga y el golpe ×2**, y en el 6 no defiendas (no sirve) — pega o cúrate de camino con una subida de nivel si la tienes cerca. Recomendado **Lv13+** y llegar con las 3 células ⚡ recogidas para encadenar Habilidades.
+
+**Enrage**: bajo el **30% de su vida** anuncia «¡El núcleo se desestabiliza!» y sus golpes *normales* pasan a **×1.4** (la descarga ×2 y el turno que ignora Defender no cambian). La recta final es una carrera: o rematas rápido, o cada turno normal suyo muerde de verdad.
 
 > 💡 Dato curioso: el pisotón también funciona sobre jefes si tu nivel supera al suyo — imposible la primera vez que los enfrentas, pero al rejugar niveles con nivel alto puedes literalmente aplastar a la Reina Larva.
 

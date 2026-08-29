@@ -432,12 +432,12 @@ const ENEMY_STATS = {
     hoverbot:   { level: 4, hp: 16, atk: 6, def: 3, xp: 14, color: '#7cf5ff', speed: 0.7, canJump: false, range: 40, boss: false, flying: true },
     magnetite:  { level: 5, hp: 22, atk: 8, def: 5, xp: 18, color: '#ffd23f', speed: 0.4, canJump: false, range: 35, boss: false, flying: false },
     ionwisp:    { level: 6, hp: 20, atk: 9, def: 3, xp: 22, color: '#b58bff', speed: 0.9, canJump: false, range: 45, boss: false, flying: true },
-    queen_larva:{ level: 8, hp: 55, atk: 12, def: 6, xp: 60, color: '#ff5ecb', speed: 0, canJump: false, range: 0, boss: true, flying: false },
-    sentinel:   { level: 12, hp: 90, atk: 17, def: 9, xp: 120, color: '#8b83c2', speed: 0, canJump: false, range: 0, boss: true, flying: false },
-    overlord:   { level: 16, hp: 140, atk: 23, def: 12, xp: 220, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false },
+    queen_larva:{ level: 8, hp: 55, atk: 12, def: 6, xp: 60, color: '#ff5ecb', speed: 0, canJump: false, range: 0, boss: true, flying: false, drain: 1 },
+    sentinel:   { level: 12, hp: 90, atk: 17, def: 9, xp: 120, color: '#8b83c2', speed: 0, canJump: false, range: 0, boss: true, flying: false, drain: 1 },
+    overlord:   { level: 16, hp: 140, atk: 23, def: 12, xp: 220, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false, drain: 2 },
     // Jefe final de la Zona 4 (Núcleo Expuesto) — no un fragmento como el Overlord, la Red misma.
     // Notablemente por encima del Overlord en todo: es el auténtico último jefe, no un mundo más.
-    nodo_cero:  { level: 20, hp: 190, atk: 27, def: 14, xp: 380, color: '#ff3366', speed: 0, canJump: false, range: 0, boss: true, flying: false }
+    nodo_cero:  { level: 20, hp: 190, atk: 27, def: 14, xp: 380, color: '#ff3366', speed: 0, canJump: false, range: 0, boss: true, flying: false, drain: 2 }
 };
 
 class Enemy {
@@ -446,6 +446,7 @@ class Enemy {
         Object.assign(this, {
             x, y, initialX: x, initialY: y, type, alive: true, defeated: false,
             level: s.level, maxHp: s.hp, hp: s.hp, attack: s.atk, defense: s.def, xpReward: s.xp,
+            drainEnergy: s.drain || 0, // jefes: EN que roban por golpe no defendido (ver enemyStrikeTurn)
             color: s.color, speed: s.speed, canJump: s.canJump, moveRange: customRange ?? s.range,
             isBoss: s.boss, isFlying: s.flying,
             w: s.boss ? 20 : 11, h: s.boss ? 20 : 11,
@@ -1124,6 +1125,7 @@ class CombatSystem {
         this.selectedIndex = 0; this.shake = 0;
         this.enemyTurnCount = 0; // cuenta turnos de ENEMIGO (no del jugador), para los patrones de jefe
         this.bossCharging = false; // true en el turno siguiente a una carga (Centinela o Nodo Cero): el próximo golpe viene reforzado
+        this.enraged = false; // Nodo Cero bajo el 30% de vida: golpes normales ×1.4 (anunciado una vez)
     }
     handleInput(key) {
         if (this.turn !== 'player' || this.messageTimer > 0) return;
@@ -1239,20 +1241,40 @@ class CombatSystem {
                 const verb = this.defending ? 'La Red ignora tus defensas!' : null;
                 return this.enemyStrikeTurn({ ignoreDefense: true, verb });
             }
+            // Enrage bajo el 30% de vida: la recta final es un clímax, no un trámite — el jefe
+            // final no puede morir más manso de como empezó. Solo refuerza los golpes NORMALES
+            // (×1.4): la descarga cargada (×2) y el ignora-Defender ya tienen su identidad, y
+            // apilarles el enrage convertiría el telegrafiado en un one-shot injugable.
+            if (this.enemy.hp <= this.enemy.maxHp * 0.3) {
+                const first = !this.enraged;
+                this.enraged = true;
+                return this.enemyStrikeTurn({ multiplier: 1.4, verb: first ? '¡El núcleo se desestabiliza!' : null });
+            }
         }
         return this.enemyStrikeTurn({});
     }
     enemyStrikeTurn({ multiplier = 1, ignoreDefense = false, verb = null } = {}) {
         const dmg = Math.floor(this.enemy.attack * multiplier * (0.8 + RNG() * 0.4));
+        const guarded = this.defending && !ignoreDefense;
         let rec;
-        if (this.defending && !ignoreDefense) {
+        if (guarded) {
             // Guardia férrea (árbol): Defender pasa de reducir al 50% a reducir al 35%.
             const reduction = this.player.hasSkill('guardia') ? 0.35 : 0.5;
             rec = Math.max(1, Math.floor(dmg * reduction));
             this.player.hp -= rec;
             this.player.checkEmergency(); // esta ruta no pasa por takeDamage — el sistema de emergencia debe cubrirla igual
         } else { rec = this.player.takeDamage(dmg); }
-        this.message = verb ? `${verb} Daño: ${rec}` : `${this.enemy.type} ataca! Daño: ${rec}`;
+        // Drenaje de los jefes: cada golpe que entra A PLENA POTENCIA roba Energía ("la Red se
+        // alimenta de tu reactor") — el spam de Habilidad deja de ser gratis: cada golpe recibido
+        // son Habilidades y dobles saltos que pierdes. Defender también blinda el reactor (le da
+        // a Defender un segundo oficio), salvo contra los golpes que ignoran defensas.
+        let drained = 0;
+        if (this.enemy.drainEnergy && !guarded && this.player.energy > 0) {
+            drained = Math.min(this.player.energy, this.enemy.drainEnergy);
+            this.player.energy -= drained;
+        }
+        const drainNote = drained ? ` −${drained} EN` : '';
+        this.message = (verb ? `${verb} Daño: ${rec}` : `${this.enemy.type} ataca! Daño: ${rec}`) + drainNote;
         this.messageTimer = 60; this.shake = multiplier > 1 ? 10 : 6;
         if (window.SFX) SFX.hitPlayer();
     }

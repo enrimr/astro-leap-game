@@ -529,3 +529,13 @@ v2 lo desbloquea con las tres piezas que faltaban:
 - **El piloto rota** entre los cuatro. Esto REVIERTE una decisión anterior (Kes fijo, «los tiempos de días distintos son comparables sin el factor hoy-tocó-Bolt») con un argumento que entonces se infravaloró: el formato Wordle compara el MISMO día, donde piloto, nivel y semilla son idénticos para todos — la comparabilidad entre días distintos nunca fue la que importaba, y costaba 4× variedad.
 
 La regla que lo hace seguro: **el reto de una fecha es EL MISMO para siempre**. Los duelos compartidos derivan nivel/piloto/dificultad de su fecha — un enlace viejo debe seguir apuntando al reto (y al MAPA del fantasma) con el que se grabó. Por eso el cambio corta por fecha (`DAILY_V2_FROM = '2026-08-30'`), no por versión de código: las fechas anteriores conservan el comportamiento v1 exacto, fijado con test.
+
+### 2.41 Los jefes muerden el reactor: drenaje de Energía y el clímax de Nodo Cero
+
+Los jefes se morían a spam de Habilidad: se llega a ellos con el depósito lleno (+2 EN por cada derrota del camino), la Habilidad es daño fijo sin azar, y nada castigaba gastarlo todo — la Reina Larva caía en ~5 turnos comiendo media vida, sin pulsar Defender ni una vez. Subirles stats habría alargado el trámite; lo que faltaba era que el duelo tocara el recurso central del juego.
+
+**Drenaje de Energía**: cada golpe de jefe que entra a plena potencia roba EN además del daño (Reina/Centinela −1, Overlord/Nodo Cero −2) — «la Red se alimenta de tu reactor», y encaja de lleno con §2.2: cada golpe que encajas son Habilidades y dobles saltos que pierdes, así que contra un jefe la Energía también es vida. La contrajugada es deliberada: **Defender también blinda el reactor** (golpe defendido = 0 EN robada, salvo los que ignoran defensas) — Defender, la acción menos usada del menú, gana un segundo oficio y el duelo largo se vuelve una negociación real entre pegar, blindar y racionar.
+
+**Enrage de Nodo Cero**: bajo el 30% de vida anuncia «¡El núcleo se desestabiliza!» y sus golpes normales pasan a ×1.4. Solo los normales: la descarga cargada (×2) y el ignora-Defender conservan su identidad — apilarles el enrage convertiría lo telegrafiado en one-shot injugable. La recta final del jefe final es una carrera con mordida, no un trámite descendente.
+
+Los otros tres jefes no llevan enrage a propósito: son exámenes de mundo, no el clímax del juego — y el drenaje ya les da la presión que les faltaba.

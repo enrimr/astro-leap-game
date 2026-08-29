@@ -108,6 +108,51 @@ describe('CombatSystem — patrones de jefe (contra js/entities.js real)', () =>
         expect(messages[5]).toMatch(/se regenera/);
     });
 
+    test('los golpes de jefe drenan Energía — pero Defender blinda el reactor', () => {
+        const { combat, player, setRNG } = freshCombat('sentinel');
+        setRNG(() => 0.5);
+        player.energy = 10;
+        combat.resolveEnemyTurn(); // turno 1: golpe normal a plena potencia
+        expect(player.energy).toBe(9); // el Centinela roba 1 EN
+        expect(combat.message).toContain('EN');
+        combat.defending = true;
+        combat.resolveEnemyTurn(); // turno 2: defendido → el reactor queda blindado
+        expect(player.energy).toBe(9);
+    });
+
+    test('el Overlord drena 2 EN, y su turno que ignora Defender también atraviesa el blindaje del reactor', () => {
+        const { combat, player, setRNG } = freshCombat('overlord');
+        setRNG(() => 0.5);
+        player.energy = 10;
+        combat.defending = true; combat.resolveEnemyTurn(); // 1: defendido → no drena
+        combat.defending = true; combat.resolveEnemyTurn(); // 2: defendido → no drena
+        expect(player.energy).toBe(10);
+        combat.defending = true; combat.resolveEnemyTurn(); // 3: ignora Defender → pega entero Y drena
+        expect(player.energy).toBe(8);
+    });
+
+    test('el drenaje nunca deja la Energía en negativo', () => {
+        const { combat, player } = freshCombat('overlord');
+        player.energy = 1;
+        combat.resolveEnemyTurn(); // drena 2 con solo 1 disponible
+        expect(player.energy).toBe(0);
+    });
+
+    test('Nodo Cero se enrabieta bajo el 30% de vida: los golpes normales pegan más, con anuncio', () => {
+        const { combat, player, enemy, setRNG } = freshCombat('nodo_cero');
+        setRNG(() => 0.5); // variación de daño = ×1.0 exacto
+        const hp0 = player.hp;
+        combat.resolveEnemyTurn(); // turno 1, vida alta: golpe normal
+        const normalHit = hp0 - player.hp;
+        expect(combat.message).not.toContain('desestabiliza');
+        enemy.hp = Math.floor(enemy.maxHp * 0.2); // recta final
+        const hp1 = player.hp;
+        combat.resolveEnemyTurn(); // turno 2: enrabietado (×1.4)
+        const enragedHit = hp1 - player.hp;
+        expect(combat.message).toContain('desestabiliza');
+        expect(enragedHit).toBeGreaterThan(normalHit);
+    });
+
     test('la Reina Larva no supera nunca su HP máximo al regenerarse', () => {
         const { combat, enemy } = freshCombat('queen_larva');
         for (let i = 1; i <= 3; i++) combat.resolveEnemyTurn(); // turno 3 = curación, ya a HP máximo
