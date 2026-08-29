@@ -96,6 +96,15 @@ body {
 #startScreen .menu-btn:active { transform: scale(0.97); background: var(--accent); color: var(--bg1); }
 #startScreen .help-text { font-size: clamp(11px, 2.6vw, 13px); color: var(--ink); opacity: 0.9; line-height: 1.7; text-align: left; max-width: 320px; margin-bottom: 4px; }
 #startScreen .help-text b { color: var(--accent3); }
+/* La Ayuda rompe la columna de 280px del menú: ocho conceptos ahí dentro obligaban a hacer
+   scroll con letra mínima. Rejilla término/descripción a lo ancho del panel, letra mayor. */
+#startScreen #menuHelp { max-width: min(640px, 96%); }
+#startScreen .help-grid {
+    display: grid; grid-template-columns: auto 1fr; column-gap: 16px; row-gap: 10px;
+    text-align: left; font-size: clamp(12px, 2.8vw, 15px); line-height: 1.45; margin-bottom: 6px;
+}
+#startScreen .help-grid dt { color: var(--accent3); font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; }
+#startScreen .help-grid dd { color: var(--ink); opacity: 0.92; margin: 0; }
 /* Campo de "¿Te han retado?": mismo lenguaje que los .menu-btn (panel, borde, glow al foco) */
 #startScreen .duel-input {
     background: var(--panel); border: 2px solid var(--dim); border-radius: 8px;

@@ -571,17 +571,15 @@ class Game {
                 <button class="menu-btn" data-action="back">◂ VOLVER</button>
             </div>
             <div class="menu-panel" id="menuHelp" hidden>
-                <p class="help-text">
-                    <b>Mover</b> — ← →<br>
-                    <b>Saltar</b> — ESPACIO (segunda vez en el aire según el piloto: doble salto, vuelo, impulso...)<br>
-                    <b>Combate</b> — ↑↓ + ESPACIO, o las teclas 1-4. Mantén pulsado ESPACIO (o el dedo en pantalla) para acelerar los turnos<br>
-                    <b>Mando</b> — A salta y confirma (mantenlo: propulsor / turnos rápidos) · B atrás · X hangar · Y mejoras<br>
-                    <b>Pilotos</b> — Kes dobla salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos.
-                    Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C.<br>
-                    <b>Mejoras</b> — cada subida de nivel da 1 punto para el árbol de mejoras (chapa MEJORAS del mapa, o tecla T)<br>
-                    <b>Pausa</b> — ESC o el botón ✕ dentro de un nivel (reanudar, reiniciar o salir; el reloj sigue corriendo)<br>
-                    <b>Accesibilidad</b> — el tercer botón de la esquina (junto a música/sonido) reduce el temblor de pantalla y el parpadeo de invulnerabilidad
-                </p>
+                <dl class="help-grid">
+                    <dt>Moverte</dt><dd>← → para andar · ESPACIO salta — y la segunda pulsación en el aire es la habilidad del piloto (doble salto, vuelo, impulso...)</dd>
+                    <dt>Combate</dt><dd>↑↓ + ESPACIO, o las teclas 1-4. Mantén pulsado ESPACIO (o el dedo en pantalla) para acelerar los turnos</dd>
+                    <dt>Mando</dt><dd>A salta y confirma (mantenlo: propulsor / turnos rápidos) · B atrás · X hangar · Y mejoras</dd>
+                    <dt>Pilotos</dt><dd>Kes dobla el salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos. Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C</dd>
+                    <dt>Mejoras</dt><dd>Cada subida de nivel da 1 punto para el árbol de mejoras (chapa MEJORAS del mapa, o tecla T)</dd>
+                    <dt>Pausa</dt><dd>ESC o el botón ✕ dentro de un nivel — reanudar, reiniciar o salir (el reloj sigue corriendo)</dd>
+                    <dt>Accesibilidad</dt><dd>El tercer botón de la esquina (junto a música/sonido) reduce el temblor de pantalla y los parpadeos</dd>
+                </dl>
                 <button class="menu-btn" data-action="back">◂ VOLVER</button>
             </div>`;
     }
