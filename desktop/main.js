@@ -3,9 +3,26 @@
 // (preload.js + los dos canales IPC de abajo) — el código del juego no cambia; su única rama
 // de escritorio vive en js/game.js (IS_DESKTOP, que detecta el user agent de Electron:
 // compartir apunta a la web y las métricas se apagan).
-const { app, BrowserWindow, ipcMain, net, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, net, screen, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
+
+// La ventana se recuerda entre sesiones (tamaño, posición y pantalla completa) en
+// window-state.json. Si el monitor de la última vez ya no está (portátil desconectado de la
+// pantalla externa), las coordenadas se descartan y Electron centra la ventana con el tamaño
+// recordado — una ventana que renace fuera de todo escritorio parece una app rota.
+const windowStatePath = () => path.join(app.getPath('userData'), 'window-state.json');
+function loadWindowState() {
+    try { return JSON.parse(fs.readFileSync(windowStatePath(), 'utf8')) || {}; } catch (e) { return {}; }
+}
+function saveWindowState(win) {
+    try {
+        // getNormalBounds: si se cierra en pantalla completa o maximizada, recordamos el
+        // tamaño "de ventana" al que volvería con la tecla de restaurar, no el del monitor.
+        const state = { fullscreen: win.isFullScreen(), ...win.getNormalBounds() };
+        fs.writeFileSync(windowStatePath(), JSON.stringify(state));
+    } catch (e) { /* noop: la próxima sesión abre con los valores por defecto */ }
+}
 
 // Guardado en fichero (ver desktop/preload.js, que hace de espejo del localStorage del juego):
 // save.json en userData es la unidad que Steam Cloud podrá sincronizar. Escritura atómica
@@ -49,9 +66,18 @@ ipcMain.on('astro-save-persist', (e, data) => {
 });
 
 function createWindow() {
+    const saved = loadWindowState();
+    const savedPosVisible = Number.isFinite(saved.x) && Number.isFinite(saved.y) &&
+        screen.getAllDisplays().some(d => {
+            const a = d.workArea;
+            return saved.x < a.x + a.width && saved.x + (saved.width || 0) > a.x &&
+                saved.y < a.y + a.height && saved.y + (saved.height || 0) > a.y;
+        });
     const win = new BrowserWindow({
-        width: 1280,
-        height: 800,
+        width: Number.isFinite(saved.width) ? saved.width : 1280,
+        height: Number.isFinite(saved.height) ? saved.height : 800,
+        ...(savedPosVisible ? { x: saved.x, y: saved.y } : {}),
+        fullscreen: saved.fullscreen === true,
         minWidth: 800,
         minHeight: 500,
         backgroundColor: '#0b0620', // el fondo del juego, para que no haya flash blanco al abrir
@@ -63,6 +89,7 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js')
         }
     });
+    win.on('close', () => saveWindowState(win));
 
     // Cualquier enlace externo (compartir en X/Facebook/WhatsApp, target=_blank) se abre en el
     // navegador del sistema; dentro de la app solo vive el juego. will-navigate cubre el caso
