@@ -1,3 +1,24 @@
+/* Fuentes autoalojadas (subset latino de Google Fonts, ~40KB total): la build de escritorio
+   debe funcionar sin red, y la web se ahorra la ida a fonts.gstatic.com. Orbitron es variable
+   (un woff2 cubre 600-800); Rajdhani necesita un fichero por peso. Los emojis y demás glifos
+   fuera del subset caen solos a las fuentes del sistema. */
+@font-face {
+    font-family: 'Orbitron'; font-style: normal; font-weight: 600 800; font-display: swap;
+    src: url('fonts/Orbitron-latin.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Rajdhani'; font-style: normal; font-weight: 500; font-display: swap;
+    src: url('fonts/Rajdhani-500-latin.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Rajdhani'; font-style: normal; font-weight: 600; font-display: swap;
+    src: url('fonts/Rajdhani-600-latin.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Rajdhani'; font-style: normal; font-weight: 700; font-display: swap;
+    src: url('fonts/Rajdhani-700-latin.woff2') format('woff2');
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {

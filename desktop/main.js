@@ -42,6 +42,18 @@ function createWindow() {
     });
 
     win.loadFile(path.join(__dirname, '..', 'index.html'));
+
+    // Herramienta de desarrollo: ASTRO_SHOT=/ruta.png captura la ventana a los 3s y cierra la
+    // app — permite verificar la build de escritorio desde un script, sin interacción manual.
+    if (process.env.ASTRO_SHOT) {
+        win.webContents.once('did-finish-load', () => {
+            setTimeout(async () => {
+                const img = await win.webContents.capturePage();
+                require('fs').writeFileSync(process.env.ASTRO_SHOT, img.toPNG());
+                app.quit();
+            }, 3000);
+        });
+    }
     return win;
 }
 
