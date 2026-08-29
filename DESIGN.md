@@ -509,3 +509,11 @@ Dos decisiones finas:
 - **Confirmar va por EVENTO, no por sondeo** — la misma lección de los avisos (§ de showHint): si updatePauseScreen leyera `this.keys.Space`, el ESPACIO aún mantenido del salto con el que llegaste ejecutaría REANUDAR en el primer frame. Las flechas sí se sondean consumiendo la tecla (como el hangar), para heredar el autorepeat del mando. Y la tecla que confirma se **consume** tras ejecutar (`keys.Space/Enter` a false): sin eso, SALIR DEL NIVEL llegaba al mapa con el ESPACIO aún en true y `worldMap.update()` reentraba al nivel en el frame siguiente — parecía que salir te mandaba al inicio del nivel (regresión fijada con test).
 
 Sin pausa durante combate o transición de encuentro (el duelo ya es su propia pausa y «cuando la pantalla parpadea, ya estás dentro»). Tocar fuera del panel reanuda, como cerrar el hangar de un toque.
+
+### 2.39 Gracia post-combate: el toque de ATACAR no puede convertirse en un paso
+
+El combate se cierra en el mismo frame del golpe final (sin pantalla de resultado — el ritmo manda, ver el acelerador de turnos de §2.28) y en táctil los botones de movimiento renacen EXACTAMENTE donde estaban los de atacar. Quien venía machacando ATACAR, o manteniendo el dedo para acelerar, aterrizaba su siguiente toque en ◀/▶/SALTO — un paso al vacío o de vuelta al enemigo.
+
+Se barajaron una pantalla de «toca para continuar» (protege al 100% pero cobra un toque a CADA duelo — inaceptable en un juego con docenas por partida y una mecánica entera dedicada a no cortar el ritmo) y mover los botones de combate arriba (rompe la ergonomía de pulgares justo en la parte táctica, y no protege del dedo que ya bajaba). Lo elegido es el patrón estándar de los juegos táctiles: **ventana de gracia con fade** (`COMBAT_INPUT_GRACE_MS`, 600ms). Al cerrarse el duelo —ganando o huyendo; perder va a respawn— los botones de movimiento renacen atenuados y sordos (`.cooldown`), y el fade al encenderse hace legible por qué ese toque no respondió. Quien no venía machacando ni lo nota: cero fricción añadida.
+
+Solo pagan la gracia los botones en pantalla (la guardia vive en el `press` de `bindHold`): teclado y mando no comparten posiciones con el menú de combate, así que sus entradas pasan limpias — fijado con test en ambos sentidos.

@@ -42,6 +42,13 @@ function continuePrompt() {
     return inputDevice === 'touch' ? 'TOCA PARA CONTINUAR' : `PULSA ${keyName('confirm')} PARA CONTINUAR`;
 }
 
+// Gracia post-combate de los botones táctiles: el combate se cierra en el mismo frame del
+// golpe final y los botones de movimiento renacen EXACTAMENTE donde estaban los de atacar —
+// el toque que venía para ATACAR se convertía en un paso al vacío. Durante esta ventana los
+// botones en pantalla están sordos y atenuados (CSS .cooldown); teclado y mando no la sufren
+// porque no comparten posiciones con el menú de combate.
+const COMBAT_INPUT_GRACE_MS = 600;
+
 const SAVE_KEY = 'astroLeapSave_v1';
 const BEST_TIMES_KEY = 'astroLeapBestTimes_v1';
 const MAX_BEST_TIMES = 5;
@@ -372,6 +379,7 @@ class Game {
         this.unlockScreen = null; // id de héroe mientras se muestra su pantalla de desbloqueo (pausa el juego)
         this.charSelectOpen = false; this.charSelectIndex = 0; // hangar de selección de personaje (pausa el juego)
         this.pauseOpen = false; this.pauseIndex = 0; this.pauseItemRects = []; // menú de pausa (ESC/B/✕ dentro de un nivel)
+        this.moveControlsLockedUntil = 0; // gracia post-combate de los botones táctiles (ver COMBAT_INPUT_GRACE_MS)
         this.skillTreeOpen = false; this.skillCursor = { branch: 0, node: 0 }; // árbol de mejoras (pausa el juego, como el hangar)
         this.collectedPickups = new Set(); // "life-N" / "energy-N" / "reinforced-N-N" por nivel, para no poder re-recoger/re-romper saliendo y entrando
         this.worldMap = new WorldMap(); this.inWorldMap = false; this.inLevel = false;
@@ -1697,6 +1705,8 @@ class Game {
                 // normalmente lo dispara) lo cierra en vez de quedar inerte — mismo gesto que tocar
                 // el canvas directamente (ver mapTap).
                 if (this.hintScreen) { this.dismissHintScreen(); return; }
+                // Gracia post-combate: el botón aún está sordo (ver COMBAT_INPUT_GRACE_MS)
+                if (performance.now() < this.moveControlsLockedUntil) return;
                 this.keys[code] = true;
             };
             const release = (e) => { e.preventDefault(); this.keys[code] = false; };
@@ -1850,7 +1860,10 @@ class Game {
     updateTouchUI() {
         const inCombat = !!(this.combat && this.combat.active);
         const paused = this.unlockScreen || this.charSelectOpen || this.skillTreeOpen || this.hintScreen || this.combatTransition || this.pauseOpen;
-        if (moveControls) moveControls.classList.toggle('active', this.gameStarted && !inCombat && !paused);
+        if (moveControls) {
+            moveControls.classList.toggle('active', this.gameStarted && !inCombat && !paused);
+            moveControls.classList.toggle('cooldown', performance.now() < this.moveControlsLockedUntil);
+        }
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat && !paused);
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
         if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat && !paused);
@@ -1942,6 +1955,9 @@ class Game {
                     if (window.SFX) SFX.music.playExplore();
                     this.playerInvulnerable = 180;
                 }
+                // Ganar o huir devuelve al plataformeo al instante: abre la gracia táctil
+                // (perder no llega aquí — el return de loseLife va a respawn/menú)
+                this.moveControlsLockedUntil = performance.now() + COMBAT_INPUT_GRACE_MS;
                 this.combat = null;
             }
         } else {

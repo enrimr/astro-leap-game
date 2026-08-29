@@ -153,6 +153,11 @@ body {
 }
 #moveControls.active, #combatButtons.active { display: flex; }
 body.no-touch-ui #moveControls, body.no-touch-ui #combatButtons { display: none; }
+/* Gracia post-combate (ver COMBAT_INPUT_GRACE_MS en js/game.js): al cerrarse un duelo, los
+   botones de movimiento renacen atenuados y sordos un instante — el toque que venía para
+   ATACAR no debe convertirse en un paso al vacío. El fade al encenderse lo hace legible. */
+#moveControls { transition: opacity 0.25s ease; }
+#moveControls.cooldown { opacity: 0.35; }
 /* Movimiento pegado al borde izquierdo y salto al derecho: en el móvil cada uno queda
    bajo el pulgar de una mano, sin tener que estirar los dedos hacia el centro. */
 #moveControls { justify-content: space-between; }

@@ -2506,6 +2506,39 @@ describe('Menú de pausa — congela la acción por evento, sin regalar nada', (
     });
 });
 
+describe('Gracia post-combate — el toque que venía para ATACAR no se convierte en un paso', () => {
+    test('ganar un duelo abre la ventana de gracia y los botones táctiles quedan sordos hasta que expira', () => {
+        const { game, window, document, CombatSystem } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(0);
+        game.inWorldMap = false; game.inLevel = true; game.levelCompleting = false;
+        game.player.xpToNextLevel = 9999;
+        game.combat = new CombatSystem(game.player, game.enemies[0]);
+        game.combat.result = 'win'; game.combat.active = false; // el golpe final acaba de caer
+        game.update();
+        expect(game.moveControlsLockedUntil).toBeGreaterThan(0);
+        // Durante la gracia: un toque en ▶ (misma zona que ocupaban los botones de combate) es sordo
+        const btnRight = document.getElementById('btnRight');
+        game.moveControlsLockedUntil = Infinity;
+        btnRight.dispatchEvent(new window.MouseEvent('mousedown'));
+        expect(game.keys.ArrowRight).toBeFalsy();
+        // Expirada la gracia: el mismo toque vuelve a mover
+        game.moveControlsLockedUntil = 0;
+        btnRight.dispatchEvent(new window.MouseEvent('mousedown'));
+        expect(game.keys.ArrowRight).toBe(true);
+    });
+
+    test('el teclado no sufre la gracia: sus teclas no cambian de sitio al salir del combate', () => {
+        const { game, window, document } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(0);
+        game.inWorldMap = false; game.inLevel = true;
+        game.moveControlsLockedUntil = Infinity;
+        document.dispatchEvent(new window.KeyboardEvent('keydown', { code: 'ArrowRight' }));
+        expect(game.keys.ArrowRight).toBe(true);
+    });
+});
+
 describe('"¿Te han retado?" — aceptar un duelo pegando el enlace (imprescindible en escritorio)', () => {
     const DATE = '2026-08-29', TIME = 90000;
 
