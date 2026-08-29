@@ -3,3 +3,5 @@ coverage/
 .DS_Store
 scripts/fonts/
 gameplay*.webm
+dist/
+build/*.icns

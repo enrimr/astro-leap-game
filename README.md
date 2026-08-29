@@ -130,7 +130,9 @@ npm install --legacy-peer-deps
 npm run desktop
 ```
 
-Abre el mismo juego como app de ventana (`desktop/main.js`): F11 alterna pantalla completa y los enlaces de compartir se abren en el navegador del sistema. Dos diferencias con la web, deliberadas: las métricas de uso están apagadas y todo lo que se comparte (duelos incluidos) apunta a <https://astroleap.enri.me/>, donde el rival juega sin instalar nada. Es la base del futuro build para Steam — ver `DESIGN.md` §2.34.
+Abre el mismo juego como app de ventana (`desktop/main.js`): F11 alterna pantalla completa y los enlaces de compartir se abren en el navegador del sistema. Dos diferencias con la web, deliberadas: las métricas de uso están apagadas y todo lo que se comparte (duelos incluidos) apunta a <https://astroleap.enri.me/>, donde el rival juega sin instalar nada. El progreso se guarda además en `save.json` (en el `userData` de la app), listo para Steam Cloud. Es la base del futuro build para Steam — ver `DESIGN.md` §2.34.
+
+Para generar los instalables (`dist/`): `npm run dist:mac` (.dmg/.zip), `dist:win` (NSIS) o `dist:linux` (AppImage). El icono de la app se regenera con `npm run generate-app-icon` (misma paleta y estilo que el juego, ver `scripts/generate-app-icon.js`).
 
 ## Probar/depurar
 
