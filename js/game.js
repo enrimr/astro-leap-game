@@ -17,6 +17,31 @@ const combatAbilityBtnSpan = combatButtonsEl ? combatButtonsEl.querySelector('[d
 
 const IS_TOUCH_DEVICE = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
+// Último dispositivo de entrada usado. Manda sobre dos cosas: la visibilidad del mando virtual
+// en pantalla (puntero y táctil lo usan — los de ratón pulsan sus botones con clic —; teclado y
+// mando lo esconden vía body.no-touch-ui) y cómo se llaman las "teclas" en los textos (keyName:
+// ESPACIO para teclado, A para mando). El teclado solo se detecta con eventos de confianza
+// (e.isTrusted): los KeyboardEvent sintéticos de js/gamepad.js no cuentan como teclado — el
+// mando se anuncia él mismo con setInputDevice('gamepad') en cada flanco.
+let inputDevice = IS_TOUCH_DEVICE ? 'touch' : 'pointer';
+function setInputDevice(dev) {
+    if (inputDevice === dev) return;
+    inputDevice = dev;
+    document.body.classList.toggle('no-touch-ui', dev === 'keyboard' || dev === 'gamepad');
+}
+document.addEventListener('keydown', (e) => { if (e.isTrusted) setInputDevice('keyboard'); }, true);
+document.addEventListener('mousedown', () => setInputDevice('pointer'), true);
+document.addEventListener('touchstart', () => setInputDevice('touch'), { capture: true, passive: true });
+// Nombre de la "tecla" de cada acción según el dispositivo. Los textos de canvas se repintan
+// cada frame y los avisos se componen al mostrarse, así que basta con leer esto en el momento.
+function keyName(action) {
+    const pad = inputDevice === 'gamepad';
+    return { confirm: pad ? 'A' : 'ESPACIO', back: pad ? 'B' : 'ESC', hangar: pad ? 'X' : 'C', tree: pad ? 'Y' : 'T' }[action];
+}
+function continuePrompt() {
+    return inputDevice === 'touch' ? 'TOCA PARA CONTINUAR' : `PULSA ${keyName('confirm')} PARA CONTINUAR`;
+}
+
 const SAVE_KEY = 'astroLeapSave_v1';
 const BEST_TIMES_KEY = 'astroLeapBestTimes_v1';
 const MAX_BEST_TIMES = 5;
@@ -468,7 +493,7 @@ class Game {
         ctx.fillStyle = PALETTE.ink; ctx.font = '8px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
         wrapText(ctx, this.hintScreen.text, GAME_WIDTH / 2, y + 16, w - 24, 11);
         ctx.fillStyle = PALETTE.accent; ctx.font = 'bold 8px "Rajdhani", sans-serif';
-        ctx.fillText(IS_TOUCH_DEVICE ? 'TOCA PARA CONTINUAR' : 'PULSA ESPACIO PARA CONTINUAR', GAME_WIDTH / 2, y + h - 8);
+        ctx.fillText(continuePrompt(), GAME_WIDTH / 2, y + h - 8);
         ctx.textAlign = 'left';
         ctx.restore();
     }
@@ -540,6 +565,7 @@ class Game {
                     <b>Mover</b> — ← →<br>
                     <b>Saltar</b> — ESPACIO (segunda vez en el aire según el piloto: doble salto, vuelo, impulso...)<br>
                     <b>Combate</b> — ↑↓ + ESPACIO, o las teclas 1-4. Mantén pulsado ESPACIO (o el dedo en pantalla) para acelerar los turnos<br>
+                    <b>Mando</b> — A salta y confirma (mantenlo: propulsor / turnos rápidos) · B atrás · X hangar · Y mejoras<br>
                     <b>Pilotos</b> — Kes dobla salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos.
                     Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C.<br>
                     <b>Mejoras</b> — cada subida de nivel da 1 punto para el árbol de mejoras (chapa MEJORAS del mapa, o tecla T)<br>
@@ -1162,7 +1188,7 @@ class Game {
             ctx.fillText('Todavía no lo has desbloqueado.', GAME_WIDTH / 2, cardY + cardH + 16);
         }
         ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
-        ctx.fillText('← → elegir · ESPACIO confirmar · ESC salir', GAME_WIDTH / 2, GAME_HEIGHT - 8);
+        ctx.fillText(`← → elegir · ${keyName('confirm')} confirmar · ${keyName('back')} salir`, GAME_WIDTH / 2, GAME_HEIGHT - 8);
         ctx.textAlign = 'left';
     }
 
@@ -1282,7 +1308,7 @@ class Game {
         ctx.fillStyle = PALETTE.dim; ctx.font = '8.5px "Rajdhani", sans-serif';
         wrapText(ctx, focusedNode.desc, GAME_WIDTH / 2, 148, 290, 10);
         ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
-        ctx.fillText('← → ↑ ↓ elegir · ESPACIO desbloquear · ESC salir', GAME_WIDTH / 2, GAME_HEIGHT - 6);
+        ctx.fillText(`← → ↑ ↓ elegir · ${keyName('confirm')} desbloquear · ${keyName('back')} salir`, GAME_WIDTH / 2, GAME_HEIGHT - 6);
         ctx.textAlign = 'left';
     }
     // Chapa del árbol en el mapa, debajo de la del piloto — brilla cuando hay puntos que gastar.
@@ -1345,7 +1371,7 @@ class Game {
         wrapText(ctx, hero.desc, GAME_WIDTH / 2, py + size + 50, 260, 11);
 
         ctx.fillStyle = PALETTE.accent; ctx.font = '9px "Rajdhani", sans-serif';
-        ctx.fillText(IS_TOUCH_DEVICE ? 'TOCA PARA CONTINUAR' : 'PULSA ESPACIO PARA CONTINUAR', GAME_WIDTH / 2, GAME_HEIGHT - 12);
+        ctx.fillText(continuePrompt(), GAME_WIDTH / 2, GAME_HEIGHT - 12);
         ctx.textAlign = 'left';
     }
 
@@ -1796,7 +1822,7 @@ class Game {
                     this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + this.energyPerKill());
                     if (this.combat.enemy.xpKey) this.collectedPickups.add(this.combat.enemy.xpKey);
                     this.levelUpMessage = leveled ? 100 : 0;
-                    if (leveled) this.showHint('skill-point', 'Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o tecla T.');
+                    if (leveled) this.showHint('skill-point', `Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o pulsa ${keyName('tree')}.`);
                     if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     if (this.combat.enemy.isBoss) this.unlockCharacterForBoss(this.combat.enemy.type);
@@ -1902,7 +1928,7 @@ class Game {
                         // El cartel de subida de nivel solo si de verdad subiste — antes se
                         // mostraba en CADA pisotón, hubiera nivel o no.
                         this.levelUpMessage = leveled ? 80 : 0;
-                        if (leveled) this.showHint('skill-point', 'Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o tecla T.');
+                        if (leveled) this.showHint('skill-point', `Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o pulsa ${keyName('tree')}.`);
                         if (enemy.type === 'magnetite') {
                             // El campo de la Magnetita muere con ella pero te REPELE: arco en
                             // diagonal con rumbo aleatorio, montado sobre la inercia del hielo —

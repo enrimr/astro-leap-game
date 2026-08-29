@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE, keyName, setInputDevice, getInputDevice: () => inputDevice };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -2537,6 +2537,36 @@ describe('Mando (js/gamepad.js) — el gamepad habla los mismos KeyboardEvent qu
         gamepadStep(516);
         gamepadStep(1100);
         expect(inputs).toEqual(['ArrowDown', 'Space']);
+    });
+
+    test('el mando se anuncia como dispositivo: textos en A/B/X/Y y mando virtual escondido; un toque lo revierte', () => {
+        const { pad, gamepadStep, keyName, getInputDevice, document, window } = loadWithPad();
+        expect(getInputDevice()).toBe('pointer'); // jsdom no es táctil: arranca en puntero
+        expect(keyName('confirm')).toBe('ESPACIO');
+        pad.buttons[0].pressed = true;
+        gamepadStep(0);
+        expect(getInputDevice()).toBe('gamepad');
+        expect(keyName('confirm')).toBe('A');
+        expect(keyName('back')).toBe('B');
+        expect(document.body.classList.contains('no-touch-ui')).toBe(true); // adiós mando virtual
+        document.dispatchEvent(new window.Event('touchstart')); // el jugador toca la pantalla
+        expect(getInputDevice()).toBe('touch');
+        expect(document.body.classList.contains('no-touch-ui')).toBe(false);
+        expect(keyName('confirm')).toBe('ESPACIO');
+    });
+
+    test('los KeyboardEvent sintéticos del mando NO cuentan como teclado (isTrusted)', () => {
+        const { pad, gamepadStep, setInputDevice, getInputDevice, window, document } = loadWithPad();
+        setInputDevice('touch');
+        // el flanco del mando dispara keydown sintéticos — el rastreador debe atribuirlos al
+        // mando (vía setInputDevice del propio gamepad.js), nunca al teclado
+        pad.buttons[0].pressed = true;
+        gamepadStep(0);
+        expect(getInputDevice()).toBe('gamepad');
+        // y un keydown sintético "suelto" (isTrusted=false, como los de los tests) tampoco
+        setInputDevice('touch');
+        document.dispatchEvent(new window.KeyboardEvent('keydown', { code: 'Space' }));
+        expect(getInputDevice()).toBe('touch');
     });
 
     test('en el menú, el primer flanco da foco al primer botón y A activa el enfocado', () => {

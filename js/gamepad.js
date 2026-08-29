@@ -91,6 +91,7 @@ function gamepadStep(now) {
         const held = gamepadHeld.get(code);
         if (!held) {
             gamepadHeld.set(code, { since: now, lastRepeat: now });
+            setInputDevice('gamepad'); // los textos pasan a hablar A/B/X/Y y el mando virtual se esconde
             if (window.SFX) SFX.unlock(); // mismo gesto que los controles táctiles
             if (!gamepadMenuFocus(code)) gamepadDispatch('keydown', code, false);
         } else if (GAMEPAD_REPEAT_CODES.has(code) &&

@@ -1087,7 +1087,9 @@ class WorldMap {
         ctx.restore();
         ctx.fillStyle = PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
         ctx.fillText('← →: Navegar', 10, 168);
-        ctx.fillText('ESPACIO: Entrar', 220, 168);
+        // keyName vive en game.js (dice A si el último input fue de mando); el typeof cubre a
+        // los scripts que evalúan entities.js suelto, sin cargar el juego entero.
+        ctx.fillText((typeof keyName === 'function' ? keyName('confirm') : 'ESPACIO') + ': Entrar', 220, 168);
         ctx.fillStyle = PALETTE.panel; ctx.fillRect(8, 24, 304, 16);
         ctx.fillStyle = PALETTE.accent; ctx.font = '9px "Rajdhani", sans-serif';
         ctx.fillText(`Nivel ${cur.levelIndex + 1}: ${LEVELS[cur.levelIndex].name}`, 14, 35);

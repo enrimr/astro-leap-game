@@ -144,11 +144,15 @@ body {
 #startScreen .share-icon:hover, #startScreen .share-icon:focus-visible { box-shadow: 0 0 14px rgba(255,94,203,0.5); outline: none; }
 #startScreen .share-icon:active { transform: scale(0.94); background: var(--accent2); color: var(--bg1); }
 
-/* ---- Controles en pantalla: SIEMPRE visibles (ratón, táctil o teclado, da igual) ---- */
+/* ---- Controles en pantalla: los muestra el ÚLTIMO dispositivo usado ----
+   Puntero y táctil los necesitan (los de ratón pulsan sus botones con clic); teclado y mando
+   los esconden (body.no-touch-ui, ver setInputDevice en js/game.js) — en escritorio con mando
+   eran solo pantalla perdida. Un toque o un clic los trae de vuelta al instante. */
 #moveControls, #combatButtons {
     display: none; gap: 10px; width: 100%; max-width: 720px; align-items: stretch;
 }
 #moveControls.active, #combatButtons.active { display: flex; }
+body.no-touch-ui #moveControls, body.no-touch-ui #combatButtons { display: none; }
 /* Movimiento pegado al borde izquierdo y salto al derecho: en el móvil cada uno queda
    bajo el pulgar de una mano, sin tener que estirar los dedos hacia el centro. */
 #moveControls { justify-content: space-between; }
