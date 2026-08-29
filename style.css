@@ -96,6 +96,14 @@ body {
 #startScreen .menu-btn:active { transform: scale(0.97); background: var(--accent); color: var(--bg1); }
 #startScreen .help-text { font-size: clamp(11px, 2.6vw, 13px); color: var(--ink); opacity: 0.9; line-height: 1.7; text-align: left; max-width: 320px; margin-bottom: 4px; }
 #startScreen .help-text b { color: var(--accent3); }
+/* Campo de "¿Te han retado?": mismo lenguaje que los .menu-btn (panel, borde, glow al foco) */
+#startScreen .duel-input {
+    background: var(--panel); border: 2px solid var(--dim); border-radius: 8px;
+    color: var(--ink); font-family: inherit; font-size: clamp(12px, 2.8vw, 14px);
+    padding: 10px 12px; width: 100%; max-width: 320px;
+}
+#startScreen .duel-input:focus { border-color: var(--accent); box-shadow: 0 0 14px rgba(124,245,255,0.5); outline: none; }
+#startScreen .duel-input::placeholder { color: var(--dim); opacity: 0.7; }
 @keyframes menuPulse { 0%, 100% { box-shadow: 0 0 10px rgba(124,245,255,0.25); } 50% { box-shadow: 0 0 18px rgba(124,245,255,0.6); } }
 
 /* ---- Reto Diario: acento propio (ámbar) para distinguirlo del resto de botones — es la

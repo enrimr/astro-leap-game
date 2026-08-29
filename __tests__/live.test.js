@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -2427,6 +2427,45 @@ describe('Regresiones: pisotón, Energía por derrota y anti-farmeo de XP (contr
         game.levelCompleteTimeout = window.setTimeout(() => {}, 5000);
         game.exitLevel(); // equivale a ESC / botón ✕
         expect(game.levelCompleteTimeout).toBeNull();
+    });
+});
+
+describe('"¿Te han retado?" — aceptar un duelo pegando el enlace (imprescindible en escritorio)', () => {
+    const DATE = '2026-08-29', TIME = 90000;
+
+    test('extractDuelToken saca el token de la URL larga, de un texto que la contenga o del token a pelo', () => {
+        const { encodeDuelToken, extractDuelToken } = loadGame();
+        const token = encodeDuelToken(DATE, TIME, 'Enrique');
+        expect(extractDuelToken(`https://astroleap.enri.me/?duelo=${token}`)).toBe(token);
+        expect(extractDuelToken(`⚔️ Te reto: https://astroleap.enri.me/?duelo=${token} ¿me ganas?`)).toBe(token);
+        expect(extractDuelToken(`  ${token}  `)).toBe(token);
+        expect(extractDuelToken('hola esto no es nada')).toBe('');
+    });
+
+    test('pegar la URL larga arma el duelo: pendingDuel y la tarjeta ⚔️ en el menú', async () => {
+        const { game, encodeDuelToken, document } = loadGame();
+        await game.acceptDuelLink(`https://astroleap.enri.me/?duelo=${encodeDuelToken(DATE, TIME, 'Enrique')}`);
+        expect(game.pendingDuel).toMatchObject({ date: DATE, time: TIME, name: 'Enrique' });
+        expect(document.getElementById('startScreen').innerHTML).toContain('DUELO: ganar a Enrique');
+    });
+
+    test('enlace corto en escritorio: el puente astroDesktop resuelve la redirección y el duelo se arma', async () => {
+        const { game, window, encodeDuelToken } = loadGame();
+        const token = encodeDuelToken(DATE, TIME, 'Rival');
+        window.astroDesktop = { resolveUrl: async () => `https://astroleap.enri.me/?duelo=${token}` };
+        await game.acceptDuelLink('https://s.enri.me/astroleap/Xk3mP2a');
+        expect(game.pendingDuel).toMatchObject({ date: DATE, time: TIME, name: 'Rival' });
+    });
+
+    test('texto sin enlace o token corrupto: mensaje de error visible y ningún duelo armado', async () => {
+        const { game, encodeDuelToken, document } = loadGame();
+        const error = document.getElementById('duelLinkError');
+        await game.acceptDuelLink('esto no es un enlace');
+        expect(error.hidden).toBe(false);
+        expect(game.pendingDuel).toBeNull();
+        const roto = encodeDuelToken(DATE, TIME, 'X').slice(0, -3) + 'zzz'; // checksum ya no cuadra
+        await game.acceptDuelLink(`https://astroleap.enri.me/?duelo=${roto}`);
+        expect(game.pendingDuel).toBeNull();
     });
 });
 

@@ -248,6 +248,16 @@ function decodeDuelToken(token) {
         return { date, time, name: sanitizeDuelName(name), route: (v === 'v2' && routeRaw) ? decodeDuelRoute(routeRaw) : null };
     } catch (e) { return null; }
 }
+// Extrae el token de duelo de lo que sea que pegue el jugador en "¿Te han retado?": la URL
+// larga (con ?duelo=...), un texto que la contenga, o el token a pelo (base64url + '.' +
+// checksum en base36). El enlace CORTO (s.enri.me) no lleva el token encima — de ese se ocupa
+// acceptDuelLink() siguiendo la redirección.
+function extractDuelToken(text) {
+    const m = String(text || '').match(/[?&]duelo=([A-Za-z0-9_.-]+)/);
+    if (m) return m[1];
+    const bare = String(text || '').trim();
+    return /^[A-Za-z0-9_-]+\.[a-z0-9]+$/.test(bare) ? bare : '';
+}
 
 // Objetivo secundario (Cristales de Señal ◆, ver SignalCrystal en entities.js): umbrales que
 // destapan las puertas de las torres Extra en el mapa estelar. Hay 36 cristales (TRES por nivel
@@ -511,7 +521,15 @@ class Game {
                 <div class="menu-quiet-row">
                     <button class="menu-btn quiet" data-action="times">Mejores tiempos</button>
                     <button class="menu-btn quiet" data-action="help">Ayuda</button>
+                    <button class="menu-btn quiet" data-action="duel-paste">¿Te han retado?</button>
                 </div>
+            </div>
+            <div class="menu-panel" id="menuDuel" hidden>
+                <p class="help-text">Pega el enlace del duelo que te han mandado — vale el corto (s.enri.me/...), la URL completa o el propio token:</p>
+                <input id="duelLinkInput" class="duel-input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://s.enri.me/astroleap/...">
+                <p class="daily-note" id="duelLinkError" hidden></p>
+                <button class="menu-btn daily-btn" data-action="duel-accept">⚔️ ACEPTAR EL DUELO</button>
+                <button class="menu-btn" data-action="back">◂ VOLVER</button>
             </div>
             <div class="menu-panel" id="menuTimes" hidden>
                 ${timesHTML}
@@ -554,10 +572,14 @@ class Game {
         openMenuOverlay();
     }
     showMenuPanel(id) {
-        ['menuMain', 'menuTimes', 'menuHelp'].forEach(pid => {
+        ['menuMain', 'menuTimes', 'menuHelp', 'menuDuel'].forEach(pid => {
             const el = document.getElementById(pid);
             if (el) el.hidden = pid !== id;
         });
+        // Si el panel tiene un campo de texto (el de pegar duelo), el foco va ahí: pegar y
+        // Enter, sin un Tab de por medio. Si no, al primer botón, como siempre.
+        const input = document.querySelector(`#${id} input`);
+        if (input) { input.focus(); return; }
         const first = document.querySelector(`#${id} .menu-btn`);
         if (first) first.focus();
     }
@@ -569,10 +591,45 @@ class Game {
         else if (action === 'duel') this.startDailyChallenge(this.pendingDuel);
         else if (action === 'times') this.showMenuPanel('menuTimes');
         else if (action === 'help') this.showMenuPanel('menuHelp');
+        else if (action === 'duel-paste') this.showMenuPanel('menuDuel');
+        else if (action === 'duel-accept') this.acceptDuelLink((document.getElementById('duelLinkInput') || {}).value);
         else if (action === 'back') this.showMenuPanel('menuMain');
         else if (action === 'menu') this.showMainMenu();
         else if (action === 'share') this.shareRun(btn.dataset.shareText);
         else if (action === 'challenge') this.shareDuelChallenge(btn.dataset.date, parseFloat(btn.dataset.time));
+    }
+    // El camino de vuelta de un duelo cuando el enlace no se puede "pinchar": el jugador lo pega
+    // en el panel "¿Te han retado?". Imprescindible en la app de escritorio (no tiene barra de
+    // direcciones: pinchar un enlace de duelo abriría la versión web, fuera de su save), y útil
+    // en web si el enlace te llega con el juego ya abierto. Tres formas aceptadas: URL larga con
+    // ?duelo=, token a pelo, o enlace corto — este último no lleva el token, así que hay que
+    // seguir su redirección: en escritorio la sigue el proceso main de Electron (el renderer
+    // corre en file:// y el CORS le impide leer adónde fue a parar un fetch cross-origin); en
+    // web basta con navegar al enlace, que es exactamente el flujo de haberlo pinchado.
+    async acceptDuelLink(text) {
+        const showError = (msg) => {
+            const el = document.getElementById('duelLinkError');
+            if (el) { el.textContent = msg; el.hidden = false; }
+            if (window.SFX) SFX.select();
+        };
+        let token = extractDuelToken(text);
+        if (!token) {
+            const urlMatch = String(text || '').match(/https?:\/\/\S+/);
+            if (!urlMatch) { showError('Eso no parece un enlace de duelo.'); return; }
+            if (window.astroDesktop && window.astroDesktop.resolveUrl) {
+                const finalUrl = await window.astroDesktop.resolveUrl(urlMatch[0]);
+                token = extractDuelToken(finalUrl || '');
+                if (!token) { showError('Ese enlace no lleva a ningún duelo (¿se cortó al copiarlo?).'); return; }
+            } else {
+                location.href = urlMatch[0];
+                return;
+            }
+        }
+        const duel = decodeDuelToken(token);
+        if (!duel) { showError('El duelo llegó ilegible (¿se cortó el enlace al copiarlo?).'); return; }
+        this.pendingDuel = duel;
+        if (window.SFX) SFX.confirm();
+        this.showMainMenu(); // el menú renace con la tarjeta del duelo delante
     }
     // Comparte una URL de duelo con TU tiempo como fantasma a batir. El nombre se pide una vez
     // (prompt, opcional) y se recuerda — es lo que verá el rival en su menú y sobre el fantasma.
@@ -1465,6 +1522,11 @@ class Game {
             // es comportamiento nativo del <button> enfocado — no hace falta gestionarlo aquí).
             if (!this.gameStarted) {
                 const active = document.activeElement;
+                // Enter dentro del campo de pegar duelo = aceptar (no hay <form> que lo haga solo)
+                if (e.code === 'Enter' && active && active.id === 'duelLinkInput') {
+                    this.acceptDuelLink(active.value);
+                    return;
+                }
                 if (active && active.classList && active.classList.contains('menu-btn') && (e.code === 'ArrowDown' || e.code === 'ArrowUp')) {
                     e.preventDefault();
                     // Recorre TODOS los .menu-btn visibles de #startScreen (no solo los hermanos de

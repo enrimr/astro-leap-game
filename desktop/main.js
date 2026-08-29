@@ -3,7 +3,7 @@
 // (preload.js + los dos canales IPC de abajo) — el código del juego no cambia; su única rama
 // de escritorio vive en js/game.js (IS_DESKTOP, que detecta el user agent de Electron:
 // compartir apunta a la web y las métricas se apagan).
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, net, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -11,6 +11,18 @@ const path = require('path');
 // save.json en userData es la unidad que Steam Cloud podrá sincronizar. Escritura atómica
 // (tmp + rename) para que un cierre a mitad de escritura nunca deje un save corrupto.
 const savePath = () => path.join(app.getPath('userData'), 'save.json');
+
+// "¿Te han retado?" con un enlace corto (s.enri.me): el juego no puede seguir la redirección
+// desde el renderer (file:// + CORS), así que la sigue el main y devuelve la URL final — de la
+// que el juego extrae el ?duelo=. GET y no HEAD (hay servidores que no contestan HEAD); el
+// cuerpo ni se lee. Cualquier fallo devuelve '' y el juego muestra su mensaje de error.
+ipcMain.handle('astro-resolve-url', async (e, url) => {
+    try {
+        if (!/^https?:\/\//i.test(String(url))) return '';
+        const res = await net.fetch(String(url), { redirect: 'follow' });
+        return res.url || '';
+    } catch (err) { return ''; }
+});
 
 // Jugando solo con mando no hay "gesto de usuario" que desbloquee Web Audio (la Gamepad API no
 // cuenta como activación para la política de autoplay de Chromium) — en la app propia, música
