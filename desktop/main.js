@@ -12,6 +12,11 @@ const path = require('path');
 // (tmp + rename) para que un cierre a mitad de escritura nunca deje un save corrupto.
 const savePath = () => path.join(app.getPath('userData'), 'save.json');
 
+// Jugando solo con mando no hay "gesto de usuario" que desbloquee Web Audio (la Gamepad API no
+// cuenta como activación para la política de autoplay de Chromium) — en la app propia, música
+// y efectos arrancan sin exigir un clic previo.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 ipcMain.on('astro-save-load', (e) => {
     try { e.returnValue = JSON.parse(fs.readFileSync(savePath(), 'utf8')); }
     catch (err) { e.returnValue = null; } // sin fichero aún (primera ejecución): no pasa nada

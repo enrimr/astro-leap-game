@@ -111,6 +111,7 @@ Cronómetro RTA (tiempo real con `performance.now()`, no frames) desde que arran
 - En combate: `↑`/`↓` navegan, `ESPACIO`/`Enter` confirma, o `1`-`4` directo. **Mantén pulsado** ESPACIO (o el dedo en pantalla) para acelerar los turnos a 4×
 - `C` — hangar de pilotos (en el mapa) · `ESC` — salir del nivel · `R` — reiniciar nivel
 - Táctil y ratón: controles en pantalla siempre visibles
+- **Mando** (web y escritorio): `A` salta/confirma (mantén = propulsor de Bolt / acelerar turnos), `B` atrás/salir, `X` hangar, `Y` árbol de mejoras, d-pad o stick izquierdo para moverte y navegar menús — ver `DESIGN.md` §2.35
 - Esquina superior izquierda: silenciar música 🎵 y efectos 🔊 por separado, y un tercer botón de **accesibilidad** que reduce el temblor de pantalla y los parpadeos. Todo se recuerda entre sesiones.
 
 ## Jugar en local

@@ -18,7 +18,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
-const FILES = ['js/entities.js', 'js/levels.js', 'js/game.js'];
+const FILES = ['js/entities.js', 'js/levels.js', 'js/game.js', 'js/gamepad.js'];
 
 const FIXTURE_HTML = `<!doctype html><html><body>
 <div id="audioControls">
@@ -81,7 +81,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -2427,5 +2427,100 @@ describe('Regresiones: pisotón, Energía por derrota y anti-farmeo de XP (contr
         game.levelCompleteTimeout = window.setTimeout(() => {}, 5000);
         game.exitLevel(); // equivale a ESC / botón ✕
         expect(game.levelCompleteTimeout).toBeNull();
+    });
+});
+
+describe('Mando (js/gamepad.js) — el gamepad habla los mismos KeyboardEvent que el teclado', () => {
+    // Mando falso con el layout estándar del W3C: 16 botones y stick izquierdo centrado. Los
+    // tests conducen gamepadStep(t) a mano — el rAF del bucle real está anulado en el harness.
+    function fakePad() {
+        return {
+            connected: true, mapping: 'standard',
+            buttons: Array.from({ length: 16 }, () => ({ pressed: false })),
+            axes: [0, 0, 0, 0]
+        };
+    }
+    function loadWithPad() {
+        const ctx = loadGame();
+        const pad = fakePad();
+        ctx.window.navigator.getGamepads = () => [pad];
+        return { ...ctx, pad };
+    }
+
+    test('A mantiene Space (propulsor de Bolt, acelerar turnos) y al soltar lo libera', () => {
+        const { game, pad, gamepadStep } = loadWithPad();
+        game.gameStarted = true; game.inLevel = true;
+        pad.buttons[0].pressed = true;
+        gamepadStep(0);
+        expect(game.keys.Space).toBe(true);
+        pad.buttons[0].pressed = false;
+        gamepadStep(16);
+        expect(game.keys.Space).toBe(false);
+    });
+
+    test('el stick respeta la zona muerta: dentro no anda, fuera equivale a la flecha', () => {
+        const { game, pad, gamepadStep, GAMEPAD_DEADZONE } = loadWithPad();
+        game.gameStarted = true; game.inLevel = true;
+        pad.axes[0] = GAMEPAD_DEADZONE - 0.05;
+        gamepadStep(0);
+        expect(game.keys.ArrowRight).toBeFalsy();
+        pad.axes[0] = GAMEPAD_DEADZONE + 0.15;
+        gamepadStep(16);
+        expect(game.keys.ArrowRight).toBe(true);
+    });
+
+    test('en plataformas el eje vertical calla (stick arriba NO quema un salto); en combate navega y al salir se libera', () => {
+        const { game, pad, gamepadStep } = loadWithPad();
+        game.gameStarted = true; game.inLevel = true;
+        pad.buttons[12].pressed = true; // d-pad arriba
+        gamepadStep(0);
+        expect(game.keys.ArrowUp).toBeFalsy();
+        game.combat = { active: true, handleInput: () => {} };
+        gamepadStep(16);
+        expect(game.keys.ArrowUp).toBe(true);
+        game.combat = null; // el duelo termina con el d-pad aún pulsado
+        gamepadStep(32);
+        expect(game.keys.ArrowUp).toBe(false); // keyup en el mismo frame del cambio de contexto
+    });
+
+    test('mantener navega (autorepeat con e.repeat) pero jamás decide en combate', () => {
+        const { game, pad, gamepadStep } = loadWithPad();
+        game.gameStarted = true; game.inLevel = true;
+        const inputs = [];
+        game.combat = { active: true, handleInput: (code) => inputs.push(code) };
+        pad.buttons[13].pressed = true; // d-pad abajo mantenido: recorre el menú de acciones
+        gamepadStep(0);
+        gamepadStep(500); // pasado el retardo: llega el autorepeat...
+        expect(game.keys.ArrowDown).toBe(true);
+        expect(inputs).toEqual(['ArrowDown']); // ...pero handleInput descarta e.repeat: sigue habiendo UNA navegación
+        pad.buttons[13].pressed = false;
+        pad.buttons[0].pressed = true; // A mantenido: confirma UNA vez (Space no tiene autorepeat)
+        gamepadStep(516);
+        gamepadStep(1100);
+        expect(inputs).toEqual(['ArrowDown', 'Space']);
+    });
+
+    test('en el menú, el primer flanco da foco al primer botón y A activa el enfocado', () => {
+        const { game, window, document, pad, gamepadStep } = loadWithPad();
+        // jsdom no hace layout: offsetParent (el filtro de "visible" del juego) es null siempre.
+        Object.defineProperty(window.HTMLElement.prototype, 'offsetParent', { get() { return this.parentElement; } });
+        expect(game.gameStarted).toBe(false);
+        pad.buttons[13].pressed = true; // d-pad abajo sin nada enfocado
+        gamepadStep(0);
+        const first = document.activeElement;
+        expect(first.classList.contains('menu-btn')).toBe(true); // el flanco se gastó en dar foco...
+        pad.buttons[13].pressed = false;
+        gamepadStep(16);
+        pad.buttons[13].pressed = true;
+        gamepadStep(32); // ...y el siguiente ya navega, vía el keydown de setupInput()
+        expect(document.activeElement).not.toBe(first);
+        expect(document.activeElement.classList.contains('menu-btn')).toBe(true);
+        pad.buttons[13].pressed = false;
+        gamepadStep(48);
+        let clicked = false;
+        document.activeElement.addEventListener('click', () => { clicked = true; });
+        pad.buttons[0].pressed = true; // A = activar (los eventos sintéticos no activan <button> solos)
+        gamepadStep(64);
+        expect(clicked).toBe(true);
     });
 });
