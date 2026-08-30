@@ -2,7 +2,7 @@
 
 Plataformas + duelos por turnos, ambientado en dos lunas alienígenas, una estación abandonada y el núcleo de una IA hostil. Como si **Super Mario Bros. y Pokémon compartieran motor**: exploras y saltas en tiempo real, pero cada enemigo es una decisión táctica. Construido sobre la misma mecánica que [Monster Jump](https://github.com/enrimr/juego-rol-plataformas) — ver [`DESIGN.md`](./DESIGN.md) para el diseño completo y [`LORE.md`](./LORE.md) para la historia.
 
-**Juega ya: <https://astroleap.enri.me/>** — gratis, sin instalar nada, en móvil y escritorio.
+**Juega ya: <https://astroleap.enri.me/>** — gratis, sin instalar nada, en móvil y escritorio. En **7 idiomas**: español, inglés, italiano, francés, alemán, japonés y chino (se detecta solo; selector en el menú).
 
 📖 **[Guía completa](./GUIA.md)**: pilotos, fórmulas de combate, bestiario, estrategia contra cada jefe y el mapa completo de los 12 niveles con todos los secretos.
 

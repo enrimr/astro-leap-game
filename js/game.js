@@ -39,7 +39,7 @@ function keyName(action) {
     return { confirm: pad ? 'A' : 'ESPACIO', back: pad ? 'B' : 'ESC', hangar: pad ? 'X' : 'C', tree: pad ? 'Y' : 'T' }[action];
 }
 function continuePrompt() {
-    return inputDevice === 'touch' ? 'TOCA PARA CONTINUAR' : `PULSA ${keyName('confirm')} PARA CONTINUAR`;
+    return inputDevice === 'touch' ? t('prompt.touch') : t('prompt.key', { key: keyName('confirm') });
 }
 
 // Gracia post-combate de los botones táctiles: el combate se cierra en el mismo frame del
@@ -193,6 +193,8 @@ function dailyLevelFor(dateStr) {
 // la fórmula de daño en sí.
 // emoji: la versión de un vistazo de la dificultad en el texto de compartir (tipo Wordle:
 // quien lo recibe entiende el tier sin conocer las etiquetas del juego).
+// Nombre traducido de la dificultad (las labels españolas son las claves canónicas del save/duelos)
+function diffName(d) { return t({ Suave: 'diff.suave', Normal: 'diff.normal', Intensa: 'diff.intensa', Brutal: 'diff.brutal' }[d.label] || 'diff.normal'); }
 const DAILY_DIFFICULTIES = [
     { label: 'Suave', mult: 0.85, emoji: '🟢' },
     { label: 'Normal', mult: 1.0, emoji: '🟡' },
@@ -422,7 +424,7 @@ class Game {
         this.setupTouchControls();
         this.applyAudioPrefs();
         this.applyReduceEffectsPref();
-        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: '4 zonas · 12 sectores · duelos de energía' });
+        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: t('menu.subtitle') });
     }
 
     loadBestTimes() {
@@ -526,7 +528,7 @@ class Game {
             const dateHTML = entry.date ? `<span class="best-times-date">${formatRecordDate(entry.date)}</span>` : '';
             return `<li>${i + 1}. ${formatTime(entry.time)}${dateHTML}</li>`;
         }).join('');
-        return `<div class="best-times"><p class="best-times-title">MEJORES TIEMPOS</p><ol>${items}</ol></div>`;
+        return `<div class="best-times"><p class="best-times-title">${t('menu.bestTimesTitle')}</p><ol>${items}</ol></div>`;
     }
     hasSaveData() {
         try { return localStorage.getItem(SAVE_KEY) !== null; } catch (e) { return false; }
@@ -535,16 +537,16 @@ class Game {
     // misma estructura, solo cambia el título y si hay o no "Continuar partida" según haya save).
     buildMenuScreen({ title, subtitle = '', resultHTML = '' }) {
         const hasSave = this.hasSaveData();
-        const timesHTML = this.renderBestTimesHTML() || '<p class="best-times-empty">Todavía no has completado ninguna partida.</p>';
+        const timesHTML = this.renderBestTimesHTML() || `<p class="best-times-empty">${t('menu.noRuns')}</p>`;
         const today = todayDateString();
         const playedToday = this.dailyRecord && this.dailyRecord.date === today;
         // Nivel/dificultad/piloto de hoy visibles ANTES de entrar — mismo cálculo que usará
         // startDailyChallenge(), así que lo que se anuncia aquí es justo lo que te vas a encontrar.
-        const todayLevelName = LEVELS[dailyLevelFor(today)].name;
-        const todayDifficulty = dailyDifficultyFor(today).label;
+        const todayLevelName = levelName(dailyLevelFor(today));
+        const todayDifficulty = diffName(dailyDifficultyFor(today));
         const dailyNote = playedToday
-            ? `Hoy: ${formatTime(this.dailyRecord.time)} con ${HEROES[this.dailyRecord.hero].name} (${todayLevelName})`
-            : `Hoy: ${todayLevelName} · dificultad ${todayDifficulty} · piloto Kes`;
+            ? t('menu.dailyNote.played', { time: formatTime(this.dailyRecord.time), hero: HEROES[this.dailyRecord.hero].name, level: todayLevelName })
+            : t('menu.dailyNote.pending', { level: todayLevelName, diff: todayDifficulty, hero: HEROES[dailyHeroFor(today)].name });
         return `
             <div class="menu-header">
                 <div class="menu-header-art">${MENU_HEADER_ART_SVG}</div>
@@ -555,44 +557,49 @@ class Game {
             ${resultHTML}
             <div class="menu-panel" id="menuMain">
                 ${this.pendingDuel ? `
-                <button class="menu-btn daily-btn" data-action="duel">⚔️ DUELO: ganar a ${this.pendingDuel.name || 'tu rival'} — ${formatTime(this.pendingDuel.time)}</button>
-                <p class="daily-note">Reto del ${this.pendingDuel.date}: ${LEVELS[dailyLevelFor(this.pendingDuel.date)].name} · dificultad ${dailyDifficultyFor(this.pendingDuel.date).label} · piloto ${HEROES[dailyHeroFor(this.pendingDuel.date)].name} · ${this.pendingDuel.route ? 'fantasma con ruta real' : 'fantasma de ritmo'}</p>` : ''}
-                <button class="menu-btn" data-action="play">${hasSave ? 'CONTINUAR PARTIDA' : 'JUGAR'}</button>
-                ${hasSave ? '<button class="menu-btn" data-action="newgame">NUEVA PARTIDA</button>' : ''}
-                <button class="menu-btn daily-btn" data-action="daily">RETO DIARIO${playedToday ? ' ✓' : ''}</button>
+                <button class="menu-btn daily-btn" data-action="duel">${t('menu.duelCard', { name: this.pendingDuel.name || t('menu.rival'), time: formatTime(this.pendingDuel.time) })}</button>
+                <p class="daily-note">${t('menu.duelNote', { date: this.pendingDuel.date, level: levelName(dailyLevelFor(this.pendingDuel.date)), diff: diffName(dailyDifficultyFor(this.pendingDuel.date)), hero: HEROES[dailyHeroFor(this.pendingDuel.date)].name, ghost: this.pendingDuel.route ? t('menu.ghostRoute') : t('menu.ghostPace') })}</p>` : ''}
+                <button class="menu-btn" data-action="play">${hasSave ? t('menu.continue') : t('menu.play')}</button>
+                ${hasSave ? `<button class="menu-btn" data-action="newgame">${t('menu.newgame')}</button>` : ''}
+                <button class="menu-btn daily-btn" data-action="daily">${t('menu.daily')}${playedToday ? ' ✓' : ''}</button>
                 <p class="daily-note">${dailyNote}</p>
                 <!-- Opciones secundarias como enlaces discretos (clase .quiet), no como botones
                      de tarjeta — no deben competir visualmente con JUGAR / RETO DIARIO. Siguen
                      siendo .menu-btn para heredar la navegación con flechas y el click delegado. -->
                 <div class="menu-quiet-row">
-                    <button class="menu-btn quiet" data-action="times">Mejores tiempos</button>
-                    <button class="menu-btn quiet" data-action="help">Ayuda</button>
-                    <button class="menu-btn quiet" data-action="duel-paste">¿Te han retado?</button>
-                    ${IS_DESKTOP ? '<button class="menu-btn quiet" data-action="quit">Salir del juego</button>' : ''}
+                    <button class="menu-btn quiet" data-action="times">${t('menu.times')}</button>
+                    <button class="menu-btn quiet" data-action="help">${t('menu.help')}</button>
+                    <button class="menu-btn quiet" data-action="duel-paste">${t('menu.challenged')}</button>
+                    <button class="menu-btn quiet" data-action="lang-open">${t('menu.lang')}</button>
+                    ${IS_DESKTOP ? `<button class="menu-btn quiet" data-action="quit">${t('menu.quit')}</button>` : ''}
                 </div>
             </div>
             <div class="menu-panel" id="menuDuel" hidden>
-                <p class="help-text">Pega el enlace del duelo que te han mandado — vale el corto (s.enri.me/...), la URL completa o el propio token:</p>
+                <p class="help-text">${t('duel.paste.instructions')}</p>
                 <input id="duelLinkInput" class="duel-input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://s.enri.me/astroleap/...">
                 <p class="daily-note" id="duelLinkError" hidden></p>
-                <button class="menu-btn daily-btn" data-action="duel-accept">⚔️ ACEPTAR EL DUELO</button>
-                <button class="menu-btn" data-action="back">◂ VOLVER</button>
+                <button class="menu-btn daily-btn" data-action="duel-accept">${t('duel.accept')}</button>
+                <button class="menu-btn" data-action="back">${t('menu.back')}</button>
+            </div>
+            <div class="menu-panel" id="menuLang" hidden>
+                ${LANGS.map(([code, label]) => `<button class="menu-btn${code === LANG ? ' daily-btn' : ''}" data-action="lang-set" data-lang="${code}">${label}</button>`).join('')}
+                <button class="menu-btn" data-action="back">${t('menu.back')}</button>
             </div>
             <div class="menu-panel" id="menuTimes" hidden>
                 ${timesHTML}
-                <button class="menu-btn" data-action="back">◂ VOLVER</button>
+                <button class="menu-btn" data-action="back">${t('menu.back')}</button>
             </div>
             <div class="menu-panel" id="menuHelp" hidden>
                 <dl class="help-grid">
-                    <dt>Moverte</dt><dd>← → para andar · ESPACIO salta — y la segunda pulsación en el aire es la habilidad del piloto (doble salto, vuelo, impulso...)</dd>
-                    <dt>Combate</dt><dd>↑↓ + ESPACIO, o las teclas 1-4. Mantén pulsado ESPACIO (o el dedo en pantalla) para acelerar los turnos</dd>
-                    <dt>Mando</dt><dd>A salta y confirma (mantenlo: propulsor / turnos rápidos) · B atrás · X hangar · Y mejoras</dd>
-                    <dt>Pilotos</dt><dd>Kes dobla el salto, Bolt vuela, Shade da un impulso lateral, Scrap rompe refuerzos. Se desbloquean derrotando al jefe de cada mundo; cámbialos desde la chapa del mapa o con la tecla C</dd>
-                    <dt>Mejoras</dt><dd>Cada subida de nivel da 1 punto para el árbol de mejoras (chapa MEJORAS del mapa, o tecla T)</dd>
-                    <dt>Pausa</dt><dd>ESC o el botón ✕ dentro de un nivel — reanudar, reiniciar o salir (el reloj sigue corriendo)</dd>
-                    <dt>Accesibilidad</dt><dd>El tercer botón de la esquina (junto a música/sonido) reduce el temblor de pantalla y los parpadeos</dd>
+                    <dt>${t('help.move.t')}</dt><dd>${t('help.move.d')}</dd>
+                    <dt>${t('help.combat.t')}</dt><dd>${t('help.combat.d')}</dd>
+                    <dt>${t('help.pad.t')}</dt><dd>${t('help.pad.d')}</dd>
+                    <dt>${t('help.pilots.t')}</dt><dd>${t('help.pilots.d')}</dd>
+                    <dt>${t('help.skills.t')}</dt><dd>${t('help.skills.d')}</dd>
+                    <dt>${t('help.pause.t')}</dt><dd>${t('help.pause.d')}</dd>
+                    <dt>${t('help.access.t')}</dt><dd>${t('help.access.d')}</dd>
                 </dl>
-                <button class="menu-btn" data-action="back">◂ VOLVER</button>
+                <button class="menu-btn" data-action="back">${t('menu.back')}</button>
             </div>`;
     }
     // Pantalla de fin del Reto Diario: a diferencia del menú completo (buildMenuScreen), aquí
@@ -608,17 +615,17 @@ class Game {
             ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
             ${resultHTML}
             <div class="menu-panel">
-                <button class="menu-btn" data-action="menu">◂ VOLVER AL MENÚ</button>
+                <button class="menu-btn" data-action="menu">${t('menu.tomenu')}</button>
             </div>`;
     }
     // Reconstruye el menú principal completo (título por defecto). Lo usa el "VOLVER AL MENÚ"
     // de la pantalla de resultado del Reto Diario.
     showMainMenu() {
-        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: '4 zonas · 12 sectores · duelos de energía' });
+        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: t('menu.subtitle') });
         openMenuOverlay();
     }
     showMenuPanel(id) {
-        ['menuMain', 'menuTimes', 'menuHelp', 'menuDuel'].forEach(pid => {
+        ['menuMain', 'menuTimes', 'menuHelp', 'menuDuel', 'menuLang'].forEach(pid => {
             const el = document.getElementById(pid);
             if (el) el.hidden = pid !== id;
         });
@@ -638,6 +645,8 @@ class Game {
         else if (action === 'times') this.showMenuPanel('menuTimes');
         else if (action === 'help') this.showMenuPanel('menuHelp');
         else if (action === 'duel-paste') this.showMenuPanel('menuDuel');
+        else if (action === 'lang-open') this.showMenuPanel('menuLang');
+        else if (action === 'lang-set') { setLanguage(btn.dataset.lang); this.showMainMenu(); this.showMenuPanel('menuLang'); }
         else if (action === 'quit') window.close(); // solo se ofrece en escritorio (IS_DESKTOP)
         else if (action === 'duel-accept') this.acceptDuelLink((document.getElementById('duelLinkInput') || {}).value);
         else if (action === 'back') this.showMenuPanel('menuMain');
@@ -662,18 +671,18 @@ class Game {
         let token = extractDuelToken(text);
         if (!token) {
             const urlMatch = String(text || '').match(/https?:\/\/\S+/);
-            if (!urlMatch) { showError('Eso no parece un enlace de duelo.'); return; }
+            if (!urlMatch) { showError(t('duel.err.notlink')); return; }
             if (window.astroDesktop && window.astroDesktop.resolveUrl) {
                 const finalUrl = await window.astroDesktop.resolveUrl(urlMatch[0]);
                 token = extractDuelToken(finalUrl || '');
-                if (!token) { showError('Ese enlace no lleva a ningún duelo (¿se cortó al copiarlo?).'); return; }
+                if (!token) { showError(t('duel.err.noduel')); return; }
             } else {
                 location.href = urlMatch[0];
                 return;
             }
         }
         const duel = decodeDuelToken(token);
-        if (!duel) { showError('El duelo llegó ilegible (¿se cortó el enlace al copiarlo?).'); return; }
+        if (!duel) { showError(t('duel.err.bad')); return; }
         this.pendingDuel = duel;
         if (window.SFX) SFX.confirm();
         this.showMainMenu(); // el menú renace con la tarjeta del duelo delante
@@ -685,7 +694,7 @@ class Game {
         try { name = localStorage.getItem('astroLeapDuelName') || ''; } catch (e) { /* noop */ }
         if (!name) {
             try {
-                name = sanitizeDuelName(window.prompt('Tu nombre para el duelo (opcional):') || '');
+                name = sanitizeDuelName(window.prompt(t('duel.namePrompt')) || '');
                 if (name) localStorage.setItem('astroLeapDuelName', name);
             } catch (e) { /* prompt bloqueado o sin almacenamiento: duelo anónimo */ }
         }
@@ -696,12 +705,12 @@ class Game {
         const base = IS_DESKTOP ? WEB_HOME : `${location.origin}${location.pathname}`;
         const longUrl = `${base}?duelo=${encodeDuelToken(dateStr, timeMs, name, route)}`;
         const url = await this.shortenUrl(longUrl);
-        const text = `⚔️ Te reto en ASTRO LEAP: el Reto Diario del ${dateStr} en ${formatTime(timeMs)}. Mi fantasma te espera — ¿me ganas?`;
+        const text = t('duel.shareText', { date: dateStr, time: formatTime(timeMs) });
         const fallbackCopy = () => {
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(`${text} ${url}`).then(() => window.alert('Enlace del duelo copiado — pégaselo a tu rival.')).catch(() => window.prompt('Copia el enlace del duelo:', url));
+                navigator.clipboard.writeText(`${text} ${url}`).then(() => window.alert(t('duel.copied'))).catch(() => window.prompt(t('duel.copyPrompt'), url));
             } else {
-                window.prompt('Copia el enlace del duelo:', url);
+                window.prompt(t('duel.copyPrompt'), url);
             }
         };
         if (navigator.share) {
@@ -757,7 +766,7 @@ class Game {
     // de enlaces directos a X/Facebook/WhatsApp — Instagram no tiene intent web para texto/enlace.
     buildShareHTML(text) {
         if (navigator.share) {
-            return `<button class="menu-btn share-btn" data-action="share" data-share-text="${text.replace(/"/g, '&quot;')}">↗ Compartir</button>`;
+            return `<button class="menu-btn share-btn" data-action="share" data-share-text="${text.replace(/"/g, '&quot;')}">${t('share.button')}</button>`;
         }
         const encodedText = encodeURIComponent(text);
         const encodedUrl = encodeURIComponent(IS_DESKTOP ? WEB_HOME : location.href);
@@ -871,7 +880,7 @@ class Game {
         if (window.SFX) SFX.music.stop();
         this.gameStarted = false;
         this.restoreAfterDaily();
-        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: '4 zonas · 12 sectores · duelos de energía' });
+        startScreen.innerHTML = this.buildMenuScreen({ title: 'ASTRO&nbsp;LEAP', subtitle: t('menu.subtitle') });
         openMenuOverlay();
         this.inLevel = false; this.inWorldMap = false; this.combat = null;
     }
@@ -883,10 +892,8 @@ class Game {
         const wasDuel = !!this.duelRival; // antes de restoreAfterDaily(), que lo anula
         this.restoreAfterDaily();
         startScreen.innerHTML = this.buildMenuScreen({
-            title: wasDuel ? 'DUELO FALLIDO' : 'RETO FALLIDO',
-            subtitle: wasDuel
-                ? 'Sin vidas — el fantasma sigue esperando: el duelo se puede reintentar desde el menú.'
-                : 'Sin vidas — el reto de hoy sigue disponible, inténtalo otra vez cuando quieras.'
+            title: wasDuel ? t('dr.failduel') : t('dr.fail'),
+            subtitle: wasDuel ? t('dr.failduel.sub') : t('dr.fail.sub')
         });
         openMenuOverlay();
         this.inLevel = false; this.inWorldMap = false; this.combat = null;
@@ -1150,7 +1157,7 @@ class Game {
         // se explica aquí, al equiparlo por primera vez, en vez de esperar a que el jugador
         // tropiece solo con un bloque reforzado (que a propósito se ven casi iguales al suelo
         // normal — DESIGN.md §2.13).
-        if (id === 'scrap') this.showHint('scrap-reinforced', 'Camina sobre los bloques con franjas de peligro (ámbar) para romperlos con Scrap y revelar lo que esconden.');
+        if (id === 'scrap') this.showHint('scrap-reinforced', t('hint.scrap-reinforced'));
     }
     // Input del hangar mientras está abierto: se llama desde update() antes de pausar el resto.
     // ---- Menú de pausa (ESC / B del mando / botón ✕, dentro de un nivel) ----
@@ -1168,13 +1175,13 @@ class Game {
     }
     pauseItems() {
         const items = [
-            { id: 'resume', label: 'REANUDAR' },
-            { id: 'restart', label: 'REINICIAR NIVEL' },
-            { id: 'exit', label: 'SALIR DEL NIVEL' }
+            { id: 'resume', label: t('pause.resume') },
+            { id: 'restart', label: t('pause.restart') },
+            { id: 'exit', label: t('pause.exit') }
         ];
         // Una app debe poder cerrarse sin teclado ni ratón (en la práctica, requisito de Steam
         // Deck); en la web "salir del juego" es cerrar la pestaña, no un botón.
-        if (IS_DESKTOP) items.push({ id: 'quit', label: 'SALIR DEL JUEGO' });
+        if (IS_DESKTOP) items.push({ id: 'quit', label: t('pause.quit') });
         return items;
     }
     pauseAction(id) {
@@ -1212,7 +1219,7 @@ class Game {
         ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
         ctx.textAlign = 'center';
         ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 15px "Orbitron", sans-serif';
-        ctx.fillText('PAUSA', GAME_WIDTH / 2, 40);
+        ctx.fillText(t('pause.title'), GAME_WIDTH / 2, 40);
         const items = this.pauseItems();
         this.pauseItemRects = [];
         const w = 160, h = 19, x = (GAME_WIDTH - w) / 2;
@@ -1228,7 +1235,7 @@ class Game {
             this.pauseItemRects.push({ x, y, w, h, id: item.id });
         });
         ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
-        ctx.fillText(`↑ ↓ elegir · ${keyName('confirm')} confirmar · ${keyName('back')} reanudar`, GAME_WIDTH / 2, GAME_HEIGHT - 8);
+        ctx.fillText(t('pause.footer', { confirm: keyName('confirm'), back: keyName('back') }), GAME_WIDTH / 2, GAME_HEIGHT - 8);
         ctx.textAlign = 'left';
         ctx.restore();
     }
@@ -1256,9 +1263,9 @@ class Game {
         ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
         ctx.textAlign = 'center';
         ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 13px "Orbitron", sans-serif';
-        ctx.fillText('HANGAR DE PILOTOS', GAME_WIDTH / 2, 16);
+        ctx.fillText(t('hangar.title'), GAME_WIDTH / 2, 16);
         ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
-        ctx.fillText('Elige quién pilota', GAME_WIDTH / 2, 27);
+        ctx.fillText(t('hangar.sub'), GAME_WIDTH / 2, 27);
         ctx.textAlign = 'left';
 
         const cardW = 62, cardH = 88, gap = 10;
@@ -1286,7 +1293,7 @@ class Game {
                 ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 9px "Orbitron", sans-serif'; ctx.textAlign = 'center';
                 ctx.fillText(HEROES[id].name.toUpperCase(), cx + cardW / 2, cardY + 62);
                 ctx.fillStyle = HEROES[id].color; ctx.font = '7px "Rajdhani", sans-serif';
-                ctx.fillText(HEROES[id].ability, cx + cardW / 2, cardY + 73);
+                ctx.fillText(t('hero.' + id + '.ability'), cx + cardW / 2, cardY + 73);
             } else {
                 ctx.fillStyle = PALETTE.panelLight; ctx.fillRect(px, py, portraitSize, portraitSize);
                 const lockCx = cx + cardW / 2, lockTop = cardY + 24, lockW = portraitSize * 0.4, lockH = portraitSize * 0.3;
@@ -1296,7 +1303,7 @@ class Game {
                 ctx.font = 'bold 9px "Orbitron", sans-serif'; ctx.textAlign = 'center';
                 ctx.fillText('???', cx + cardW / 2, cardY + 62);
             }
-            if (current) { ctx.fillStyle = PALETTE.accent; ctx.font = '7px "Rajdhani", sans-serif'; ctx.fillText('ACTUAL', cx + cardW / 2, cardY + cardH - 5); }
+            if (current) { ctx.fillStyle = PALETTE.accent; ctx.font = '7px "Rajdhani", sans-serif'; ctx.fillText(t('hangar.current'), cx + cardW / 2, cardY + cardH - 5); }
             ctx.textAlign = 'left';
             ctx.restore();
         });
@@ -1309,10 +1316,10 @@ class Game {
             wrapText(ctx, HEROES[focusedId].desc, GAME_WIDTH / 2, cardY + cardH + 16, 280, 11);
         } else {
             ctx.fillStyle = PALETTE.dim; ctx.font = 'italic 8.5px "Rajdhani", sans-serif';
-            ctx.fillText('Todavía no lo has desbloqueado.', GAME_WIDTH / 2, cardY + cardH + 16);
+            ctx.fillText(t('hangar.lockedNote'), GAME_WIDTH / 2, cardY + cardH + 16);
         }
         ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
-        ctx.fillText(`← → elegir · ${keyName('confirm')} confirmar · ${keyName('back')} salir`, GAME_WIDTH / 2, GAME_HEIGHT - 8);
+        ctx.fillText(t('hangar.footer', { confirm: keyName('confirm'), back: keyName('back') }), GAME_WIDTH / 2, GAME_HEIGHT - 8);
         ctx.textAlign = 'left';
     }
 
@@ -1383,10 +1390,10 @@ class Game {
         ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
         ctx.textAlign = 'center';
         ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 13px "Orbitron", sans-serif';
-        ctx.fillText('ÁRBOL DE MEJORAS', GAME_WIDTH / 2, 16);
+        ctx.fillText(t('tree.title'), GAME_WIDTH / 2, 16);
         const pts = this.player.skillPoints;
         ctx.fillStyle = pts > 0 ? PALETTE.accent3 : PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
-        ctx.fillText(pts > 0 ? `Puntos disponibles: ${pts}` : 'Sin puntos — sube de nivel para ganar más', GAME_WIDTH / 2, 28);
+        ctx.fillText(pts > 0 ? t('tree.pts', { n: pts }) : t('tree.nopts'), GAME_WIDTH / 2, 28);
 
         const branches = Object.values(SKILL_TREE);
         const colW = 96, gap = 8;
@@ -1396,7 +1403,7 @@ class Game {
         branches.forEach((branch, bi) => {
             const bx = startX + bi * (colW + gap);
             ctx.fillStyle = branch.color; ctx.font = 'bold 8px "Rajdhani", sans-serif';
-            ctx.fillText(branch.name, bx + colW / 2, topY - 6);
+            ctx.fillText(t('skillbranch.' + branch.key), bx + colW / 2, topY - 6);
             branch.nodes.forEach((node, ni) => {
                 const ny = topY + ni * (nodeH + nodeGap);
                 const unlocked = this.player.skills.has(node.id);
@@ -1422,9 +1429,9 @@ class Game {
                 ctx.strokeRect(bx + 0.5, ny + 0.5, colW - 1, nodeH - 1);
                 ctx.fillStyle = unlocked ? PALETTE.ink : (prereqOk ? PALETTE.ink : PALETTE.dim);
                 ctx.font = '8px "Rajdhani", sans-serif';
-                ctx.fillText(node.name, bx + colW / 2, ny + 10);
+                ctx.fillText(t('skill.' + node.id + '.name'), bx + colW / 2, ny + 10);
                 ctx.fillStyle = unlocked ? branch.color : PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif';
-                ctx.fillText(unlocked ? '✓ desbloqueada' : (prereqOk ? (pts > 0 ? '1 punto' : 'sin puntos') : 'requiere la anterior'), bx + colW / 2, ny + 18);
+                ctx.fillText(unlocked ? t('tree.unlocked') : (prereqOk ? (pts > 0 ? t('tree.cost1') : t('tree.nopoints')) : t('tree.prereq')), bx + colW / 2, ny + 18);
             });
         });
 
@@ -1432,7 +1439,7 @@ class Game {
         ctx.fillStyle = PALETTE.dim; ctx.font = '8.5px "Rajdhani", sans-serif';
         wrapText(ctx, focusedNode.desc, GAME_WIDTH / 2, 148, 290, 10);
         ctx.fillStyle = PALETTE.accent; ctx.font = '8px "Rajdhani", sans-serif';
-        ctx.fillText(`← → ↑ ↓ elegir · ${keyName('confirm')} desbloquear · ${keyName('back')} salir`, GAME_WIDTH / 2, GAME_HEIGHT - 6);
+        ctx.fillText(t('tree.footer', { confirm: keyName('confirm'), back: keyName('back') }), GAME_WIDTH / 2, GAME_HEIGHT - 6);
         ctx.textAlign = 'left';
     }
     // Chapa del árbol en el mapa, debajo de la del piloto — brilla cuando hay puntos que gastar.
@@ -1448,9 +1455,9 @@ class Game {
         if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, 3); ctx.stroke(); }
         ctx.restore();
         ctx.fillStyle = PALETTE.ink; ctx.font = '8px "Rajdhani", sans-serif';
-        ctx.fillText('MEJORAS', x + 5, y + h / 2 + 3);
+        ctx.fillText(t('map.upgrades'), x + 5, y + h / 2 + 3);
         ctx.fillStyle = pts > 0 ? PALETTE.accent3 : PALETTE.dim; ctx.textAlign = 'right';
-        ctx.fillText(pts > 0 ? `${pts} pts ▸` : '▸', x + w - 5, y + h / 2 + 3);
+        ctx.fillText(pts > 0 ? t('tree.badgePts', { n: pts }) : '▸', x + w - 5, y + h / 2 + 3);
         ctx.textAlign = 'left';
     }
 
@@ -1478,7 +1485,7 @@ class Game {
         ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
         ctx.textAlign = 'center';
         ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 11px "Orbitron", sans-serif';
-        ctx.fillText('¡NUEVO PILOTO DESBLOQUEADO!', GAME_WIDTH / 2, 22);
+        ctx.fillText(t('unlock.title'), GAME_WIDTH / 2, 22);
 
         const size = 46, px = GAME_WIDTH / 2 - size / 2, py = 32;
         ctx.save();
@@ -1489,7 +1496,7 @@ class Game {
         ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 16px "Orbitron", sans-serif';
         ctx.fillText(hero.name.toUpperCase(), GAME_WIDTH / 2, py + size + 18);
         ctx.fillStyle = hero.color; ctx.font = 'bold 10px "Rajdhani", sans-serif';
-        ctx.fillText(hero.ability.toUpperCase(), GAME_WIDTH / 2, py + size + 32);
+        ctx.fillText(t('hero.' + hero.id + '.ability').toUpperCase(), GAME_WIDTH / 2, py + size + 32);
 
         ctx.fillStyle = PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
         wrapText(ctx, hero.desc, GAME_WIDTH / 2, py + size + 50, 260, 11);
@@ -1590,9 +1597,9 @@ class Game {
         // Terminar el juego se CELEBRA — nada de retar con el tiempo aquí: ese tono es del
         // Reto Diario. Mismo formato en líneas que el resto de textos de compartir.
         const shareText = [
-            '🏆 ¡MISIÓN CUMPLIDA! ASTRO LEAP completado 🚀',
-            '🛰️ Nodo Cero derrotado, nave reparada: escapé del Sistema Ceniza',
-            `⏱️ Los ${sectors} sectores en ${formatTime(finalTime)}${isRecord ? ' — ¡nuevo récord personal!' : ''}`
+            t('end.victory.share1'),
+            t('end.victory.share2'),
+            t('end.victory.share3', { n: sectors, time: formatTime(finalTime), record: isRecord ? t('end.victory.shareRecord') : '' })
         ].join('\n');
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
@@ -1601,10 +1608,10 @@ class Game {
         this.signalCrystals = new Set();
         this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
         startScreen.innerHTML = this.buildMenuScreen({
-            title: '¡MISIÓN CUMPLIDA!',
-            subtitle: 'Derrotaste a Nodo Cero, reparaste la nave y escapaste del Sistema Ceniza.',
+            title: t('end.victory.title'),
+            subtitle: t('end.victory.sub'),
             resultHTML: `
-                <p class="run-time">${isRecord ? '¡Nuevo récord! ' : ''}Completaste los ${sectors} sectores en ${formatTime(finalTime)}</p>
+                <p class="run-time">${t('end.victory.result', { record: isRecord ? t('end.newRecord') : '', n: sectors, time: formatTime(finalTime) })}</p>
                 ${this.buildShareHTML(shareText)}
             `
         });
@@ -1639,11 +1646,12 @@ class Game {
         // Sector N/12 contra los sectores del recorrido (los nodos extra no cuentan); si
         // caíste en una torre Extra, se nombra sin numerar — no es un sector del recorrido.
         const isExtra = !!levelReached.extra;
-        const sectorLabel = isExtra ? `el nivel extra (${levelReached.name})` : `el sector ${this.currentLevel + 1}/${this.worldMap.mainCount} (${levelReached.name})`;
+        const reachedName = levelName(this.currentLevel);
+        const sectorLabel = isExtra ? t('end.extraShare', { name: reachedName }) : t('end.sectorShare', { n: this.currentLevel + 1, total: this.worldMap.mainCount, name: reachedName });
         const shareText = [
-            `☠️ ASTRO LEAP — misión perdida en ${sectorLabel}`,
-            `🧑‍🚀 ${pilotName} resistió ${formatTime(elapsed)} en el Sistema Ceniza`,
-            '🎮 ¿Llegas más lejos?'
+            t('end.gameover.share1', { place: sectorLabel }),
+            t('end.gameover.share2', { hero: pilotName, time: formatTime(elapsed) }),
+            t('end.gameover.share3')
         ].join('\n');
         this.unlockedCharacters = new Set(['kes']);
         this.player = new Player(20, 100, 'kes');
@@ -1652,11 +1660,11 @@ class Game {
         this.signalCrystals = new Set(); // los cristales son progresión: se pierden con todo lo demás
         this.clearProgress(); // antes de construir el menú, para que no ofrezca "continuar" con nada que continuar
         startScreen.innerHTML = this.buildMenuScreen({
-            title: 'GAME OVER',
-            subtitle: 'Sin vidas restantes — vuelves a empezar.',
+            title: t('end.gameover.title'),
+            subtitle: t('end.gameover.sub'),
             resultHTML: `
-                <p class="run-time">Llegaste hasta ${isExtra ? `el nivel extra — ${levelReached.name}` : `el sector ${this.currentLevel + 1}/${this.worldMap.mainCount} — ${levelReached.name}`}</p>
-                <p class="run-time">Tiempo: ${formatTime(elapsed)}</p>
+                <p class="run-time">${t('end.gameover.reach', { place: isExtra ? t('end.extra', { name: reachedName }) : t('end.sector', { n: this.currentLevel + 1, total: this.worldMap.mainCount, name: reachedName }) })}</p>
+                <p class="run-time">${t('end.gameover.time', { time: formatTime(elapsed) })}</p>
                 ${this.buildShareHTML(shareText)}
             `
         });
@@ -1908,18 +1916,27 @@ class Game {
             moveControls.classList.toggle('cooldown', performance.now() < this.moveControlsLockedUntil);
         }
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat && !paused);
-        if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
+        if (btnJump) btnJump.textContent = this.inWorldMap ? t('btn.enter') : t('btn.jump');
         if (btnExit) {
             // También en el mapa estelar: ahí es la puerta de vuelta al menú principal
             btnExit.classList.toggle('active', (this.inLevel || this.inWorldMap) && !inCombat && !paused);
-            const exitLabel = this.inWorldMap ? '✕ Menú' : '✕ Salir';
+            const exitLabel = this.inWorldMap ? t('btn.menu') : t('btn.exit');
             if (btnExit.textContent !== exitLabel) btnExit.textContent = exitLabel;
         }
-        // Botón táctil "2" del menú de combate: mismo nombre propio por piloto que el menú del
-        // canvas (ver CombatSystem.actions), para que no diga "Habilidad" en un sitio y
-        // "Sobrecarga"/"Zarpazo"/etc. en otro.
+        // Rótulos de los botones táctiles de combate en el idioma activo (se comparan antes de
+        // escribir: esto corre cada frame). El "2" lleva el nombre propio por piloto, el mismo
+        // del menú del canvas (ver CombatSystem.actions) — nada de "Habilidad" genérico.
+        if (combatButtonsEl) {
+            combatButtonsEl.querySelectorAll('button[data-code] span').forEach((span) => {
+                const code = span.parentElement.dataset.code;
+                const key = { Digit1: 'cbt.attack', Digit3: 'cbt.defend', Digit4: 'cbt.flee' }[code];
+                if (!key) return;
+                const txt = t(key);
+                if (span.textContent !== txt) span.textContent = txt;
+            });
+        }
         if (combatAbilityBtnSpan) {
-            const label = HEROES[this.player.character].combatName;
+            const label = t('hero.' + this.player.character + '.combat');
             if (combatAbilityBtnSpan.textContent !== label) combatAbilityBtnSpan.textContent = label;
         }
     }
@@ -1990,7 +2007,7 @@ class Game {
                     this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + this.energyPerKill());
                     if (this.combat.enemy.xpKey) this.collectedPickups.add(this.combat.enemy.xpKey);
                     this.levelUpMessage = leveled ? 100 : 0;
-                    if (leveled && !this.dailyMode) this.showHint('skill-point', `Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o pulsa ${keyName('tree')}.`);
+                    if (leveled && !this.dailyMode) this.showHint('skill-point', t('hint.skill-point', { key: keyName('tree') }));
                     if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     if (this.combat.enemy.isBoss) this.unlockCharacterForBoss(this.combat.enemy.type);
@@ -2016,7 +2033,7 @@ class Game {
             if (this.player.roofBonk) {
                 this.player.roofBonk = false;
                 this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.dim, 5, { speed: 0.8, life: 10, size: 1.5 });
-                this.showHint('roof-bonk', 'Ese techo es macizo: no se atraviesa saltando desde abajo. Rodéalo — busca por dónde quiere el nivel que subas.');
+                this.showHint('roof-bonk', t('hint.roof-bonk'));
             }
             if (outcome === 'fell') { this.loseLife(); return; }
             if (this.player.hp <= 0) { this.loseLife(); return; }
@@ -2089,7 +2106,7 @@ class Game {
                         this.shake = Math.max(this.shake, 4);
                         if (window.SFX) SFX.zap();
                         this.particles.burst(this.player.x + this.player.w / 2, this.player.y + this.player.h, enemy.color, 8, { speed: 1.6, life: 16, size: 2 });
-                        this.showHint('spiker-prick', 'Las púas del Erizo no se pisan: pinchan y quitan vida. Para vencerlo, éntrale por un lado y gana el duelo.');
+                        this.showHint('spiker-prick', t('hint.spiker-prick'));
                         if (this.player.hp <= 0) { this.loseLife(); return; }
                     } else if (fromAbove && enemy.level < this.player.level) {
                         enemy.alive = false; enemy.defeated = true;
@@ -2099,7 +2116,7 @@ class Game {
                         // El cartel de subida de nivel solo si de verdad subiste — antes se
                         // mostraba en CADA pisotón, hubiera nivel o no.
                         this.levelUpMessage = leveled ? 80 : 0;
-                        if (leveled && !this.dailyMode) this.showHint('skill-point', `Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o pulsa ${keyName('tree')}.`);
+                        if (leveled && !this.dailyMode) this.showHint('skill-point', t('hint.skill-point', { key: keyName('tree') }));
                         if (enemy.type === 'magnetite') {
                             // El campo de la Magnetita muere con ella pero te REPELE: arco en
                             // diagonal con rumbo aleatorio, montado sobre la inercia del hielo —
@@ -2112,7 +2129,7 @@ class Game {
                             this.player.iceMomentum = true;
                             this.player.onGround = false;
                             this.shake = Math.max(this.shake, 4);
-                            this.showHint('magnet-repel', 'El campo de la Magnetita se descarga al pisarla: te repele en diagonal. El empujón se corrige pulsando la dirección contraria.');
+                            this.showHint('magnet-repel', t('hint.magnet-repel'));
                         } else {
                             this.player.vy = -3;
                         }
@@ -2137,7 +2154,7 @@ class Game {
                 if (p.variant === 'fragile') p.touched();
                 // Hielo: la física vive en Player.update() (inercia, ver ICE_* en entities.js);
                 // aquí solo el aviso de una sola vez la primera vez que se pisa, como el de Scrap.
-                else if (p.variant === 'ice') this.showHint('ice-slide', 'El hielo resbala: mantén la dirección para coger carrerilla y saltar más lejos — y cuidado al frenar.');
+                else if (p.variant === 'ice') this.showHint('ice-slide', t('hint.ice-slide'));
                 else if (p.variant === 'beltL') this.player.x -= 0.45;
                 else if (p.variant === 'beltR') this.player.x += 0.45;
                 else if (p.variant === 'reinforced' && this.player.character === 'scrap') {
@@ -2179,7 +2196,7 @@ class Game {
                 const phase = this.stormPhase(level.ionStorm);
                 if (phase === 'warn' && prevPhase === 'calm') {
                     if (window.SFX) SFX.bossCharge();
-                    this.showHint('ion-storm', 'La tormenta va a descargar: ponte a cubierto BAJO una plataforma antes de que caiga, o corre al siguiente refugio.');
+                    this.showHint('ion-storm', t('hint.ion-storm'));
                 }
                 const inStormZone = !level.ionStorm.zone
                     || (this.player.x + this.player.w > level.ionStorm.zone[0] && this.player.x < level.ionStorm.zone[1]);
@@ -2232,7 +2249,7 @@ class Game {
                     const wPhase = this.watchPhase(watch);
                     if (wPhase === 'warn' && prevWatch === 'calm') {
                         if (window.SFX) SFX.bossCharge();
-                        this.showHint('sentinel-watch', 'El Centinela barre su dominio a ras de suelo: cuando apunte, súbete a una cobertura elevada — un salto no dura lo que la onda.');
+                        this.showHint('sentinel-watch', t('hint.sentinel-watch'));
                     }
                     if (wPhase === 'fire' && this.playerInvulnerable === 0
                         && this.player.x + this.player.w > watch.zoneStart && this.player.x < watchBoss.x
@@ -2326,31 +2343,31 @@ class Game {
                     this.lastDuelRun = { date: this.dailyDate, time: finalTime, route: encodeDuelRoute(this.duelRec || []) };
                     if (window.SFX) { SFX.music.stop(); SFX.victory(); }
                     const heroName = HEROES[this.dailyHero].name;
-                    const levelName = LEVELS[this.dailyLevelIdx].name;
-                    const diffLabel = this.dailyDifficulty.label;
+                    const lvlName = levelName(this.dailyLevelIdx);
+                    const diffLabel = diffName(this.dailyDifficulty);
                     const rival = this.duelRival; // capturado ANTES de restoreAfterDaily(), que lo anula
                     const duelDate = this.dailyDate;
                     // Veredicto del duelo, si lo hay: gana el tiempo menor. El veredicto viaja
                     // también en el texto de compartir — sin él, ganar o perder un duelo
                     // compartía el mismo texto genérico del reto.
-                    let title = '¡RETO SUPERADO!';
+                    let title = t('dr.success');
                     let duelLine = '';
                     let duelShareLine = '';
                     if (rival) {
                         const secs = (Math.abs(finalTime - rival.time) / 1000).toFixed(1);
-                        const rname = rival.name || 'tu rival';
+                        const rname = rival.name || t('menu.rival');
                         if (finalTime < rival.time) {
-                            title = '¡DUELO GANADO!';
-                            duelLine = `<p class="run-time">⚔️ Ganaste a ${rname} por ${secs}s (su tiempo: ${formatTime(rival.time)})</p>`;
-                            duelShareLine = `⚔️ Duelo ganado a ${rname} por ${secs}s`;
+                            title = t('dr.duelwon');
+                            duelLine = `<p class="run-time">${t('dr.wonLine', { name: rname, s: secs, time: formatTime(rival.time) })}</p>`;
+                            duelShareLine = t('dr.shareWon', { name: rname, s: secs });
                         } else if (finalTime > rival.time) {
-                            title = 'DUELO PERDIDO';
-                            duelLine = `<p class="run-time">⚔️ ${rname} te ganó por ${secs}s (su tiempo: ${formatTime(rival.time)})</p>`;
-                            duelShareLine = `⚔️ Duelo perdido contra ${rname} por ${secs}s — quiero la revancha`;
+                            title = t('dr.duellost');
+                            duelLine = `<p class="run-time">${t('dr.lostLine', { name: rname, s: secs, time: formatTime(rival.time) })}</p>`;
+                            duelShareLine = t('dr.shareLost', { name: rname, s: secs });
                         } else {
-                            title = 'EMPATE EXACTO';
-                            duelLine = `<p class="run-time">⚔️ Empate al milisegundo con ${rname}: ${formatTime(rival.time)}</p>`;
-                            duelShareLine = `⚔️ Empate exacto con ${rname}`;
+                            title = t('dr.tie');
+                            duelLine = `<p class="run-time">${t('dr.tieLine', { name: rname, time: formatTime(rival.time) })}</p>`;
+                            duelShareLine = t('dr.shareTie', { name: rname });
                         }
                     }
                     // Formato compacto en líneas, estilo Wordle: cabecera con la fecha, el
@@ -2359,24 +2376,24 @@ class Game {
                     // navigator.share como a los enlaces de respaldo de buildShareHTML
                     // (encodeURIComponent los convierte en %0A).
                     const shareText = [
-                        `🛰️ ASTRO LEAP — Reto Diario ${duelDate}`,
-                        `📍 ${levelName} · ${this.dailyDifficulty.emoji} ${diffLabel} · 🧑‍🚀 ${heroName}`,
+                        t('dr.share1', { date: duelDate }),
+                        t('dr.share2', { level: lvlName, emoji: this.dailyDifficulty.emoji, diff: diffLabel, hero: heroName }),
                         ...(duelShareLine ? [duelShareLine] : []),
-                        `⏱️ ${formatTime(finalTime)} — ¿lo superas?`
+                        t('dr.share4', { time: formatTime(finalTime) })
                     ].join('\n');
                     const recordLine = isToday
-                        ? `<p class="run-time">${isRecord ? '¡Nuevo mejor tiempo de hoy!' : `Tu mejor tiempo de hoy: ${formatTime(this.dailyRecord.time)}`}</p>`
+                        ? `<p class="run-time">${isRecord ? t('dr.newbest') : t('dr.best', { time: formatTime(this.dailyRecord.time) })}</p>`
                         : '';
                     this.restoreAfterDaily();
                     startScreen.innerHTML = this.buildDailyResultScreen({
                         title,
-                        subtitle: `Reto del ${duelDate} — ${levelName} · dificultad ${diffLabel} — piloto: ${heroName}`,
+                        subtitle: t('dr.sub', { date: duelDate, level: lvlName, diff: diffLabel, hero: heroName }),
                         resultHTML: `
-                            <p class="run-time">Tiempo: ${formatTime(finalTime)}</p>
+                            <p class="run-time">${t('dr.time', { time: formatTime(finalTime) })}</p>
                             ${duelLine}
                             ${recordLine}
                             ${this.buildShareHTML(shareText)}
-                            <button class="menu-btn share-btn" data-action="challenge" data-date="${duelDate}" data-time="${finalTime}">${rival ? '⚔️ Revancha: reta con tu tiempo' : '⚔️ Retar a un amigo con este tiempo'}</button>
+                            <button class="menu-btn share-btn" data-action="challenge" data-date="${duelDate}" data-time="${finalTime}">${rival ? t('dr.rematch') : t('dr.challenge')}</button>
                         `
                     });
                     openMenuOverlay();
@@ -2464,7 +2481,7 @@ class Game {
             this.drawSkillChip(ctx);
             // Progreso del objetivo secundario, bajo las chapas.
             ctx.fillStyle = PALETTE.accent3; ctx.font = '8px "Rajdhani", sans-serif';
-            ctx.fillText(`◆ Señal: ${this.signalCrystals.size}/${TOTAL_CRYSTALS}`, 10, 92);
+            ctx.fillText(t('map.signal', { n: this.signalCrystals.size, total: TOTAL_CRYSTALS }), 10, 92);
             ctx.fillStyle = PALETTE.accent2; ctx.font = '10px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
             ctx.fillText(`♥×${this.player.lives}`, 308, 16);
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
@@ -2565,7 +2582,7 @@ class Game {
                 if (gx > -40 && gx < GAME_WIDTH + 40) {
                     ctx.save();
                     ctx.globalAlpha = 0.75; ctx.fillStyle = PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
-                    ctx.fillText(ghostInCombat ? `${this.duelRival.name} · en duelo` : this.duelRival.name, gx + 4, this.duelGhost.y - 4);
+                    ctx.fillText(ghostInCombat ? t('hud.duelghost', { name: this.duelRival.name }) : this.duelRival.name, gx + 4, this.duelGhost.y - 4);
                     // El retador estaba PELEANDO en este punto de su partida: sin la señal, el
                     // fantasma parado parece un bug. El ⚔ pulsa sobre su cabeza mientras dure.
                     if (ghostInCombat) {
@@ -2599,22 +2616,22 @@ class Game {
                     ctx.fillRect(0, 20, 18, GAME_HEIGHT - 20);
                     ctx.fillStyle = `rgba(255,100,100,${0.7 + pulse * 0.3})`;
                     ctx.font = 'bold 8px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
-                    ctx.fillText(`⚠ ${level.forcedScroll.label || 'NÚCLEO'}`, 90, 28);
+                    ctx.fillText(`⚠ ${level.forcedScroll.label === 'LA RED' ? t('scroll.lared') : t('scroll.core')}`, 90, 28);
                     ctx.textAlign = 'left';
                 }
                 if (this.wallMessage > 0) {
                     ctx.fillStyle = '#ff3366'; ctx.font = 'bold 14px "Orbitron", sans-serif'; ctx.textAlign = 'center';
-                    ctx.fillText('¡LA RED DESPIERTA!', GAME_WIDTH / 2, 70);
+                    ctx.fillText(t('ban.awake'), GAME_WIDTH / 2, 70);
                     ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
-                    ctx.fillText('¡CORRE!', GAME_WIDTH / 2, 86);
+                    ctx.fillText(t('ban.run'), GAME_WIDTH / 2, 86);
                     ctx.textAlign = 'left';
                 }
                 if (!level.forcedScroll.triggerX && this.forcedScrollDelay > 0) {
                     ctx.fillStyle = PALETTE.accent2; ctx.font = 'bold 22px "Orbitron", sans-serif'; ctx.textAlign = 'center';
                     const secs = Math.ceil(this.forcedScrollDelay / 60);
-                    ctx.fillText(secs > 0 ? String(secs) : '¡CORRE!', GAME_WIDTH / 2, GAME_HEIGHT / 2);
+                    ctx.fillText(secs > 0 ? String(secs) : t('ban.run'), GAME_WIDTH / 2, GAME_HEIGHT / 2);
                     ctx.font = '10px "Rajdhani", sans-serif'; ctx.fillStyle = PALETTE.dim;
-                    ctx.fillText('EL NÚCLEO VA A COLAPSAR', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 18);
+                    ctx.fillText(t('ban.collapse'), GAME_WIDTH / 2, GAME_HEIGHT / 2 + 18);
                     ctx.textAlign = 'left';
                 }
             }
@@ -2661,7 +2678,7 @@ class Game {
                             }
                             ctx.fillStyle = wPhase === 'warn' ? 'rgba(255,92,108,0.9)' : 'rgba(255,235,235,0.95)';
                             ctx.font = 'bold 8px "Rajdhani", sans-serif'; ctx.textAlign = 'center';
-                            ctx.fillText(wPhase === 'warn' ? '⚠ EL CENTINELA APUNTA' : '⚡ ONDA DE BARRIDO — A CUBIERTO', GAME_WIDTH / 2, 28);
+                            ctx.fillText(wPhase === 'warn' ? t('ban.sentaim') : t('ban.sweep'), GAME_WIDTH / 2, 28);
                             ctx.textAlign = 'left';
                         }
                     }
@@ -2680,10 +2697,10 @@ class Game {
                         ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
                     }
                     ctx.fillStyle = '#ff3366'; ctx.font = 'bold 14px "Orbitron", sans-serif';
-                    ctx.fillText('¡LA RED SE DERRUMBA!', GAME_WIDTH / 2, 70);
+                    ctx.fillText(t('ban.netfall'), GAME_WIDTH / 2, 70);
                 } else if (fin.phase === 'ship') {
                     ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 12px "Orbitron", sans-serif';
-                    ctx.fillText('¡A LA NAVE!', GAME_WIDTH / 2, 70);
+                    ctx.fillText(t('ban.toship'), GAME_WIDTH / 2, 70);
                 } else if (fin.phase === 'takeoff' && fin.t > 120) {
                     // fundido a blanco del despegue (también con reduceEffects: es un fundido, no un parpadeo)
                     ctx.fillStyle = `rgba(255,255,255,${Math.min(1, (fin.t - 120) / 70)})`;
@@ -2719,7 +2736,7 @@ class Game {
                         ctx.fillStyle = `rgba(255,210,63,${0.05 + 0.06 * pulse})`;
                         ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
                         ctx.fillStyle = `rgba(255,210,63,${0.6 + pulse * 0.4})`;
-                        ctx.fillText('⚠ TORMENTA INMINENTE', GAME_WIDTH / 2, 28);
+                        ctx.fillText(t('ban.storm'), GAME_WIDTH / 2, 28);
                     } else {
                         ctx.fillStyle = `rgba(181,139,255,${this.reduceEffects ? 0.12 : 0.06 + 0.08 * pulse})`;
                         ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -2735,7 +2752,7 @@ class Game {
                             ctx.restore();
                         }
                         ctx.fillStyle = 'rgba(200,170,255,0.95)';
-                        ctx.fillText('⚡ DESCARGA — A CUBIERTO', GAME_WIDTH / 2, 28);
+                        ctx.fillText(t('ban.discharge'), GAME_WIDTH / 2, 28);
                     }
                     ctx.textAlign = 'left';
                 }
@@ -2751,7 +2768,7 @@ class Game {
             ctx.fillStyle = PALETTE.xp; ctx.fillRect(256, 7, 56 * Math.min(1, this.player.xp / this.player.xpToNextLevel), 7);
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif'; ctx.fillText('XP', 236, 13);
             ctx.fillStyle = PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
-            ctx.fillText(`${LEVELS[this.currentLevel].name}`, 6, 32);
+            ctx.fillText(levelName(this.currentLevel), 6, 32);
             // Arriba a la derecha, justo debajo de la franja del HUD: en el móvil la fila de
             // controles flotantes ahora tapa la esquina inferior, así que el cronómetro sube
             // arriba (fuera de esa zona) en vez de compartir sitio con el botón "Salir".
@@ -2766,52 +2783,52 @@ class Game {
 
             if (this.levelUpMessage > 0) {
                 ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 14px "Orbitron", sans-serif';
-                ctx.fillText('¡SUBISTE DE NIVEL!', 55, 70);
+                ctx.fillText(t('ban.levelup'), 55, 70);
                 ctx.fillStyle = PALETTE.accent; ctx.font = '10px "Rajdhani", sans-serif';
-                ctx.fillText('+1 punto de mejora (árbol en el mapa · tecla T)', 55, 84);
+                ctx.fillText(t('ban.skillpoint', { key: keyName('tree') }), 55, 84);
             }
             if (this.levelCompleteMessage > 0) {
                 ctx.fillStyle = PALETTE.accent; ctx.font = 'bold 14px "Orbitron", sans-serif';
-                ctx.fillText('SECTOR COMPLETADO', 55, 70);
+                ctx.fillText(t('ban.sector'), 55, 70);
             }
             if (this.livesLostMessage > 0) {
                 ctx.textAlign = 'center';
                 ctx.fillStyle = PALETTE.hpLow; ctx.font = 'bold 14px "Orbitron", sans-serif';
-                ctx.fillText('¡PERDISTE UNA VIDA!', GAME_WIDTH / 2, 70);
+                ctx.fillText(t('ban.lifelost'), GAME_WIDTH / 2, 70);
                 ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
-                ctx.fillText(`Quedan ${this.player.lives}`, GAME_WIDTH / 2, 86);
+                ctx.fillText(t('ban.remaining', { n: this.player.lives }), GAME_WIDTH / 2, 86);
                 ctx.textAlign = 'left';
             }
             if (this.extraLifeMessage > 0) {
                 ctx.textAlign = 'center';
                 ctx.fillStyle = PALETTE.accent2; ctx.font = 'bold 14px "Orbitron", sans-serif';
-                ctx.fillText('¡VIDA EXTRA!', GAME_WIDTH / 2, 70);
+                ctx.fillText(t('ban.extralife'), GAME_WIDTH / 2, 70);
                 ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
-                ctx.fillText(`Ahora tienes ${this.player.lives}`, GAME_WIDTH / 2, 86);
+                ctx.fillText(t('ban.nowlives', { n: this.player.lives }), GAME_WIDTH / 2, 86);
                 ctx.textAlign = 'left';
             }
             if (this.extraEnergyMessage > 0) {
                 ctx.textAlign = 'center';
                 ctx.fillStyle = PALETTE.en; ctx.font = 'bold 14px "Orbitron", sans-serif';
-                ctx.fillText('¡ENERGÍA EXTRA!', GAME_WIDTH / 2, 70);
+                ctx.fillText(t('ban.extraenergy'), GAME_WIDTH / 2, 70);
                 ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
-                ctx.fillText(`Máximo ahora: ${this.player.maxEnergy}`, GAME_WIDTH / 2, 86);
+                ctx.fillText(t('ban.maxnow', { n: this.player.maxEnergy }), GAME_WIDTH / 2, 86);
                 ctx.textAlign = 'left';
             }
             if (this.crystalMessage > 0) {
                 ctx.textAlign = 'center';
                 ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 14px "Orbitron", sans-serif';
-                ctx.fillText('◆ CRISTAL DE SEÑAL', GAME_WIDTH / 2, 70);
+                ctx.fillText(t('ban.crystal'), GAME_WIDTH / 2, 70);
                 ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
-                ctx.fillText(`Señal reunida: ${this.signalCrystals.size}/${TOTAL_CRYSTALS}`, GAME_WIDTH / 2, 86);
+                ctx.fillText(t('ban.signal', { n: this.signalCrystals.size, total: TOTAL_CRYSTALS }), GAME_WIDTH / 2, 86);
                 ctx.textAlign = 'left';
             }
             if (this.signalUnlockMessage > 0) {
                 ctx.textAlign = 'center';
                 ctx.fillStyle = PALETTE.accent3; ctx.font = 'bold 14px "Orbitron", sans-serif';
-                ctx.fillText('¡SEÑAL TRIANGULADA!', GAME_WIDTH / 2, 70);
+                ctx.fillText(t('ban.triangulated'), GAME_WIDTH / 2, 70);
                 ctx.fillStyle = PALETTE.ink; ctx.font = '11px "Rajdhani", sans-serif';
-                ctx.fillText(`Nueva puerta en el mapa estelar: ${this.signalUnlockText}`, GAME_WIDTH / 2, 86);
+                ctx.fillText(t('ban.newgate', { name: this.signalUnlockText }), GAME_WIDTH / 2, 86);
                 ctx.textAlign = 'left';
             }
             // La última capa del nivel: la transición de encuentro tapa también el HUD

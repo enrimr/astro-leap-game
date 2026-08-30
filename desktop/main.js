@@ -117,6 +117,17 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '..', 'index.html'),
         process.env.ASTRO_PADSIM ? { query: { padsim: '1' } } : undefined);
 
+    // TEMP: verificación i18n
+    if (process.env.ASTRO_I18N_TEST) {
+        const [lang, panel] = process.env.ASTRO_I18N_TEST.split(':');
+        win.webContents.once('did-finish-load', () => {
+            win.webContents.executeJavaScript(`setTimeout(() => {
+                setLanguage('${lang}'); game.showMainMenu();
+                ${panel ? `game.showMenuPanel('${panel}');` : ''}
+            }, 500)`);
+        });
+    }
+
     // Herramienta de desarrollo: ASTRO_SHOT=/ruta.png captura la ventana a los 3s y cierra la
     // app — permite verificar la build de escritorio desde un script, sin interacción manual.
     if (process.env.ASTRO_SHOT) {

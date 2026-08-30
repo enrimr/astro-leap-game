@@ -18,7 +18,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
-const FILES = ['js/entities.js', 'js/levels.js', 'js/game.js', 'js/gamepad.js'];
+const FILES = ['js/i18n.js', 'js/entities.js', 'js/levels.js', 'js/game.js', 'js/gamepad.js'];
 
 const FIXTURE_HTML = `<!doctype html><html><body>
 <div id="audioControls">
@@ -75,13 +75,17 @@ function loadGame() {
     window.cancelAnimationFrame = window.cancelAnimationFrame || (() => {});
     window.scrollTo = window.scrollTo || (() => {});
     window.HTMLCanvasElement.prototype.getContext = () => makeFakeCtx();
+    // Idioma fijado a español ANTES de evaluar el juego: el navigator de jsdom es en-US y sin
+    // esto i18n.js arrancaría en inglés — todos los asserts de textos de esta suite son sobre
+    // los strings fuente en español.
+    window.localStorage.setItem('astroLeapLang', 'es');
 
     const combined = FILES.map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n')
         // setRNG: RNG es un `let` de entities.js — al ser eval INDIRECTO (ver cabecera del
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, DAILY_START_LEVELS, DAILY_LEVEL_POOL, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE, keyName, setInputDevice, getInputDevice: () => inputDevice };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, DAILY_START_LEVELS, DAILY_LEVEL_POOL, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE, keyName, setInputDevice, getInputDevice: () => inputDevice, t, setLanguage, getLang: () => LANG, STRINGS, LANGS, levelName };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -2591,6 +2595,72 @@ describe('Menú de pausa — congela la acción por evento, sin regalar nada', (
         expect(game.pauseOpen).toBe(false);
         expect(game.inLevel).toBe(true);
         expect(game.player.hp).toBe(game.player.maxHp);
+    });
+});
+
+describe('i18n — 7 idiomas completos, y el idioma cambia todo al instante', () => {
+    test('COMPLETITUD: cada clave tiene exactamente los 7 idiomas — ninguno se queda cojo', () => {
+        const { STRINGS, LANGS } = loadGame();
+        const expected = LANGS.map(([c]) => c).sort().join(',');
+        const missing = [];
+        for (const [key, entry] of Object.entries(STRINGS)) {
+            const have = Object.keys(entry).sort().join(',');
+            if (have !== expected) missing.push(`${key}: ${have}`);
+            for (const [lang, text] of Object.entries(entry)) {
+                if (typeof text !== 'string' || !text.length) missing.push(`${key}.${lang}: vacío`);
+            }
+        }
+        expect(missing).toEqual([]);
+    });
+
+    test('los parámetros {x} sobreviven a TODAS las traducciones de su clave', () => {
+        const { STRINGS } = loadGame();
+        const bad = [];
+        // Conjuntos ÚNICOS: repetir un {param} es legítimo (el alemán dice "Zeit von {name}"
+        // dentro de una frase que ya usa {name} — t() sustituye todas las apariciones).
+        const paramSet = (text) => [...new Set(text.match(/\{[a-z]+\}/g) || [])].sort().join(',');
+        for (const [key, entry] of Object.entries(STRINGS)) {
+            const params = paramSet(entry.es);
+            for (const [lang, text] of Object.entries(entry)) {
+                const has = paramSet(text);
+                if (has !== params) bad.push(`${key}.${lang}: ${has} ≠ ${params}`);
+            }
+        }
+        expect(bad).toEqual([]);
+    });
+
+    test('t() interpola parámetros y cae al español si el idioma no tiene la clave', () => {
+        const { t, setLanguage } = loadGame();
+        expect(t('dr.time', { time: '1:23.4' })).toBe('Tiempo: 1:23.4');
+        setLanguage('ja');
+        expect(t('dr.time', { time: '1:23.4' })).toBe('タイム：1:23.4');
+        expect(t('clave.inexistente')).toBe('clave.inexistente'); // clave desconocida: se enseña tal cual
+    });
+
+    test('cambiar el idioma reconstruye el menú y persiste entre sesiones', () => {
+        const { game, window, document, setLanguage } = loadGame();
+        setLanguage('de');
+        game.showMainMenu();
+        expect(document.getElementById('startScreen').innerHTML).toContain('TAGES-HERAUSFORDERUNG');
+        expect(window.localStorage.getItem('astroLeapLang')).toBe('de');
+    });
+
+    test('los mensajes de combate hablan el idioma activo con el NOMBRE del enemigo, no su id', () => {
+        const { setLanguage, CombatSystem, Player, Enemy, setRNG } = loadGame();
+        setLanguage('en');
+        setRNG(() => 0.5);
+        const combat = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'sentinel'));
+        combat.resolveEnemyTurn();
+        expect(combat.message).toContain('Sentinel attacks!');
+        expect(combat.message).not.toContain('sentinel'); // el id crudo ya no se enseña
+    });
+
+    test('levelName traduce y cae al nombre canónico si no hay clave', () => {
+        const { levelName, setLanguage, LEVELS } = loadGame();
+        expect(levelName(0)).toBe('Cráter de Amerizaje');
+        setLanguage('fr');
+        expect(levelName(0)).toBe('Cratère d’Amerrissage');
+        expect(LEVELS[0].name).toBe('Cráter de Amerizaje'); // el dato canónico no se toca
     });
 });
 

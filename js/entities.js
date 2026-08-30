@@ -42,7 +42,7 @@ const HEROES = {
 // design (BFS, puertas de 40, huecos de hielo) están protegidos por tests justo para eso.
 const SKILL_TREE = {
     combate: {
-        name: 'COMBATE', color: PALETTE.accent2,
+        key: 'combate', name: 'COMBATE', color: PALETTE.accent2,
         nodes: [
             { id: 'crit', name: 'Punto débil', desc: 'Atacar tiene un 25% de probabilidad de crítico: daño ×1.5.' },
             { id: 'guardia', name: 'Guardia férrea', desc: 'Defender reduce el golpe al 35% en vez de al 50%.' },
@@ -50,7 +50,7 @@ const SKILL_TREE = {
         ]
     },
     energia: {
-        name: 'ENERGÍA', color: PALETTE.en,
+        key: 'energia', name: 'ENERGÍA', color: PALETTE.en,
         nodes: [
             { id: 'reciclador', name: 'Reciclador', desc: 'Cada enemigo derrotado da +3 de Energía en vez de +2.' },
             { id: 'eficiente', name: 'Habilidad eficiente', desc: 'La Habilidad en combate cuesta 2 de Energía en vez de 3.' },
@@ -58,7 +58,7 @@ const SKILL_TREE = {
         ]
     },
     supervivencia: {
-        name: 'SUPERVIVENCIA', color: PALETTE.hp,
+        key: 'supervivencia', name: 'SUPERVIVENCIA', color: PALETTE.hp,
         nodes: [
             { id: 'blindaje', name: 'Blindaje', desc: '+6 de HP máximo, al instante y para siempre.' },
             { id: 'aislante', name: 'Aislante', desc: 'Los peligros del terreno (puertas, tormenta, muro) hacen la mitad de daño.' },
@@ -508,7 +508,7 @@ class Enemy {
         else this.drawRegular(ctx, sx, sy, this.w, this.h);
         ctx.fillStyle = PALETTE.dim; ctx.font = '7px "Rajdhani", sans-serif';
         ctx.fillText(`Lv${this.level}`, sx, sy - 2);
-        if (this.isBoss) { ctx.fillStyle = PALETTE.accent3; ctx.fillText('JEFE', sx, sy - 10); }
+        if (this.isBoss) { ctx.fillStyle = PALETTE.accent3; ctx.fillText(t('cbt.boss'), sx, sy - 10); }
     }
     // Mismo aspecto que draw(), pero a una posición/tamaño fijos en pantalla (para el retrato de combate).
     drawPortrait(ctx, x, y, w, h) {
@@ -904,7 +904,7 @@ class GoalFlag {
         ctx.fill();
         ctx.restore();
         ctx.fillStyle = PALETTE.ink; ctx.font = '7px "Rajdhani", sans-serif';
-        ctx.fillText('BASE', sx - 6, this.y - 3);
+        ctx.fillText(t('cbt.base'), sx - 6, this.y - 3);
     }
 }
 
@@ -1082,7 +1082,7 @@ class WorldMap {
         grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
         ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
         ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 12px "Orbitron", sans-serif';
-        ctx.fillText('MAPA ESTELAR', 100, 16);
+        ctx.fillText(t('map.title'), 100, 16);
         ctx.strokeStyle = PALETTE.dim; ctx.globalAlpha = 0.4; ctx.setLineDash([2, 3]);
         this.paths.forEach(([a, b]) => {
             const n1 = this.nodes[a], n2 = this.nodes[b];
@@ -1097,13 +1097,13 @@ class WorldMap {
         ctx.beginPath(); ctx.arc(cur.x, cur.y + 14, 3, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
         ctx.fillStyle = PALETTE.dim; ctx.font = '9px "Rajdhani", sans-serif';
-        ctx.fillText('← →: Navegar', 10, 168);
+        ctx.fillText(t('map.nav'), 10, 168);
         // keyName vive en game.js (dice A si el último input fue de mando); el typeof cubre a
         // los scripts que evalúan entities.js suelto, sin cargar el juego entero.
-        ctx.fillText((typeof keyName === 'function' ? keyName('confirm') : 'ESPACIO') + ': Entrar', 220, 168);
+        ctx.fillText(t('map.enter', { key: typeof keyName === 'function' ? keyName('confirm') : 'ESPACIO' }), 220, 168);
         ctx.fillStyle = PALETTE.panel; ctx.fillRect(8, 24, 304, 16);
         ctx.fillStyle = PALETTE.accent; ctx.font = '9px "Rajdhani", sans-serif';
-        ctx.fillText(`Nivel ${cur.levelIndex + 1}: ${LEVELS[cur.levelIndex].name}`, 14, 35);
+        ctx.fillText(t('map.levelLabel', { n: cur.levelIndex + 1, name: levelName(cur.levelIndex) }), 14, 35);
     }
     completeLevel(levelIndex) {
         if (!this.nodes[levelIndex]) return; // defensivo: nivel sin nodo
@@ -1119,10 +1119,10 @@ class WorldMap {
 class CombatSystem {
     constructor(player, enemy) {
         this.player = player; this.enemy = enemy; this.turn = 'player';
-        this.message = 'Tu turno. Elige acción:';
+        this.message = t('cbt.turn');
         // La acción de "Habilidad" lleva el nombre propio del piloto (ver HEROES.combatName) —
         // mismo daño para los 4, solo cambia cómo se llama y cómo suena al usarla.
-        this.actions = ['ATACAR', HEROES[player.character].combatName.toUpperCase(), 'DEFENDER', 'HUIR'];
+        this.actions = [t('cbt.attack'), t('hero.' + player.character + '.combat').toUpperCase(), t('cbt.defend'), t('cbt.flee')];
         this.defending = false; this.active = true; this.result = null; this.messageTimer = 0;
         this.promptTimer = 0; // cuenta atrás (en frames de combate) hasta reponer el "Tu turno"
         this.selectedIndex = 0; this.shake = 0;
@@ -1149,7 +1149,7 @@ class CombatSystem {
             const crit = this.player.hasSkill('crit') && RNG() < 0.25;
             if (crit) raw = Math.floor(raw * 1.5);
             const dealt = this.enemy.takeDamage(raw);
-            this.message = crit ? `¡CRÍTICO! Daño: ${dealt}` : `Disparaste! Daño: ${dealt}`;
+            this.message = crit ? t('cbt.crit', { n: dealt }) : t('cbt.shot', { n: dealt });
             this.shake = crit ? 9 : 6;
             if (window.SFX) SFX.hitEnemy();
         } else if (action === 1) {
@@ -1158,14 +1158,14 @@ class CombatSystem {
             const mult = this.player.hasSkill('ejecutor') ? 2 : 1.5;
             if (this.player.energy >= cost) {
                 const dealt = this.enemy.takeDamage(Math.floor(this.player.attack * mult));
-                this.player.energy -= cost; this.message = `¡${HEROES[this.player.character].combatName}! Daño: ${dealt}`; this.shake = 9;
+                this.player.energy -= cost; this.message = t('cbt.skillhit', { name: t('hero.' + this.player.character + '.combat'), n: dealt }); this.shake = 9;
                 if (window.SFX) SFX.hitEnemy();
-            } else { this.message = 'Energía insuficiente!'; if (window.SFX) SFX.select(); return; }
+            } else { this.message = t('cbt.noenergy'); if (window.SFX) SFX.select(); return; }
         } else if (action === 2) {
-            this.defending = true; this.message = 'Escudos arriba...';
+            this.defending = true; this.message = t('cbt.shields');
         } else if (action === 3) {
-            if (RNG() < 0.5) { this.message = 'Escapaste!'; this.result = 'flee'; this.active = false; if (window.SFX) SFX.flee(); return; }
-            else { this.message = 'No pudiste escapar!'; }
+            if (RNG() < 0.5) { this.message = t('cbt.escaped'); this.result = 'flee'; this.active = false; if (window.SFX) SFX.flee(); return; }
+            else { this.message = t('cbt.noescape'); }
         }
         this.messageTimer = 60;
         if (this.enemy.defeated) { this.result = 'win'; this.active = false; return; }
@@ -1200,7 +1200,7 @@ class CombatSystem {
             }
         } else if (this.turn === 'player' && this.promptTimer > 0) {
             this.promptTimer = Math.max(0, this.promptTimer - step);
-            if (this.promptTimer === 0) this.message = 'Tu turno. Elige acción:';
+            if (this.promptTimer === 0) this.message = t('cbt.turn');
         }
     }
     // Decide la acción del enemigo en su turno. Los enemigos normales siempre atacan (sin cambios);
@@ -1277,20 +1277,20 @@ class CombatSystem {
             this.player.energy -= drained;
         }
         const drainNote = drained ? ` −${drained} EN` : '';
-        this.message = (verb ? `${verb} Daño: ${rec}` : `${this.enemy.type} ataca! Daño: ${rec}`) + drainNote;
+        this.message = (verb ? `${verb} Daño: ${rec}` : t('cbt.strikes', { name: t('enemy.' + this.enemy.type), n: rec })) + drainNote;
         this.messageTimer = 60; this.shake = multiplier > 1 ? 10 : 6;
         if (window.SFX) SFX.hitPlayer();
     }
     bossChargeTurn() {
         this.bossCharging = true;
-        this.message = `${this.enemy.type} carga una descarga...`;
+        this.message = t('cbt.charges', { name: t('enemy.' + this.enemy.type) });
         this.messageTimer = 60; this.shake = 3;
         if (window.SFX) SFX.bossCharge();
     }
     bossHealTurn() {
         const amount = Math.max(1, Math.floor(this.enemy.maxHp * 0.12));
         this.enemy.hp = Math.min(this.enemy.maxHp, this.enemy.hp + amount);
-        this.message = `${this.enemy.type} se regenera... +${amount} HP`;
+        this.message = t('cbt.heals', { name: t('enemy.' + this.enemy.type), n: amount });
         this.messageTimer = 60; this.shake = 0;
         if (window.SFX) SFX.bossHeal();
     }
@@ -1305,13 +1305,13 @@ class CombatSystem {
         grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
         ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
         ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 13px "Orbitron", sans-serif';
-        ctx.fillText('DUELO DE ENERGÍA', 90, 16);
+        ctx.fillText(t('cbt.title'), 90, 16);
 
         // Columna del enemigo (retrato a la derecha, stats a la izquierda del retrato)
         const enemyPortraitSize = this.enemy.isBoss ? 32 : 24;
         this.enemy.drawPortrait(ctx, 280 - enemyPortraitSize / 2, 24, enemyPortraitSize, enemyPortraitSize);
         ctx.fillStyle = PALETTE.ink; ctx.font = '10px "Rajdhani", sans-serif';
-        ctx.fillText(`${this.enemy.type} Lv${this.enemy.level}`, 185, 34);
+        ctx.fillText(`${t('enemy.' + this.enemy.type)} Lv${this.enemy.level}`, 185, 34);
         ctx.fillText(`HP: ${this.enemy.hp}/${this.enemy.maxHp}`, 185, 46);
         const ehp = Math.max(0, this.enemy.hp / this.enemy.maxHp);
         ctx.fillStyle = PALETTE.panel; ctx.fillRect(185, 50, 78, 6);
@@ -1320,7 +1320,7 @@ class CombatSystem {
         // Columna del jugador (retrato a la izquierda, stats a la derecha del retrato)
         this.player.drawPortrait(ctx, 14, 20, 20, 26);
         ctx.fillStyle = PALETTE.ink; ctx.font = '10px "Rajdhani", sans-serif';
-        ctx.fillText(`TÚ Lv${this.player.level}  ♥${this.player.lives}`, 40, 30);
+        ctx.fillText(`${t('cbt.you')} Lv${this.player.level}  ♥${this.player.lives}`, 40, 30);
         ctx.fillText(`HP: ${this.player.hp}/${this.player.maxHp}`, 40, 42);
         const php = Math.max(0, this.player.hp / this.player.maxHp);
         ctx.fillStyle = PALETTE.panel; ctx.fillRect(40, 46, 60, 5);
@@ -1340,7 +1340,7 @@ class CombatSystem {
             ctx.save();
             ctx.fillStyle = PALETTE.dim; ctx.globalAlpha = 0.6;
             ctx.font = '7px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
-            ctx.fillText('≫ mantén pulsado para acelerar', 310, 172);
+            ctx.fillText(t('cbt.fastfwd'), 310, 172);
             ctx.restore();
             ctx.textAlign = 'left';
         }

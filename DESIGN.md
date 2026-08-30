@@ -547,3 +547,17 @@ Tres arreglos que salieron de jugar la beta en la app de escritorio:
 - **Volver al menú desde el mapa** (`exitToMenu`: ESC, B del mando, o el ✕ que en el mapa dice MENÚ): guarda y sale, CONTINUAR retoma. Antes no había NINGUNA salida — en web se "resolvía" recargando la página, pero la app no tiene barra de direcciones: el menú quedaba inalcanzable desde una partida empezada. Con el hangar o el árbol abiertos, ESC sigue siendo suyo (lo consumen por sondeo; la salida por evento se guarda de no pisarlos). El crono del mapa baja unos píxeles: el botón flota sobre su esquina.
 - **`saveProgress()` calla en modo diario.** Ganar un duelo dentro del reto pasaba por el `saveProgress()` del camino de victoria y escribía el jugador desechable del reto — y su mapa de UN nodo — sobre el guardado real: el menú ofrecía "CONTINUAR" una partida inexistente o, peor, machacaba una de verdad. El guard vive en `saveProgress` mismo, no en cada caller: cualquier llamada futura desde el reto nace inofensiva.
 - **Sin puntos de mejora en el reto** (`skillPointsLocked` en Player): no hay mapa donde gastarlos, así que acumularlos solo generaba el aviso de "punto ganado" sin sentido. La subida de nivel sigue dando stats y curación — solo calla el árbol.
+
+### 2.43 Siete idiomas: el texto vive en un solo sitio y se pinta en el momento
+
+Todo el texto visible estaba incrustado en español por el código. Ahora vive en `js/i18n.js` — un diccionario de ~200 claves con los 7 idiomas JUNTOS por línea (es fuente, en, it, fr, de, ja, zh) — y el código pide cada string con `t(clave, {params})` en el MOMENTO de pintar: el canvas se repinta cada frame y los menús se reconstruyen al abrirse, así que cambiar de idioma (selector en el menú, rejilla de dos columnas) surte efecto al instante, sin recargar. La detección inicial: idioma guardado → idioma del navegador → inglés.
+
+Decisiones con porqué:
+
+- **Los datos canónicos no se tocan.** `LEVELS[i].name`, las labels de dificultad y los ids de enemigo siguen en español dentro de los datos: son claves de persistencia (saves, récords, duelos) y la fuente de los mapas de la GUIA. La traducción es una capa de PRESENTACIÓN (`levelName(i)`, `diffName(d)`, `t('enemy.'+type)`) — de propina, el combate deja de enseñar el id crudo («queen_larva ataca!») y muestra el nombre de verdad en todos los idiomas, español incluido.
+- **Dos tests estructurales vigilan el diccionario**: completitud (cada clave tiene exactamente los 7 idiomas, ninguno vacío) y paridad de parámetros (los `{param}` de la fuente sobreviven a todas las traducciones). Un idioma cojo o un placeholder perdido rompe la suite, no la pantalla de un jugador japonés.
+- **El harness de tests fija español** antes de evaluar el juego (el navigator de jsdom es en-US): los cientos de asserts sobre textos siguen siendo sobre la lengua fuente.
+- **Verificación por hablantes**: es/en los valida el autor; it/fr/de/ja/zh pasaron por una revisión independiente por idioma (agente traductor con contexto del juego y glosario) cuyas correcciones se aplicaron sobre el diccionario.
+- **Tipografía**: Orbitron/Rajdhani no tienen glifos CJK — el canvas y el DOM caen solos a la sans del sistema para esos caracteres, que es exactamente lo que se quiere. Los rótulos CJK del menú llevan `white-space: nowrap` (el navegador los partía carácter a carácter en columnas verticales).
+
+Fuera del alcance, deliberado: GUIA.md/README (documentación, en español), los meta/OG de index.html (SEO de la web) y los textos de los scripts de desarrollo.

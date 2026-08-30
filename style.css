@@ -126,7 +126,14 @@ body {
    botones de tarjeta — no compiten con JUGAR / RETO DIARIO. Van DESPUÉS de las reglas base de
    .menu-btn a propósito: anulan el borde/brillo/animación heredados (incluido el pulso de
    :first-child, que si no se colaría en el primero de la fila). ---- */
-#startScreen .menu-quiet-row { display: flex; justify-content: center; gap: 20px; margin-top: 2px; }
+/* flex-wrap + nowrap: en japonés/chino el navegador parte los rótulos carácter a carácter y
+   los enlaces quedaban en columnas verticales — mejor que envuelva la FILA, no el botón. */
+#startScreen .menu-quiet-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin-top: 2px; }
+#startScreen .menu-quiet-row .menu-btn.quiet { white-space: nowrap; }
+/* Selector de idioma: 7 idiomas + VOLVER no caben en columna — rejilla de dos columnas */
+#startScreen #menuLang { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 340px; }
+#startScreen #menuLang[hidden] { display: none; }
+#startScreen #menuLang .menu-btn[data-action="back"] { grid-column: 1 / -1; }
 #startScreen .menu-btn.quiet {
     background: none; border: none; box-shadow: none; animation: none;
     color: var(--dim); font-size: clamp(11px, 2.4vw, 13px); letter-spacing: 1px;
