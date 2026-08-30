@@ -25,6 +25,11 @@
     --bg1: #0b0620; --bg2: #160c33; --ink: #f5f3ff; --dim: #a89ee0;
     --panel: #1c1140; --panel-light: #2a1a5e;
     --accent: #7cf5ff; --accent2: #ff5ecb; --accent3: #ffd23f;
+    /* Ancho máximo del juego: crece con la ventana (maximizada incluida) en vez de clavarse en
+       720px. Manda lo que antes se agote — el ancho de la ventana o el alto (el canvas es 16:9
+       fijo; se reservan ~170px para la fila de ajustes, controles y márgenes). La nitidez la
+       pone fitCanvas(), que re-renderiza a resolución CSS×DPR reales. */
+    --game-max: min(calc(100vw - 32px), calc((100vh - 170px) * 16 / 9));
 }
 
 body {
@@ -40,7 +45,7 @@ body {
     border-radius: 10px;
     box-shadow: 0 0 24px rgba(124, 245, 255, 0.35), 0 12px 32px rgba(0,0,0,0.6);
     position: relative;
-    width: 100%; max-width: 720px;
+    width: 100%; max-width: var(--game-max);
 }
 /* En pantallas estrechas el canvas (320:180) da un contenedor más bajo que el menú que hay que
    meter dentro (título+botones): mientras el menú está abierto forzamos alto mínimo para que no
@@ -168,7 +173,7 @@ select.lang-select:hover { opacity: 1; border-color: var(--accent); }
    los esconden (body.no-touch-ui, ver setInputDevice en js/game.js) — en escritorio con mando
    eran solo pantalla perdida. Un toque o un clic los trae de vuelta al instante. */
 #moveControls, #combatButtons {
-    display: none; gap: 10px; width: 100%; max-width: 720px; align-items: stretch;
+    display: none; gap: 10px; width: 100%; max-width: var(--game-max); align-items: stretch;
 }
 #moveControls.active, #combatButtons.active { display: flex; }
 body.no-touch-ui #moveControls, body.no-touch-ui #combatButtons { display: none; }
@@ -221,7 +226,7 @@ button {
 /* Silenciar música/sonido: fila propia POR ENCIMA del cuadro de juego (no superpuesta sobre
    el canvas como #btnExit) — así nunca tapa el HUD dibujado dentro, se vea lo que se vea. */
 #audioControls {
-    display: flex; gap: 4px; width: 100%; max-width: 720px; justify-content: flex-start;
+    display: flex; gap: 4px; width: 100%; max-width: var(--game-max); justify-content: flex-start;
 }
 .audio-btn {
     background: rgba(28, 17, 64, 0.85);
@@ -237,7 +242,7 @@ button {
 .audio-btn.off .icon-off { display: block; }
 
 footer {
-    color: var(--dim); font-size: 12px; text-align: center; max-width: 720px; opacity: 0.7;
+    color: var(--dim); font-size: 12px; text-align: center; max-width: var(--game-max); opacity: 0.7;
 }
 
 /* Móvil en horizontal: el alto pasa a ser el recurso escaso (no el ancho), y el canvas tiene
