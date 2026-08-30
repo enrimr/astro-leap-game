@@ -49,6 +49,10 @@
             <svg class="icon-on" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l4-7 4 14 4-14 4 7 3-3"/></svg>
             <svg class="icon-off" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l4-7 4 14 4-14 4 7 3-3"/><line x1="3" y1="3" x2="21" y2="21" stroke-width="2.4"/></svg>
         </button>
+        <!-- Idioma junto al resto de ajustes: siempre visible, también dentro de un nivel. Un
+             <select> nativo (el desplegable del sistema funciona igual en táctil y ratón), y en
+             CUARTA posición a propósito: la Ayuda llama "tercer botón" al de accesibilidad. -->
+        <select id="btnLangSelect" class="audio-btn lang-select" aria-label="Idioma"></select>
     </div>
     <div id="gameContainer" class="menu-open">
         <canvas id="gameCanvas" width="320" height="180"></canvas>

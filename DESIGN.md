@@ -550,7 +550,7 @@ Tres arreglos que salieron de jugar la beta en la app de escritorio:
 
 ### 2.43 Siete idiomas: el texto vive en un solo sitio y se pinta en el momento
 
-Todo el texto visible estaba incrustado en español por el código. Ahora vive en `js/i18n.js` — un diccionario de ~200 claves con los 7 idiomas JUNTOS por línea (es fuente, en, it, fr, de, ja, zh) — y el código pide cada string con `t(clave, {params})` en el MOMENTO de pintar: el canvas se repinta cada frame y los menús se reconstruyen al abrirse, así que cambiar de idioma (selector en el menú, rejilla de dos columnas) surte efecto al instante, sin recargar. La detección inicial: idioma guardado → idioma del navegador → inglés.
+Todo el texto visible estaba incrustado en español por el código. Ahora vive en `js/i18n.js` — un diccionario de ~200 claves con los 7 idiomas JUNTOS por línea (es fuente, en, it, fr, de, ja, zh) — y el código pide cada string con `t(clave, {params})` en el MOMENTO de pintar: el canvas se repinta cada frame y los menús se reconstruyen al abrirse, así que cambiar de idioma surte efecto al instante, sin recargar — el selector vive en la esquina junto a los ajustes de sonido/accesibilidad (un <select> nativo vestido de botón: siempre visible, también dentro de un nivel), donde un jugador espera encontrar un ajuste. La detección inicial: idioma guardado → idioma del navegador → inglés.
 
 Decisiones con porqué:
 

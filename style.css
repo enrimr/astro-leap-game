@@ -130,10 +130,13 @@ body {
    los enlaces quedaban en columnas verticales — mejor que envuelva la FILA, no el botón. */
 #startScreen .menu-quiet-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin-top: 2px; }
 #startScreen .menu-quiet-row .menu-btn.quiet { white-space: nowrap; }
-/* Selector de idioma: 7 idiomas + VOLVER no caben en columna — rejilla de dos columnas */
-#startScreen #menuLang { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 340px; }
-#startScreen #menuLang[hidden] { display: none; }
-#startScreen #menuLang .menu-btn[data-action="back"] { grid-column: 1 / -1; }
+/* Selector de idioma: un <select> nativo vestido de botón de la esquina (ver #audioControls) */
+select.lang-select {
+    appearance: none; -webkit-appearance: none;
+    font-family: inherit; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    cursor: pointer; max-width: 96px; text-overflow: ellipsis;
+}
+select.lang-select:hover { opacity: 1; border-color: var(--accent); }
 #startScreen .menu-btn.quiet {
     background: none; border: none; box-shadow: none; animation: none;
     color: var(--dim); font-size: clamp(11px, 2.4vw, 13px); letter-spacing: 1px;

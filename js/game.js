@@ -11,6 +11,7 @@ const btnExit = document.getElementById('btnExit');
 const btnMusicToggle = document.getElementById('btnMusicToggle');
 const btnSfxToggle = document.getElementById('btnSfxToggle');
 const btnReduceFxToggle = document.getElementById('btnReduceFxToggle');
+const btnLangSelect = document.getElementById('btnLangSelect');
 // El <span> del botón táctil "2" (Habilidad) del menú de combate — su texto se actualiza por
 // piloto en Game.updateTouchUI(), igual que el menú del canvas (ver CombatSystem.actions).
 const combatAbilityBtnSpan = combatButtonsEl ? combatButtonsEl.querySelector('[data-code="Digit2"] span') : null;
@@ -570,9 +571,6 @@ class Game {
                     <button class="menu-btn quiet" data-action="times">${t('menu.times')}</button>
                     <button class="menu-btn quiet" data-action="help">${t('menu.help')}</button>
                     <button class="menu-btn quiet" data-action="duel-paste">${t('menu.challenged')}</button>
-                    <!-- El 🌐 no se traduce a propósito: si el idioma activo no es el tuyo (PC prestado,
-                         residuo ajeno), este botón tiene que poder encontrarse SIN saber leerlo -->
-                    <button class="menu-btn quiet" data-action="lang-open">🌐 ${t('menu.lang')}</button>
                     ${IS_DESKTOP ? `<button class="menu-btn quiet" data-action="quit">${t('menu.quit')}</button>` : ''}
                 </div>
             </div>
@@ -581,10 +579,6 @@ class Game {
                 <input id="duelLinkInput" class="duel-input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://s.enri.me/astroleap/...">
                 <p class="daily-note" id="duelLinkError" hidden></p>
                 <button class="menu-btn daily-btn" data-action="duel-accept">${t('duel.accept')}</button>
-                <button class="menu-btn" data-action="back">${t('menu.back')}</button>
-            </div>
-            <div class="menu-panel" id="menuLang" hidden>
-                ${LANGS.map(([code, label]) => `<button class="menu-btn${code === LANG ? ' daily-btn' : ''}" data-action="lang-set" data-lang="${code}">${label}</button>`).join('')}
                 <button class="menu-btn" data-action="back">${t('menu.back')}</button>
             </div>
             <div class="menu-panel" id="menuTimes" hidden>
@@ -627,7 +621,7 @@ class Game {
         openMenuOverlay();
     }
     showMenuPanel(id) {
-        ['menuMain', 'menuTimes', 'menuHelp', 'menuDuel', 'menuLang'].forEach(pid => {
+        ['menuMain', 'menuTimes', 'menuHelp', 'menuDuel'].forEach(pid => {
             const el = document.getElementById(pid);
             if (el) el.hidden = pid !== id;
         });
@@ -647,8 +641,6 @@ class Game {
         else if (action === 'times') this.showMenuPanel('menuTimes');
         else if (action === 'help') this.showMenuPanel('menuHelp');
         else if (action === 'duel-paste') this.showMenuPanel('menuDuel');
-        else if (action === 'lang-open') this.showMenuPanel('menuLang');
-        else if (action === 'lang-set') { setLanguage(btn.dataset.lang); this.showMainMenu(); this.showMenuPanel('menuLang'); }
         else if (action === 'quit') window.close(); // solo se ofrece en escritorio (IS_DESKTOP)
         else if (action === 'duel-accept') this.acceptDuelLink((document.getElementById('duelLinkInput') || {}).value);
         else if (action === 'back') this.showMenuPanel('menuMain');
@@ -1815,6 +1807,19 @@ class Game {
             };
             btnReduceFxToggle.addEventListener('touchstart', toggleReduceFx, { passive: false });
             btnReduceFxToggle.addEventListener('click', toggleReduceFx);
+        }
+        // Selector de idioma, en la esquina junto al resto de ajustes: siempre visible, también
+        // dentro de un nivel (el canvas y los botones flotantes se repintan cada frame y hablan
+        // el idioma nuevo al instante). El menú es HTML ya construido: se reconstruye — pero NO
+        // sobre una pantalla de resultado (victoria/game over llevan .run-time y compartir):
+        // esas conservan su idioma hasta volver al menú, mejor que borrarle el resumen a alguien.
+        if (btnLangSelect) {
+            btnLangSelect.innerHTML = LANGS.map(([code, label]) => `<option value="${code}"${code === LANG ? ' selected' : ''}>${label}</option>`).join('');
+            btnLangSelect.addEventListener('change', () => {
+                setLanguage(btnLangSelect.value);
+                if (!this.gameStarted && !startScreen.querySelector('.run-time')) this.showMainMenu();
+                btnLangSelect.blur(); // que no se quede el foco comiéndose ESPACIO/flechas del juego
+            });
         }
         if (combatButtonsEl) {
             combatButtonsEl.querySelectorAll('button[data-code]').forEach((btn) => {

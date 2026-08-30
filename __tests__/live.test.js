@@ -25,6 +25,7 @@ const FIXTURE_HTML = `<!doctype html><html><body>
   <button id="btnMusicToggle" class="audio-btn"><svg class="icon-on"></svg><svg class="icon-off"></svg></button>
   <button id="btnSfxToggle" class="audio-btn"><svg class="icon-on"></svg><svg class="icon-off"></svg></button>
   <button id="btnReduceFxToggle" class="audio-btn"><svg class="icon-on"></svg><svg class="icon-off"></svg></button>
+  <select id="btnLangSelect" class="audio-btn lang-select"></select>
 </div>
 <div id="gameContainer" class="menu-open">
   <canvas id="gameCanvas" width="320" height="180"></canvas>
@@ -2635,6 +2636,22 @@ describe('i18n — 7 idiomas completos, y el idioma cambia todo al instante', ()
         setLanguage('ja');
         expect(t('dr.time', { time: '1:23.4' })).toBe('タイム：1:23.4');
         expect(t('clave.inexistente')).toBe('clave.inexistente'); // clave desconocida: se enseña tal cual
+    });
+
+    test('el selector de la esquina cambia el idioma al momento — salvo sobre una pantalla de resultado', () => {
+        const { game, window, document } = loadGame();
+        const sel = document.getElementById('btnLangSelect');
+        expect(sel.options.length).toBe(7); // poblado desde LANGS
+        sel.value = 'en';
+        sel.dispatchEvent(new window.Event('change'));
+        expect(document.getElementById('startScreen').innerHTML).toContain('DAILY CHALLENGE');
+        // Sobre una pantalla de resultado (lleva .run-time y el botón de compartir), cambiar el
+        // idioma NO debe borrarle el resumen al jugador reconstruyendo el menú principal
+        document.getElementById('startScreen').innerHTML = '<p class="run-time">Tiempo: 1:23.4</p>';
+        sel.value = 'fr';
+        sel.dispatchEvent(new window.Event('change'));
+        expect(document.getElementById('startScreen').innerHTML).toContain('run-time'); // el resumen sigue
+        expect(window.localStorage.getItem('astroLeapLang')).toBe('fr'); // pero el idioma sí cambió
     });
 
     test('cambiar el idioma reconstruye el menú y persiste entre sesiones', () => {
