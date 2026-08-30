@@ -191,7 +191,7 @@ class Player {
             lives: MAX_LIVES, maxLives: MAX_LIVES,
             // Árbol de mejoras: puntos sin gastar, nodos desbloqueados, y el "ya usé el sistema
             // de emergencia en este nivel" (se rearma en Game.loadLevel).
-            skillPoints: 0, skills: new Set(), emergencyUsed: false
+            skillPoints: 0, skillPointsLocked: false, skills: new Set(), emergencyUsed: false
         });
     }
     hasSkill(id) { return this.skills.has(id); }
@@ -310,7 +310,10 @@ class Player {
         this.level++; this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5);
         this.maxHp += 5; this.hp = this.maxHp; this.maxEnergy += 2; this.energy = this.maxEnergy;
         this.attack += 2; this.defense += 1;
-        this.skillPoints++; // árbol de mejoras: cada subida da un punto que se gasta en el mapa
+        // Árbol de mejoras: cada subida da un punto que se gasta en el mapa — salvo en el Reto
+        // Diario (skillPointsLocked): allí no hay mapa donde gastarlos y acumularlos solo
+        // generaba mensajes sin sentido.
+        if (!this.skillPointsLocked) this.skillPoints++;
     }
     gainXP(amt) {
         this.xp += amt;

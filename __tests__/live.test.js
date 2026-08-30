@@ -2594,6 +2594,53 @@ describe('Menú de pausa — congela la acción por evento, sin regalar nada', (
     });
 });
 
+describe('El reto no pisa la partida real, y el mapa tiene puerta de vuelta al menú', () => {
+    test('regresión: ganar un duelo DENTRO del reto no escribe el guardado real', () => {
+        const { game, window, CombatSystem } = loadGame();
+        game.startDailyChallenge();
+        game.player.xpToNextLevel = 9999;
+        game.combat = new CombatSystem(game.player, game.enemies[0]);
+        game.combat.result = 'win'; game.combat.active = false;
+        game.update(); // el camino de victoria llama a saveProgress() — que en el reto debe callar
+        expect(window.localStorage.getItem('astroLeapSave_v1')).toBeNull();
+    });
+
+    test('en el reto, subir de nivel no acumula puntos de mejora ni muestra su aviso', () => {
+        const { game, CombatSystem } = loadGame();
+        game.startDailyChallenge();
+        const before = game.player.level;
+        const enemy = game.enemies[0];
+        enemy.xpReward = 9999; // subida garantizada al ganar
+        game.combat = new CombatSystem(game.player, enemy);
+        game.combat.result = 'win'; game.combat.active = false;
+        game.update();
+        expect(game.player.level).toBeGreaterThan(before); // la subida ocurre (stats sí)...
+        expect(game.player.skillPoints).toBe(0);           // ...pero sin puntos de árbol
+        expect(game.hintScreen).toBeNull();                // y sin el aviso de "punto ganado"
+    });
+
+    test('ESC en el mapa estelar guarda y vuelve al menú, que ofrece CONTINUAR', () => {
+        const { game, window, document } = loadGame();
+        game.startGame();
+        expect(game.inWorldMap).toBe(true);
+        document.dispatchEvent(new window.KeyboardEvent('keydown', { code: 'Escape' }));
+        expect(game.gameStarted).toBe(false);
+        expect(window.localStorage.getItem('astroLeapSave_v1')).not.toBeNull();
+        expect(document.getElementById('startScreen').innerHTML).toContain('CONTINUAR PARTIDA');
+    });
+
+    test('con el hangar abierto, ESC es del hangar: lo cierra sin expulsarte al menú', () => {
+        const { game, window, document } = loadGame();
+        game.startGame();
+        game.openCharSelect();
+        document.dispatchEvent(new window.KeyboardEvent('keydown', { code: 'Escape' }));
+        expect(game.gameStarted).toBe(true); // la partida sigue
+        game.update(); // el hangar consume su ESC por sondeo
+        expect(game.charSelectOpen).toBe(false);
+        expect(game.inWorldMap).toBe(true);
+    });
+});
+
 describe('Gracia post-combate — el toque que venía para ATACAR no se convierte en un paso', () => {
     test('ganar un duelo abre la ventana de gracia y los botones táctiles quedan sordos hasta que expira', () => {
         const { game, window, document, CombatSystem } = loadGame();

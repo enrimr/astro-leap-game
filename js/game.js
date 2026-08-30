@@ -814,9 +814,11 @@ class Game {
         this.duelRec = []; this.duelRecFrame = 0; this.lastDuelRun = null;
 
         this.player = new Player(20, 100, hero);
+        // El reto se juega con el piloto pelado: sin árbol de mejoras (no hay mapa donde
+        // gastarlo), así que ni acumula puntos ni molesta con el aviso de "punto ganado".
+        this.player.skillPointsLocked = true;
         // v2: el piloto arranca a la altura del sector del día (ver DAILY_START_LEVELS) con las
-        // mismas subidas que la partida real. Los puntos de mejora que esto regala no se pueden
-        // gastar (el reto no tiene mapa) — el reto se juega con el piloto pelado, como siempre.
+        // mismas subidas que la partida real.
         for (let i = 1; i < (DAILY_START_LEVELS[levelIdx] || 1); i++) this.player.levelUpOnce();
         this.unlockedCharacters = new Set([hero]);
         this.worldMap = new WorldMap();
@@ -850,6 +852,18 @@ class Game {
             this.signalCrystals = this._realSignals;
             this._realPlayer = null; this._realWorldMap = null; this._realUnlocked = null; this._realPickups = null; this._realSignals = null;
         }
+    }
+    // Volver al menú desde el mapa estelar (ESC, B del mando, o el botón ✕ que en el mapa dice
+    // MENÚ): guarda la partida y sale — CONTINUAR la retoma tal cual. Antes no había NINGUNA
+    // salida: en web se "resolvía" recargando la página, pero la app de escritorio no tiene
+    // barra de direcciones y el menú quedaba inalcanzable desde una partida empezada.
+    exitToMenu() {
+        if (!this.inWorldMap || this.dailyMode) return;
+        this.saveProgress();
+        if (window.SFX) SFX.music.stop();
+        this.gameStarted = false;
+        this.inWorldMap = false;
+        this.showMainMenu();
     }
     // Salir a medias (ESC/botón ✕) durante el Reto Diario: no hay mapa al que volver (es un
     // único nivel aislado), así que aborta directo al menú en vez de abrir un mapa de un solo nodo.
@@ -899,6 +913,12 @@ class Game {
     }
 
     saveProgress() {
+        // El Reto Diario JAMÁS escribe el guardado real: juega con jugador y mapa desechables
+        // (startDailyChallenge aparca los de verdad). Sin este guard, ganar un duelo dentro del
+        // reto (el saveProgress() del camino de victoria del combate) pisaba la partida real
+        // con el jugador del reto y su mapa de un solo nodo — y el menú ofrecía "CONTINUAR"
+        // una partida que no existía (o, peor, machacaba una que sí).
+        if (this.dailyMode) return;
         try {
             const data = {
                 nodes: this.worldMap.nodes.map(n => ({ completed: n.completed, unlocked: n.unlocked })),
@@ -1699,6 +1719,9 @@ class Game {
             // Durante la transición de encuentro no hay pausa — el combate ya es inevitable
             // (igual que en Pokémon: cuando la pantalla parpadea, ya estás dentro).
             if (e.code === 'Escape' && this.inLevel && !this.combat && !this.combatTransition) this.openPause();
+            // ESC en el mapa estelar: volver al menú. Con el hangar o el árbol abiertos no —
+            // esos consumen su propio ESC (sondeado en sus update), y este evento llegaría antes.
+            if (e.code === 'Escape' && this.inWorldMap && !this.charSelectOpen && !this.skillTreeOpen && !this.unlockScreen) this.exitToMenu();
             // Atajo de depuración: reiniciar el nivel actual al instante (útil ajustando niveles)
             if (e.code === 'KeyR' && this.inLevel && !this.combat && !this.combatTransition) {
                 this.levelCompleting = false;
@@ -1737,8 +1760,14 @@ class Game {
 
         if (btnExit) {
             // El ✕ ya no sale en seco: abre la pausa — salir de verdad es una de sus opciones,
-            // y un toque accidental deja de costar el progreso del nivel.
-            const exitTap = (e) => { e.preventDefault(); if (this.hintScreen) return; if (this.inLevel && !this.combat && !this.combatTransition) { this.pauseOpen ? this.closePause() : this.openPause(); } };
+            // y un toque accidental deja de costar el progreso del nivel. En el mapa estelar el
+            // mismo botón dice MENÚ y vuelve al menú principal (ver updateTouchUI).
+            const exitTap = (e) => {
+                e.preventDefault();
+                if (this.hintScreen) return;
+                if (this.inWorldMap && !this.charSelectOpen && !this.skillTreeOpen) { this.exitToMenu(); return; }
+                if (this.inLevel && !this.combat && !this.combatTransition) { this.pauseOpen ? this.closePause() : this.openPause(); }
+            };
             btnExit.addEventListener('touchstart', exitTap, { passive: false });
             btnExit.addEventListener('click', exitTap);
         }
@@ -1880,7 +1909,12 @@ class Game {
         }
         if (combatButtonsEl) combatButtonsEl.classList.toggle('active', inCombat && !paused);
         if (btnJump) btnJump.textContent = this.inWorldMap ? 'ENTRAR' : 'SALTO';
-        if (btnExit) btnExit.classList.toggle('active', this.inLevel && !inCombat && !paused);
+        if (btnExit) {
+            // También en el mapa estelar: ahí es la puerta de vuelta al menú principal
+            btnExit.classList.toggle('active', (this.inLevel || this.inWorldMap) && !inCombat && !paused);
+            const exitLabel = this.inWorldMap ? '✕ Menú' : '✕ Salir';
+            if (btnExit.textContent !== exitLabel) btnExit.textContent = exitLabel;
+        }
         // Botón táctil "2" del menú de combate: mismo nombre propio por piloto que el menú del
         // canvas (ver CombatSystem.actions), para que no diga "Habilidad" en un sitio y
         // "Sobrecarga"/"Zarpazo"/etc. en otro.
@@ -1956,7 +1990,7 @@ class Game {
                     this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + this.energyPerKill());
                     if (this.combat.enemy.xpKey) this.collectedPickups.add(this.combat.enemy.xpKey);
                     this.levelUpMessage = leveled ? 100 : 0;
-                    if (leveled) this.showHint('skill-point', `Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o pulsa ${keyName('tree')}.`);
+                    if (leveled && !this.dailyMode) this.showHint('skill-point', `Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o pulsa ${keyName('tree')}.`);
                     if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     if (this.combat.enemy.isBoss) this.unlockCharacterForBoss(this.combat.enemy.type);
@@ -2065,7 +2099,7 @@ class Game {
                         // El cartel de subida de nivel solo si de verdad subiste — antes se
                         // mostraba en CADA pisotón, hubiera nivel o no.
                         this.levelUpMessage = leveled ? 80 : 0;
-                        if (leveled) this.showHint('skill-point', `Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o pulsa ${keyName('tree')}.`);
+                        if (leveled && !this.dailyMode) this.showHint('skill-point', `Has ganado un punto de mejora: gástalo en el ÁRBOL DE MEJORAS — chapa MEJORAS del mapa estelar, o pulsa ${keyName('tree')}.`);
                         if (enemy.type === 'magnetite') {
                             // El campo de la Magnetita muere con ella pero te REPELE: arco en
                             // diagonal con rumbo aleatorio, montado sobre la inercia del hielo —
@@ -2434,7 +2468,7 @@ class Game {
             ctx.fillStyle = PALETTE.accent2; ctx.font = '10px "Rajdhani", sans-serif'; ctx.textAlign = 'right';
             ctx.fillText(`♥×${this.player.lives}`, 308, 16);
             ctx.fillStyle = PALETTE.dim; ctx.font = '8px "Rajdhani", sans-serif';
-            ctx.fillText(formatTime(this.runElapsed), 308, 27);
+            ctx.fillText(formatTime(this.runElapsed), 308, 40); // bajo el botón ✕ Menú, que flota sobre esa esquina
             ctx.textAlign = 'left';
             // El aviso de Scrap (ver confirmCharSelect()) puede dispararse estando en el mapa, a
             // diferencia de los de salto/combate que solo pasan dentro de un nivel — sin esto, el

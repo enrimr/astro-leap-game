@@ -539,3 +539,11 @@ Los jefes se morían a spam de Habilidad: se llega a ellos con el depósito llen
 **Enrage de Nodo Cero**: bajo el 30% de vida anuncia «¡El núcleo se desestabiliza!» y sus golpes normales pasan a ×1.4. Solo los normales: la descarga cargada (×2) y el ignora-Defender conservan su identidad — apilarles el enrage convertiría lo telegrafiado en one-shot injugable. La recta final del jefe final es una carrera con mordida, no un trámite descendente.
 
 Los otros tres jefes no llevan enrage a propósito: son exámenes de mundo, no el clímax del juego — y el drenaje ya les da la presión que les faltaba.
+
+### 2.42 El mapa tiene puerta, y el reto no pisa la partida
+
+Tres arreglos que salieron de jugar la beta en la app de escritorio:
+
+- **Volver al menú desde el mapa** (`exitToMenu`: ESC, B del mando, o el ✕ que en el mapa dice MENÚ): guarda y sale, CONTINUAR retoma. Antes no había NINGUNA salida — en web se "resolvía" recargando la página, pero la app no tiene barra de direcciones: el menú quedaba inalcanzable desde una partida empezada. Con el hangar o el árbol abiertos, ESC sigue siendo suyo (lo consumen por sondeo; la salida por evento se guarda de no pisarlos). El crono del mapa baja unos píxeles: el botón flota sobre su esquina.
+- **`saveProgress()` calla en modo diario.** Ganar un duelo dentro del reto pasaba por el `saveProgress()` del camino de victoria y escribía el jugador desechable del reto — y su mapa de UN nodo — sobre el guardado real: el menú ofrecía "CONTINUAR" una partida inexistente o, peor, machacaba una de verdad. El guard vive en `saveProgress` mismo, no en cada caller: cualquier llamada futura desde el reto nace inofensiva.
+- **Sin puntos de mejora en el reto** (`skillPointsLocked` en Player): no hay mapa donde gastarlos, así que acumularlos solo generaba el aviso de "punto ganado" sin sentido. La subida de nivel sigue dando stats y curación — solo calla el árbol.
