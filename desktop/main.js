@@ -5,7 +5,16 @@
 // compartir apunta a la web y las métricas se apagan).
 const { app, BrowserWindow, ipcMain, net, screen, shell } = require('electron');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+
+// Las herramientas de desarrollo (ASTRO_SHOT y compañía) corren sobre un perfil TEMPORAL
+// aislado, jamás sobre el userData real: una captura de verificación llegó a dejar guardado
+// setLanguage('zh') en el perfil del desarrollador y el juego le arrancó en chino — el save,
+// las preferencias y los avisos vistos del jugador no son campo de pruebas.
+if (Object.keys(process.env).some(k => k.startsWith('ASTRO_'))) {
+    app.setPath('userData', path.join(os.tmpdir(), 'astroleap-dev-profile'));
+}
 
 // La ventana se recuerda entre sesiones (tamaño, posición y pantalla completa) en
 // window-state.json. Si el monitor de la última vez ya no está (portátil desconectado de la

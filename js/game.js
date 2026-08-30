@@ -570,7 +570,9 @@ class Game {
                     <button class="menu-btn quiet" data-action="times">${t('menu.times')}</button>
                     <button class="menu-btn quiet" data-action="help">${t('menu.help')}</button>
                     <button class="menu-btn quiet" data-action="duel-paste">${t('menu.challenged')}</button>
-                    <button class="menu-btn quiet" data-action="lang-open">${t('menu.lang')}</button>
+                    <!-- El 🌐 no se traduce a propósito: si el idioma activo no es el tuyo (PC prestado,
+                         residuo ajeno), este botón tiene que poder encontrarse SIN saber leerlo -->
+                    <button class="menu-btn quiet" data-action="lang-open">🌐 ${t('menu.lang')}</button>
                     ${IS_DESKTOP ? `<button class="menu-btn quiet" data-action="quit">${t('menu.quit')}</button>` : ''}
                 </div>
             </div>
