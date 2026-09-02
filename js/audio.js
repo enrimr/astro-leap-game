@@ -135,6 +135,80 @@ const SFX = (() => {
             []
         ]
     };
+    // ---- Loops por mundo (DESIGN.md §2.44): el menú/mapa y el Mundo 1 comparten el pad
+    // ambiental de arriba; los mundos 2-4 tienen su propio loop, y los jefes el suyo. Todos
+    // en la órbita de La menor para que las transiciones (nivel↔combate) no choquen.
+    // Mundo 2 · Luna Ferrosa: pulso metálico sincopado en cuadrada — terreno hostil, con prisa.
+    const FERROSA_PATTERN = {
+        stepDuration: 0.26,
+        steps: [
+            [{ f: 82.41, d: 0.22, type: 'square', v: 0.055 }],
+            [],
+            [{ f: 82.41, d: 0.14, type: 'square', v: 0.03 }],
+            [{ f: 98.00, d: 0.22, type: 'square', v: 0.05 }],
+            [],
+            [{ f: 110.00, d: 0.22, type: 'square', v: 0.05 }, { f: 329.63, d: 0.3, type: 'triangle', v: 0.02 }],
+            [],
+            [{ f: 98.00, d: 0.14, type: 'square', v: 0.032 }],
+            [{ f: 82.41, d: 0.22, type: 'square', v: 0.055 }],
+            [],
+            [{ f: 123.47, d: 0.22, type: 'square', v: 0.045 }],
+            [],
+            [{ f: 110.00, d: 0.22, type: 'square', v: 0.05 }, { f: 523.25, d: 0.3, type: 'triangle', v: 0.016 }],
+            [],
+            [{ f: 98.00, d: 0.14, type: 'square', v: 0.032 }],
+            []
+        ]
+    };
+    // Mundo 3 · Estación Colapsada: casi silencio — un dron grave y pings de sonar con roce de
+    // segunda menor. Una estación muerta no tiene ritmo, tiene ecos.
+    const ESTACION_PATTERN = {
+        stepDuration: 0.55,
+        steps: [
+            [{ f: 55.00, d: 2.1, type: 'sine', v: 0.05 }],
+            [{ f: 659.25, d: 0.4, type: 'sine', v: 0.022 }],
+            [],
+            [{ f: 622.25, d: 0.4, type: 'sine', v: 0.018 }],
+            [{ f: 55.00, d: 2.1, type: 'sine', v: 0.045 }],
+            [],
+            [{ f: 493.88, d: 0.4, type: 'sine', v: 0.02 }],
+            []
+        ]
+    };
+    // Mundo 4 · Núcleo Expuesto: arpegio insistente en menor armónica (el G# mete la tensión)
+    // sobre pulso grave — la Red despierta, ya no hay calma que administrar.
+    const NUCLEO_PATTERN = {
+        stepDuration: 0.16,
+        steps: [
+            [{ f: 110.00, d: 0.14, type: 'square', v: 0.045 }, { f: 220.00, d: 0.13, type: 'triangle', v: 0.028 }],
+            [{ f: 261.63, d: 0.13, type: 'triangle', v: 0.024 }],
+            [{ f: 329.63, d: 0.13, type: 'triangle', v: 0.026 }],
+            [{ f: 440.00, d: 0.13, type: 'triangle', v: 0.024 }],
+            [{ f: 110.00, d: 0.14, type: 'square', v: 0.04 }, { f: 329.63, d: 0.13, type: 'triangle', v: 0.024 }],
+            [{ f: 261.63, d: 0.13, type: 'triangle', v: 0.022 }],
+            [{ f: 103.83, d: 0.14, type: 'square', v: 0.045 }, { f: 207.65, d: 0.13, type: 'triangle', v: 0.026 }],
+            [{ f: 246.94, d: 0.13, type: 'triangle', v: 0.022 }],
+            [{ f: 329.63, d: 0.13, type: 'triangle', v: 0.026 }],
+            [{ f: 493.88, d: 0.13, type: 'triangle', v: 0.022 }],
+            [{ f: 110.00, d: 0.14, type: 'square', v: 0.045 }, { f: 440.00, d: 0.13, type: 'triangle', v: 0.022 }],
+            [{ f: 329.63, d: 0.13, type: 'triangle', v: 0.024 }]
+        ]
+    };
+    // Jefes: riff grave y pesado en sierra, con el tritono (Mi bemol sobre La) marcando que esto
+    // no es un duelo más. Suena en los CUATRO jefes — el combate normal conserva su loop de siempre.
+    const BOSS_PATTERN = {
+        stepDuration: 0.24,
+        steps: [
+            [{ f: 55.00, d: 0.21, type: 'sawtooth', v: 0.06 }],
+            [{ f: 110.00, d: 0.14, type: 'sawtooth', v: 0.03 }],
+            [{ f: 55.00, d: 0.21, type: 'sawtooth', v: 0.05 }],
+            [{ f: 77.78, d: 0.21, type: 'sawtooth', v: 0.055 }],
+            [{ f: 55.00, d: 0.21, type: 'sawtooth', v: 0.06 }],
+            [{ f: 110.00, d: 0.14, type: 'sawtooth', v: 0.03 }],
+            [{ f: 98.00, d: 0.21, type: 'sawtooth', v: 0.045 }],
+            [{ f: 87.31, d: 0.21, type: 'sawtooth', v: 0.05 }]
+        ]
+    };
     // Bajo en pulso, más rápido y en cuadrada, para el combate — mismo motivo, más tenso.
     const COMBAT_PATTERN = {
         stepDuration: 0.2,
@@ -201,8 +275,20 @@ const SFX = (() => {
         setSfxEnabled(on) { applySfxEnabled(on); },
         isSfxEnabled() { return sfxEnabled; },
         music: {
-            playExplore() { playMusic('explore', EXPLORE_PATTERN); },
-            playCombat() { playMusic('combat', COMBAT_PATTERN); },
+            // Sin argumento (o Mundo 1): el pad ambiental de siempre — menú, mapa estelar y
+            // Mundo 1 comparten identidad (el arte del menú ES la luna rosa del Mundo 1), y al
+            // compartir también el nombre 'explore', pasar de mapa a nivel del Mundo 1 no
+            // reinicia el loop. Los mundos 2-4 traen su loop propio.
+            playExplore(world) {
+                const worldPatterns = { 2: FERROSA_PATTERN, 3: ESTACION_PATTERN, 4: NUCLEO_PATTERN };
+                if (worldPatterns[world]) playMusic('explore-w' + world, worldPatterns[world]);
+                else playMusic('explore', EXPLORE_PATTERN);
+            },
+            // boss=true: el riff pesado de jefe en vez del pulso de combate normal.
+            playCombat(boss) {
+                if (boss) playMusic('combat-boss', BOSS_PATTERN);
+                else playMusic('combat', COMBAT_PATTERN);
+            },
             stop() { stopMusic(); },
             setEnabled(on) { applyMusicEnabled(on); },
             isEnabled() { return musicEnabled; },

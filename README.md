@@ -45,6 +45,8 @@ Todos los niveles se pueden completar con cualquier piloto (verificado por un te
 
 ## Los 4 mundos (12 sectores)
 
+Cada mundo tiene identidad audiovisual propia: **fondo con parallax** (la luna rosa y la nave estrellada en la Cenizal; chatarra flotante en la Ferrosa; vigas, ventanales y cables en la Estación; la Red como circuitería viva en el Núcleo — y picos con aurora en los niveles de hielo), atrezzo sobre las plataformas y **un loop de música por mundo**, más uno propio para los jefes — ver `DESIGN.md` §2.44.
+
 | Mundo | Sector | Nombre | Qué aporta |
 |---|---|---|---|
 | 1 · Luna Cenizal | 1 | Cráter de Amerizaje | Tutorial de salto/energía; bóveda reforzada de Scrap |
@@ -123,7 +125,7 @@ No requiere build. Es HTML/CSS/JS plano.
 python3 -m http.server 8000   # abre http://localhost:8000/
 ```
 
-O simplemente abre `index.html` en el navegador. El sonido (efectos y dos loops de música) está 100% sintetizado con Web Audio, sin archivos externos — ver `DESIGN.md` §2.10.
+O simplemente abre `index.html` en el navegador. El sonido (efectos y seis loops de música: exploración/mapa, uno por mundo, combate y jefe) está 100% sintetizado con Web Audio, sin archivos externos — ver `DESIGN.md` §2.10 y §2.44.
 
 ## Jugar en escritorio (Electron)
 
@@ -152,6 +154,7 @@ index.html                  punto de entrada, controles en pantalla, meta tags O
 style.css                   tema visual (neón espacial)
 js/audio.js                 SFX y música sintetizados con Web Audio (sin archivos externos)
 js/entities.js              Player, Enemy, Platform, ParticleSystem, WorldMap, CombatSystem
+js/scenery.js               fondos con parallax y atrezzo por mundo (presentación pura, determinista)
 js/levels.js                definición de los 12 niveles y stats de enemigos
 js/game.js                  bucle principal (timestep fijo 60Hz), input, guardado, render, Reto Diario
 __tests__/                  suite de Jest: lógica núcleo + ficheros reales vía jsdom (68 tests)

@@ -15,6 +15,7 @@ Todo lo que hay en el juego: pilotos, fórmulas de combate, bestiario, estrategi
 - **Columna cian vertical entre dos emisores ámbar** — puerta de energía (dibujada activa en el mapa).
 - **Chevrones animados** en una plataforma — cinta que te arrastra en esa dirección.
 - Color de plataforma según el mundo: violeta (Luna Cenizal), hielo (Grietas — y ahí **resbala de verdad**, ver Peligros), gris metal (resto).
+- **Fondo y atrezzo son decorado**: las siluetas del fondo (luna, chatarra, vigas, circuitos, picos) y los detalles sobre las losas grandes (cristales, brotes, antenas, tuberías...) no colisionan ni esconden nada. Regla para distinguir: **todo lo jugable brilla o flota** (pickups, cristales, emisores); el decorado es estático y sin brillo.
 
 ---
 

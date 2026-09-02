@@ -30,10 +30,12 @@ const OUT_DIR = path.join(ROOT, 'guia');
             const g = c.getContext('2d');
             g.scale(SCALE, SCALE);
 
-            // Fondo + estrellas deterministas (sin Math.random: mismos PNG en cada ejecución → diffs limpios)
-            const grad = g.createLinearGradient(0, 0, 0, H);
-            grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
-            g.fillStyle = grad; g.fillRect(0, 0, W, H);
+            // Fondo + estrellas deterministas (sin Math.random: mismos PNG en cada ejecución →
+            // diffs limpios). La escenografía por mundo (SCENERY) también es determinista: el
+            // cielo y las siluetas del mapa son exactamente los del juego. flatWidth=W y
+            // viewW=W: el mapa es un render estático del nivel entero, sin cámara ni parallax.
+            const layout = SCENERY.prepare(level, W);
+            SCENERY.drawSky(g, layout, W);
             for (let s = 0; s < W / 5; s++) {
                 const x = (s * 97.3) % W, y = (s * 61.7) % 165;
                 g.globalAlpha = 0.25 + ((s * 13) % 7) / 12;
@@ -42,8 +44,11 @@ const OUT_DIR = path.join(ROOT, 'guia');
                 g.fillRect(x, y, sz, sz);
             }
             g.globalAlpha = 1;
+            SCENERY.drawLayers(g, layout, 0, true, W); // reduce=true: siluetas quietas, sin pulsos
 
-            level.platforms.forEach(p => new Platform(...p, level.variant).draw(g, 0));
+            // theme: el atrezzo por mundo de las losas grandes (Platform.draw → decoratePlatform)
+            const theme = SCENERY.themeFor(level);
+            level.platforms.forEach(p => { const pl = new Platform(...p, level.variant); pl.theme = theme; pl.draw(g, 0); });
             (level.reinforcedBlocks || []).forEach(b => new Platform(...b, 'reinforced').draw(g, 0));
             // Móviles en su Y base (con su raíl de recorrido) y rayos dibujados ACTIVOS —
             // en el mapa de la guía deben verse, no depender de la fase del ciclo.

@@ -18,7 +18,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
-const FILES = ['js/i18n.js', 'js/entities.js', 'js/levels.js', 'js/game.js', 'js/gamepad.js'];
+const FILES = ['js/i18n.js', 'js/entities.js', 'js/scenery.js', 'js/levels.js', 'js/game.js', 'js/gamepad.js'];
 
 const FIXTURE_HTML = `<!doctype html><html><body>
 <div id="audioControls">
@@ -86,7 +86,7 @@ function loadGame() {
         // fichero), no se filtra fuera como window.RNG por sí solo. Este setter, definido DENTRO
         // del mismo eval, cierra sobre ese binding y deja a los tests fijar el azar del combate
         // sin depender de espiar Math.random (que RNG ya no llama directamente una vez asignado).
-        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, DAILY_START_LEVELS, DAILY_LEVEL_POOL, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE, keyName, setInputDevice, getInputDevice: () => inputDevice, t, setLanguage, getLang: () => LANG, STRINGS, LANGS, levelName };';
+        + '\nwindow.__T__ = { LEVELS, CombatSystem, Player, Enemy, Platform, MovingPlatform, EnergyBeam, HEROES, HERO_ORDER, WorldMap, game, ICE_MAX_SPEED, setRNG: (fn) => { RNG = fn; }, todayDateString, dailyHeroFor, dailyLevelFor, dailyDifficultyFor, DAILY_START_LEVELS, DAILY_LEVEL_POOL, mulberry32, hashStringToSeed, encodeDuelToken, decodeDuelToken, sanitizeDuelName, encodeDuelRoute, decodeDuelRoute, extractDuelToken, gamepadStep, gamepadHeld, GAMEPAD_DEADZONE, keyName, setInputDevice, getInputDevice: () => inputDevice, t, setLanguage, getLang: () => LANG, STRINGS, LANGS, levelName, SCENERY };';
     window.eval(combined);
 
     return { window, document: window.document, ...window.__T__ };
@@ -2922,5 +2922,75 @@ describe('Mando (js/gamepad.js) — el gamepad habla los mismos KeyboardEvent qu
         pad.buttons[0].pressed = true; // A = activar (los eventos sintéticos no activan <button> solos)
         gamepadStep(64);
         expect(clicked).toBe(true);
+    });
+});
+
+describe('Escenografía por mundo (contra js/scenery.js real — DESIGN.md §2.44)', () => {
+    const KNOWN_THEMES = ['cenizal', 'ferrosa', 'estacion', 'nucleo', 'glacial'];
+
+    test('todos los niveles tienen un tema conocido, y los mundos 1-4 el suyo', () => {
+        const { LEVELS, SCENERY } = loadGame();
+        const byWorld = { 1: 'cenizal', 2: 'ferrosa', 3: 'estacion', 4: 'nucleo' };
+        for (const level of LEVELS) {
+            const theme = SCENERY.themeFor(level);
+            expect(KNOWN_THEMES).toContain(theme);
+            if (byWorld[level.world] && !level.theme) expect(theme).toBe(byWorld[level.world]);
+        }
+        // La Aguja Glacial elige su tema explícitamente (hielo, no la luna cenizal por defecto)
+        const aguja = LEVELS.find(l => l.name === 'Aguja Glacial');
+        expect(SCENERY.themeFor(aguja)).toBe('glacial');
+    });
+
+    test('la composición del fondo es determinista: el mismo nivel se ve igual siempre', () => {
+        const { LEVELS, SCENERY } = loadGame();
+        for (const level of LEVELS) {
+            expect(JSON.stringify(SCENERY.prepare(level))).toBe(JSON.stringify(SCENERY.prepare(level)));
+        }
+    });
+
+    test('loadLevel prepara el fondo, propaga el tema a las plataformas y arma el telón de combate', () => {
+        const { game, SCENERY } = loadGame();
+        game.loadLevel(0);
+        expect(game.backdrop.theme).toBe('cenizal');
+        expect(game.platforms.every(p => p.theme === 'cenizal')).toBe(true);
+        game.loadLevel(3); // Chatarral Magnético, Mundo 2
+        expect(game.backdrop.theme).toBe('ferrosa');
+        // el combate hereda el cielo del nivel: con telón cargado, drawCombatBg dibuja (true)
+        expect(SCENERY.drawCombatBg(makeFakeCtx())).toBe(true);
+    });
+
+    test('dibujar cielo y capas no lanza, con cámara al principio, en medio y al final', () => {
+        const { LEVELS, SCENERY } = loadGame();
+        for (const level of LEVELS) {
+            const layout = SCENERY.prepare(level);
+            const ctx = makeFakeCtx();
+            SCENERY.drawSky(ctx, layout);
+            for (const cam of [0, (level.goal - 260) / 2, level.goal - 260]) {
+                SCENERY.drawLayers(ctx, layout, Math.max(0, cam), false);
+                SCENERY.drawLayers(ctx, layout, Math.max(0, cam), true); // reduceEffects: sin pulsos
+            }
+        }
+    });
+
+    test('el atrezzo decora solo losas grandes de variants neutros — las señales mecánicas quedan limpias', () => {
+        const { Platform, SCENERY } = loadGame();
+        const ctx = makeFakeCtx();
+        // losa grande neutra: se decora (y cachea su composición)
+        const slab = new Platform(0, 150, 130, 15, 'metal');
+        slab.theme = 'ferrosa';
+        SCENERY.decoratePlatform(ctx, slab, 0);
+        expect(slab._decor).toBeDefined();
+        expect(Array.isArray(slab._decor.items)).toBe(true);
+        // variants mecánicos y piedras de paso: SIN atrezzo, su dibujo es señal
+        for (const [w, h, variant] of [[130, 15, 'fragile'], [130, 15, 'reinforced'], [130, 15, 'beltL'], [130, 15, 'roof'], [20, 6, 'metal']]) {
+            const p = new Platform(0, 150, w, h, variant);
+            p.theme = 'ferrosa';
+            SCENERY.decoratePlatform(ctx, p, 0);
+            expect(p._decor).toBeUndefined();
+        }
+        // sin tema asignado (tests/scripts que crean Platform a pelo): tampoco
+        const bare = new Platform(0, 150, 130, 15, 'metal');
+        SCENERY.decoratePlatform(ctx, bare, 0);
+        expect(bare._decor).toBeUndefined();
     });
 });

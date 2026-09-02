@@ -802,6 +802,12 @@ class Platform {
         ctx.fillStyle = PALETTE.accent; ctx.globalAlpha = 0.5;
         ctx.fillRect(sx, this.y, this.w, 1);
         ctx.globalAlpha = 1;
+        // Escenografía (DESIGN.md §2.44): textura leve + atrezzo por mundo, solo en losas
+        // grandes de variants "neutros" — decoratePlatform filtra; los variants mecánicos
+        // (frágil, refuerzo, cinta, techo) quedan limpios porque su dibujo es señal, no adorno.
+        // this.theme lo asigna Game.loadLevel (y el generador de mapas de la guía); sin él,
+        // no se decora — los tests y scripts que crean Platform a pelo ven el dibujo de siempre.
+        if (window.SCENERY) SCENERY.decoratePlatform(ctx, this, sx);
     }
 }
 
@@ -1301,9 +1307,14 @@ class CombatSystem {
         const shakeX = shakeMag ? (Math.random() - 0.5) * shakeMag : 0;
         ctx.save();
         ctx.translate(shakeX, 0);
-        const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
-        grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        // El duelo hereda el cielo y horizonte del nivel (SCENERY.setCurrent en Game.loadLevel),
+        // bajo un velo oscuro que mantiene el contraste de retratos y texto — el mundo se
+        // reconoce también en combate. Sin escenografía cargada, el gradiente de siempre.
+        if (!(window.SCENERY && SCENERY.drawCombatBg(ctx))) {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        }
         ctx.fillStyle = PALETTE.ink; ctx.font = 'bold 13px "Orbitron", sans-serif';
         ctx.fillText(t('cbt.title'), 90, 16);
 

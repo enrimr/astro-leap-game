@@ -25,7 +25,9 @@ const LEVELS = [
         goal: 730
     },
     {
-        name: 'Grietas de Hielo', world: 1, variant: 'ice',
+        // theme: clave de PRESENTACIÓN (DESIGN.md §2.44) — el nivel es Mundo 1, pero es EL nivel
+        // de hielo: picos helados y aurora de fondo (tema 'glacial') en vez de la luna rosa.
+        name: 'Grietas de Hielo', world: 1, variant: 'ice', theme: 'glacial',
         // TODO el suelo de este nivel es hielo (variant 'ice'): el movimiento tiene inercia — la
         // carrerilla supera la velocidad normal y el impulso se conserva al saltar (ver ICE_* en
         // entities.js). El tramo final es el set piece que lo enseña: pista de despegue → hueco
@@ -472,7 +474,10 @@ const LEVELS = [
         goal: 650
     },
     {
-        name: 'Aguja Glacial', world: 5, variant: 'metal', extra: true,
+        // theme/music: claves de PRESENTACIÓN (DESIGN.md §2.44) — el mundo 5 (torres) cae por
+        // defecto al tema visual del Mundo 1, pero la Aguja es hielo: fondo 'glacial' propio y
+        // el loop tenso del Mundo 2. No afectan a físicas ni al BFS.
+        name: 'Aguja Glacial', world: 5, variant: 'metal', extra: true, theme: 'glacial', music: 2,
         // Nivel Extra 2, la torre "difícil de verdad": mismo serpentín de tres pisos que la
         // Torre de Vigía, pero con HIELO por tramos (el 5º elemento 'ice' pisa el variant del
         // nivel — resbalar junto a huecos letales, y un salto con carrerilla como examen final

@@ -402,6 +402,7 @@ class Game {
         this.autoScrollX = 0; this.forcedScrollDelay = 0;
         this.particles = new ParticleSystem();
         this.shake = 0;
+        this.backdrop = null; // fondo por mundo del nivel actual (SCENERY.prepare en loadLevel)
         this.mapStars = makeStars(70, GAME_WIDTH);
         this.levelStars = makeStars(140, 1200);
         this.musicOn = this.loadAudioPref('astroLeapMusicOn');
@@ -828,7 +829,7 @@ class Game {
         this.collectedPickups = new Set();
         this.signalCrystals = new Set();
 
-        if (window.SFX) { SFX.unlock(); SFX.boot(); SFX.music.playExplore(); }
+        if (window.SFX) { SFX.unlock(); SFX.boot(); }
         this.gameStarted = true;
         this.runStartTime = performance.now(); this.runElapsed = 0;
         closeMenuOverlay();
@@ -841,6 +842,7 @@ class Game {
             e.attack = Math.max(1, Math.round(e.attack * difficulty.mult));
         });
         this.inWorldMap = false; this.inLevel = true;
+        this.playExploreMusic(); // el loop del mundo del reto (con inLevel ya en true)
         requestMobileFullscreen();
     }
     // Deshace startDailyChallenge(): recupera la partida real tal cual estaba y apaga el RNG
@@ -998,6 +1000,16 @@ class Game {
             this.platforms.push(new MovingPlatform(mx, my, mw, mh, amp, omega, level.variant));
         });
         this.beams = (level.beams || []).map(([bx, by, bh, off]) => new EnergyBeam(bx, by, bh, off));
+        // Escenografía por mundo (DESIGN.md §2.44): tema visual para el atrezzo de las
+        // plataformas y fondo con parallax, compuesto UNA vez por carga (determinista: el
+        // mismo nivel se ve igual siempre). setCurrent deja el telón listo para que el
+        // combate herede el cielo del nivel (ver CombatSystem.draw).
+        if (window.SCENERY) {
+            const sceneTheme = SCENERY.themeFor(level);
+            this.platforms.forEach(p => { p.theme = sceneTheme; });
+            this.backdrop = SCENERY.prepare(level);
+            SCENERY.setCurrent(this.backdrop);
+        } else this.backdrop = null;
         // Un nivel Extra (Torre de Vigía) no tiene nodo en el mapa: sin nodo, se trata como
         // no-completado (XP entera la primera vez, como cualquier nivel nuevo).
         const mapNode = this.worldMap.nodes[lvl];
@@ -1083,6 +1095,21 @@ class Game {
     // acelera — dos gestos, dos significados.
     combatFastForward() {
         return !!(this.keys.Space || this.keys.Enter || this.combatTouchHold);
+    }
+
+    // Loop de exploración según dónde estés (DESIGN.md §2.44): dentro de un nivel, el de su
+    // mundo (o el de la clave `music` del nivel — las torres Extra eligen ahí); en el mapa
+    // estelar y el menú, el pad ambiental base. NO se llama desde loadLevel a propósito:
+    // loadLevel también corre en el arranque de página (?level=) y tras un Game Over, donde
+    // arrancar música sin gesto del usuario sería ruido (o un warning de autoplay).
+    playExploreMusic() {
+        if (!window.SFX) return;
+        if (this.inLevel) {
+            const level = LEVELS[this.currentLevel];
+            SFX.music.playExplore(level.music || level.world);
+        } else {
+            SFX.music.playExplore();
+        }
     }
 
     // Energía por derrota, con el nodo Reciclador del árbol (+1 sobre ENERGY_PER_KILL).
@@ -1517,7 +1544,7 @@ class Game {
             x: enemy.x - this.cameraX + enemy.w / 2,
             y: enemy.y + enemy.h / 2
         };
-        if (window.SFX) { enemy.isBoss ? SFX.bossEncounter() : SFX.encounter(); SFX.music.playCombat(); }
+        if (window.SFX) { enemy.isBoss ? SFX.bossEncounter() : SFX.encounter(); SFX.music.playCombat(enemy.isBoss); }
     }
     // Overlay de la transición, dibujado encima del frame congelado del nivel (HUD incluido).
     // Fase 1 (28f): dos destellos blancos. Fase 2 (30f): círculo negro creciendo desde el punto
@@ -1555,6 +1582,7 @@ class Game {
         if (this.dailyMode) { this.abandonDailyChallenge(); return; }
         this.levelCompleting = false;
         this.inLevel = false; this.inWorldMap = true;
+        this.playExploreMusic(); // de vuelta al pad del mapa estelar
         this.player.hp = this.player.maxHp; this.player.energy = this.player.maxEnergy;
     }
 
@@ -1569,7 +1597,8 @@ class Game {
             if (this.dailyMode) { this.dailyChallengeFailed(); return; }
             this.fullGameOver();
         } else {
-            if (window.SFX) { SFX.loseLife(); SFX.music.playExplore(); }
+            if (window.SFX) SFX.loseLife();
+            this.playExploreMusic(); // de vuelta al loop del mundo (por si moriste en duelo)
             this.livesLostMessage = 110; this.extraLifeMessage = 0; this.extraEnergyMessage = 0;
             this.levelCompleting = false;
             this.loadLevel(this.currentLevel);
@@ -1909,6 +1938,7 @@ class Game {
                 this.loadLevel(closest.levelIndex);
                 this.inWorldMap = false;
                 this.inLevel = true;
+                this.playExploreMusic(); // el loop del mundo al que entras
             }
         };
         canvas.addEventListener('touchstart', mapTap, { passive: false });
@@ -1988,6 +2018,7 @@ class Game {
             if (selected !== null) {
                 this.currentLevel = selected; this.loadLevel(selected);
                 this.inWorldMap = false; this.inLevel = true;
+                this.playExploreMusic(); // el loop del mundo al que entras
             }
             return;
         }
@@ -2015,7 +2046,8 @@ class Game {
                     if (this.combat.enemy.xpKey) this.collectedPickups.add(this.combat.enemy.xpKey);
                     this.levelUpMessage = leveled ? 100 : 0;
                     if (leveled && !this.dailyMode) this.showHint('skill-point', t('hint.skill-point', { key: keyName('tree') }));
-                    if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); SFX.music.playExplore(); }
+                    if (window.SFX) { SFX.battleWin(); if (leveled) SFX.levelUp(); }
+                    this.playExploreMusic();
                     this.particles.burst(this.player.x + this.player.w / 2, this.player.y, PALETTE.accent3, 14, { speed: 2, life: 30, size: 3 });
                     if (this.combat.enemy.isBoss) this.unlockCharacterForBoss(this.combat.enemy.type);
                     if (this.combat.enemy.type === 'nodo_cero') this.startFinale(this.combat.enemy);
@@ -2024,7 +2056,7 @@ class Game {
                     this.loseLife();
                     return;
                 } else if (this.combat.result === 'flee') {
-                    if (window.SFX) SFX.music.playExplore();
+                    this.playExploreMusic();
                     this.playerInvulnerable = 180;
                 }
                 // Ganar o huir devuelve al plataformeo al instante: abre la gracia táctil
@@ -2425,6 +2457,7 @@ class Game {
                     this.levelCompleteTimeout = setTimeout(() => {
                         this.levelCompleteTimeout = null;
                         this.levelCompleting = false; this.inLevel = false; this.inWorldMap = true;
+                        this.playExploreMusic(); // de vuelta al pad del mapa estelar
                         // El cursor del mapa va al siguiente nodo solo si existe Y está a la
                         // vista (los nodos extra pueden seguir ocultos) — si no, se queda en el
                         // nodo del nivel recién completado.
@@ -2503,10 +2536,19 @@ class Game {
             return;
         }
 
-        const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
-        grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-        this.drawStars(this.levelStars, 0.35);
+        // Fondo por mundo (DESIGN.md §2.44): cielo con carácter propio, estrellas y dos capas
+        // de siluetas con parallax (las cercanas van a más velocidad que las estrellas y las
+        // tapan — están delante del cielo, como debe ser). Sin escenografía, el plano de siempre.
+        if (this.backdrop && window.SCENERY) {
+            SCENERY.drawSky(ctx, this.backdrop);
+            this.drawStars(this.levelStars, 0.35);
+            SCENERY.drawLayers(ctx, this.backdrop, this.cameraX, this.reduceEffects);
+        } else {
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            this.drawStars(this.levelStars, 0.35);
+        }
 
         if (this.combat) {
             this.combat.draw(ctx);
