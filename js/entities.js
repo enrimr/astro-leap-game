@@ -438,7 +438,9 @@ const ENEMY_STATS = {
     spiker:     { level: 3, hp: 15, atk: 6, def: 2, xp: 12, color: '#ff5ecb', speed: 0.5, canJump: true,  range: 30, boss: false, flying: false },
     hoverbot:   { level: 4, hp: 16, atk: 6, def: 3, xp: 14, color: '#7cf5ff', speed: 0.7, canJump: false, range: 40, boss: false, flying: true },
     magnetite:  { level: 5, hp: 22, atk: 8, def: 5, xp: 18, color: '#ffd23f', speed: 0.4, canJump: false, range: 35, boss: false, flying: false },
-    ionwisp:    { level: 6, hp: 20, atk: 9, def: 3, xp: 22, color: '#b58bff', speed: 0.9, canJump: false, range: 45, boss: false, flying: true },
+    // drain: 1 — el Espectro es IÓNICO: sus golpes muerden el reactor como los de un jefe
+    // (reutiliza el mecanismo de §2.41: defendido = 0 EN robada). Su maniobra de duelo (§2.46).
+    ionwisp:    { level: 6, hp: 20, atk: 9, def: 3, xp: 22, color: '#b58bff', speed: 0.9, canJump: false, range: 45, boss: false, flying: true, drain: 1 },
     queen_larva:{ level: 8, hp: 55, atk: 12, def: 6, xp: 60, color: '#ff5ecb', speed: 0, canJump: false, range: 0, boss: true, flying: false, drain: 1 },
     sentinel:   { level: 12, hp: 90, atk: 17, def: 9, xp: 120, color: '#8b83c2', speed: 0, canJump: false, range: 0, boss: true, flying: false, drain: 1 },
     overlord:   { level: 16, hp: 140, atk: 23, def: 12, xp: 220, color: '#ffd23f', speed: 0, canJump: false, range: 0, boss: true, flying: false, drain: 2 },
@@ -1139,6 +1141,11 @@ class CombatSystem {
         this.enemyTurnCount = 0; // cuenta turnos de ENEMIGO (no del jugador), para los patrones de jefe
         this.bossCharging = false; // true en el turno siguiente a una carga (Centinela o Nodo Cero): el próximo golpe viene reforzado
         this.enraged = false; // Nodo Cero bajo el 30% de vida: golpes normales ×1.4 (anunciado una vez)
+        // Maniobras de la fauna (§2.46): posturas que duran hasta el siguiente turno del enemigo
+        // — se anuncian en su turno y deciden TU siguiente acción, estilo Pokémon.
+        this.enemyGuard = false;  // Reptante replegado: tu próximo golpe hace la mitad
+        this.enemyBraced = false; // Erizo erizado: ATACAR de cerca te pincha (la Habilidad no)
+        this.enemyShield = false; // Magnetita blindada: su defensa cuenta doble
     }
     handleInput(key) {
         if (this.turn !== 'player' || this.messageTimer > 0) return;
@@ -1153,21 +1160,42 @@ class CombatSystem {
         this.promptTimer = 0; // si había un "Tu turno" pendiente, la acción lo hace innecesario
         if (window.SFX) SFX.confirm();
         if (action === 0) {
-            let raw = Math.floor(this.player.attack * (0.8 + RNG() * 0.4));
-            // Punto débil (árbol): 25% de crítico sobre Atacar. RNG y no Math.random a
-            // propósito: en el Reto Diario los críticos caen igual para todo el mundo.
-            const crit = this.player.hasSkill('crit') && RNG() < 0.25;
-            if (crit) raw = Math.floor(raw * 1.5);
-            const dealt = this.enemy.takeDamage(raw);
-            this.message = crit ? t('cbt.crit', { n: dealt }) : t('cbt.shot', { n: dealt });
-            this.shake = crit ? 9 : 6;
-            if (window.SFX) SFX.hitEnemy();
+            // Hoverbot: esquiva el ATAQUE básico un 30% de las veces (RNG sembrado: en el Reto
+            // Diario falla igual para todo el mundo). La Habilidad nunca falla — el daño fijo
+            // "sin azar" gana por fin su porqué táctico contra los voladores (§2.46).
+            if (this.enemy.type === 'hoverbot' && RNG() < 0.3) {
+                this.message = t('cbt.edodge', { name: t('enemy.' + this.enemy.type) });
+                this.shake = 0;
+                if (window.SFX) SFX.select();
+            } else {
+                let raw = Math.floor(this.player.attack * (0.8 + RNG() * 0.4));
+                // Punto débil (árbol): 25% de crítico sobre Atacar. RNG y no Math.random a
+                // propósito: en el Reto Diario los críticos caen igual para todo el mundo.
+                const crit = this.player.hasSkill('crit') && RNG() < 0.25;
+                if (crit) raw = Math.floor(raw * 1.5);
+                const dealt = this.dealToEnemy(raw);
+                this.message = crit ? t('cbt.crit', { n: dealt }) : t('cbt.shot', { n: dealt });
+                this.shake = crit ? 9 : 6;
+                if (window.SFX) SFX.hitEnemy();
+                // Erizo erizado (§2.46): pegar DE CERCA pincha — un 10% de tu vida máxima, sin
+                // pasar por la defensa (la misma regla que sus púas en plataformas). Tu golpe
+                // entra igual: es un peaje, no un fallo.
+                if (this.enemyBraced) {
+                    const recoil = Math.max(1, Math.ceil(this.player.maxHp * 0.1));
+                    this.player.hp -= recoil;
+                    this.player.checkEmergency();
+                    this.message = t('cbt.espiked', { n: dealt, r: recoil });
+                    if (window.SFX) SFX.zap();
+                }
+            }
         } else if (action === 1) {
             // Habilidad eficiente / Ejecutor (árbol): coste 3→2 y multiplicador ×1.5→×2.
             const cost = this.player.hasSkill('eficiente') ? 2 : 3;
             const mult = this.player.hasSkill('ejecutor') ? 2 : 1.5;
             if (this.player.energy >= cost) {
-                const dealt = this.enemy.takeDamage(Math.floor(this.player.attack * mult));
+                // Sin esquiva y sin contraataque de púas: la Habilidad es una descarga a
+                // distancia — contra Hoverbot y Erizo erizado es LA respuesta (cuesta EN).
+                const dealt = this.dealToEnemy(Math.floor(this.player.attack * mult));
                 this.player.energy -= cost; this.message = t('cbt.skillhit', { name: t('hero.' + this.player.character + '.combat'), n: dealt }); this.shake = 9;
                 if (window.SFX) SFX.hitEnemy();
             } else { this.message = t('cbt.noenergy'); if (window.SFX) SFX.select(); return; }
@@ -1179,7 +1207,19 @@ class CombatSystem {
         }
         this.messageTimer = 60;
         if (this.enemy.defeated) { this.result = 'win'; this.active = false; return; }
+        // El contraataque del Erizo puede ser letal: en tu propio turno nadie más comprueba tu
+        // HP (el chequeo normal corre tras el turno ENEMIGO en update()).
+        if (this.player.hp <= 0) { this.result = 'lose'; this.active = false; return; }
         this.turn = 'enemy';
+    }
+    // Daño del jugador al enemigo con sus maniobras aplicadas (§2.46): el repliegue del
+    // Reptante reduce el golpe a la mitad y el blindaje de la Magnetita duplica su defensa
+    // efectiva. Afectan a Atacar Y a la Habilidad — la postura telegrafía "este turno tu daño
+    // no compensa", no "pulsa la otra tecla".
+    dealToEnemy(raw) {
+        let amt = this.enemyGuard ? Math.floor(raw * 0.5) : raw;
+        if (this.enemyShield) amt -= this.enemy.defense; // defensa doblada, en la práctica
+        return this.enemy.takeDamage(amt);
     }
     // fast: acelerador de turnos — con una tecla/toque MANTENIDO (ver Game.combatFastForward),
     // las pausas de mensaje corren a 4x. El ritmo pausado sigue siendo el por defecto; la prisa
@@ -1220,6 +1260,18 @@ class CombatSystem {
     // no depende de cuántas veces el jugador haya Defendido/Huido fallido de más.
     resolveEnemyTurn() {
         this.enemyTurnCount++;
+        // Maniobras de la fauna (§2.46): la postura del turno anterior caduca al empezar el
+        // suyo — duró exactamente la ventana de UNA acción tuya.
+        this.enemyGuard = false; this.enemyBraced = false; this.enemyShield = false;
+        // Cada 3er turno, la morralla con identidad maniobra en vez de atacar (el Dron no: es
+        // el enemigo tutorial, y su simpleza es la línea base contra la que se leen los demás).
+        // Telegrafiado ANTES de importar: la postura se anuncia ahora y muerde en TU siguiente
+        // acción — mirar el mensaje pasa a ser parte del duelo, como en Pokémon.
+        if (!this.enemy.isBoss && this.enemyTurnCount % 3 === 0) {
+            if (this.enemy.type === 'crawler') return this.stanceTurn('enemyGuard', 'cbt.eguard');
+            if (this.enemy.type === 'spiker') return this.stanceTurn('enemyBraced', 'cbt.ebrace');
+            if (this.enemy.type === 'magnetite') return this.stanceTurn('enemyShield', 'cbt.eshield');
+        }
         // Reina Larva: no es agresiva por naturaleza (es una víctima, no la villana — LORE.md) así
         // que cada 3 turnos se regenera en vez de atacar. Convierte el duelo en una carrera: si no
         // le metes suficiente daño entre curaciones, la pelea se alarga en vez de ponerse más dura.
@@ -1228,7 +1280,7 @@ class CombatSystem {
         // control" un turno (carga, sin dañar, con aviso) y el turno siguiente golpea el doble —
         // el aviso le da al jugador una ventana real para Defender antes del golpe fuerte.
         if (this.enemy.type === 'sentinel') {
-            if (this.bossCharging) { this.bossCharging = false; return this.enemyStrikeTurn({ multiplier: 2, verb: '¡Descarga corrupta!' }); }
+            if (this.bossCharging) { this.bossCharging = false; return this.enemyStrikeTurn({ multiplier: 2, verb: t('cbt.discharge') }); }
             if (this.enemyTurnCount % 3 === 0) return this.bossChargeTurn();
         }
         // Overlord: la Red hablando por primera vez, sin las reglas de nadie más — cada 3 turnos
@@ -1238,7 +1290,7 @@ class CombatSystem {
             // El aviso especial solo tiene sentido si de verdad estabas defendiendo ESE turno —
             // si no, "ignora tus defensas" sería mentira (no había nada que ignorar) aunque el
             // flag ignoreDefense siga activo (no tiene efecto ninguno cuando defending es false).
-            const verb = this.defending ? 'El Overlord ignora tus defensas!' : null;
+            const verb = this.defending ? t('cbt.overlordIgnore') : null;
             return this.enemyStrikeTurn({ ignoreDefense: true, verb });
         }
         // Nodo Cero: no es un fragmento como el Overlord — es la Red misma, ya sin ocultarse
@@ -1246,12 +1298,13 @@ class CombatSystem {
         // no tiene un patrón propio nuevo: usa los TRES a la vez, en un ciclo de 6 turnos —
         // literalmente aprendió de cada guardián que le has derrotado hasta ahora.
         if (this.enemy.type === 'nodo_cero') {
-            if (this.bossCharging) { this.bossCharging = false; return this.enemyStrikeTurn({ multiplier: 2, verb: '¡Sobrecarga de la Red!' }); }
-            const t = this.enemyTurnCount % 6;
-            if (t === 3) return this.bossHealTurn();
-            if (t === 4) return this.bossChargeTurn();
-            if (t === 0) {
-                const verb = this.defending ? 'La Red ignora tus defensas!' : null;
+            if (this.bossCharging) { this.bossCharging = false; return this.enemyStrikeTurn({ multiplier: 2, verb: t('cbt.netOvercharge') }); }
+            // "turn" y no "t": t es la función de i18n — sombrearla aquí rompía los verbos traducidos
+            const turn = this.enemyTurnCount % 6;
+            if (turn === 3) return this.bossHealTurn();
+            if (turn === 4) return this.bossChargeTurn();
+            if (turn === 0) {
+                const verb = this.defending ? t('cbt.netIgnore') : null;
                 return this.enemyStrikeTurn({ ignoreDefense: true, verb });
             }
             // Enrage bajo el 30% de vida: la recta final es un clímax, no un trámite — el jefe
@@ -1261,7 +1314,7 @@ class CombatSystem {
             if (this.enemy.hp <= this.enemy.maxHp * 0.3) {
                 const first = !this.enraged;
                 this.enraged = true;
-                return this.enemyStrikeTurn({ multiplier: 1.4, verb: first ? '¡El núcleo se desestabiliza!' : null });
+                return this.enemyStrikeTurn({ multiplier: 1.4, verb: first ? t('cbt.destab') : null });
             }
         }
         return this.enemyStrikeTurn({});
@@ -1287,7 +1340,10 @@ class CombatSystem {
             this.player.energy -= drained;
         }
         const drainNote = drained ? ` −${drained} EN` : '';
-        this.message = (verb ? `${verb} Daño: ${rec}` : t('cbt.strikes', { name: t('enemy.' + this.enemy.type), n: rec })) + drainNote;
+        // Los verbos especiales de jefe llegan YA traducidos (claves cbt.discharge/…Ignore/
+        // netOvercharge/destab) — antes iban en español cableado y un jugador japonés leía
+        // '¡Descarga corrupta!' en mitad de su duelo.
+        this.message = (verb ? `${verb} ${t('cbt.dmg', { n: rec })}` : t('cbt.strikes', { name: t('enemy.' + this.enemy.type), n: rec })) + drainNote;
         this.messageTimer = 60; this.shake = multiplier > 1 ? 10 : 6;
         if (window.SFX) SFX.hitPlayer();
     }
@@ -1296,6 +1352,14 @@ class CombatSystem {
         this.message = t('cbt.charges', { name: t('enemy.' + this.enemy.type) });
         this.messageTimer = 60; this.shake = 3;
         if (window.SFX) SFX.bossCharge();
+    }
+    // Turno de postura de la fauna (§2.46): el enemigo no daña — levanta su maniobra y la
+    // anuncia. El flag correspondiente vive hasta su próximo turno (ver resolveEnemyTurn).
+    stanceTurn(flag, msgKey) {
+        this[flag] = true;
+        this.message = t(msgKey, { name: t('enemy.' + this.enemy.type) });
+        this.messageTimer = 60; this.shake = 0;
+        if (window.SFX) SFX.select();
     }
     bossHealTurn() {
         const amount = Math.max(1, Math.floor(this.enemy.maxHp * 0.12));

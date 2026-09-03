@@ -3070,3 +3070,132 @@ describe('Scroll vertical — niveles altos (contra el código real, DESIGN.md �
         });
     });
 });
+
+describe('Maniobras de la fauna en duelo (contra el código real, DESIGN.md §2.46)', () => {
+    test('el Reptante se repliega cada 3er turno: tu próximo golpe hace la mitad — y la postura caduca', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        setRNG(() => 0.5); // variación de daño 1.0 exacta, sin fugas ni saltos
+        const guarded = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'crawler'));
+        guarded.enemyTurnCount = 2;
+        guarded.resolveEnemyTurn(); // su 3er turno: se repliega en vez de atacar
+        expect(guarded.enemyGuard).toBe(true);
+        expect(guarded.message).toMatch(/se repliega/);
+        const hpG = guarded.enemy.hp;
+        guarded.executePlayerAction(0); // atk 5 ×1.0 = 5 → mitad 2 → menos DEF 2 → mínimo 1
+        expect(hpG - guarded.enemy.hp).toBe(1);
+        // sin repliegue, el mismo golpe hace 3 (5 − DEF 2)
+        const plain = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'crawler'));
+        const hpP = plain.enemy.hp;
+        plain.executePlayerAction(0);
+        expect(hpP - plain.enemy.hp).toBe(3);
+        // y la postura dura exactamente hasta su siguiente turno
+        guarded.resolveEnemyTurn();
+        expect(guarded.enemyGuard).toBe(false);
+        setRNG(Math.random);
+    });
+
+    test('el Erizo se eriza: ATACAR te pincha un 10% de tu vida máxima — la Habilidad no', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        setRNG(() => 0.5);
+        const cs = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'spiker'));
+        cs.enemyTurnCount = 2;
+        cs.resolveEnemyTurn();
+        expect(cs.enemyBraced).toBe(true);
+        const hp0 = cs.player.hp;
+        cs.executePlayerAction(0); // el golpe entra, pero las púas cobran su 10% (ceil(22·0.1)=3)
+        expect(hp0 - cs.player.hp).toBe(3);
+        expect(cs.message).toMatch(/púas te pinchan/);
+        // la Habilidad es una descarga a distancia: mismo erizado, cero peaje
+        const cs2 = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'spiker'));
+        cs2.enemyBraced = true;
+        const hp2 = cs2.player.hp, ehp2 = cs2.enemy.hp;
+        cs2.executePlayerAction(1);
+        expect(cs2.player.hp).toBe(hp2);
+        expect(cs2.enemy.hp).toBeLessThan(ehp2);
+        setRNG(Math.random);
+    });
+
+    test('el contraataque del Erizo puede cerrar el duelo: derrota en tu propio turno', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        setRNG(() => 0.5);
+        const player = new Player(0, 0, 'kes');
+        player.hp = 2; // el peaje (3) es letal
+        const enemy = new Enemy(0, 0, 'spiker'); enemy.maxHp = 999; enemy.hp = 999;
+        const cs = new CombatSystem(player, enemy);
+        cs.enemyBraced = true;
+        cs.executePlayerAction(0);
+        expect(cs.result).toBe('lose');
+        expect(cs.active).toBe(false);
+        setRNG(Math.random);
+    });
+
+    test('el Hoverbot esquiva el ataque básico un 30% — la Habilidad nunca falla', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        const cs = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'hoverbot'));
+        const hp0 = cs.enemy.hp;
+        setRNG(() => 0.1); // 0.1 < 0.3: esquiva
+        cs.executePlayerAction(0);
+        expect(cs.enemy.hp).toBe(hp0);
+        expect(cs.message).toMatch(/esquiva/);
+        cs.executePlayerAction(1); // la Habilidad, con el MISMO azar, entra siempre
+        expect(cs.enemy.hp).toBeLessThan(hp0);
+        // y con el azar por encima del 30%, el ataque básico conecta
+        const cs2 = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'hoverbot'));
+        const hp2 = cs2.enemy.hp;
+        setRNG(() => 0.5);
+        cs2.executePlayerAction(0);
+        expect(cs2.enemy.hp).toBeLessThan(hp2);
+        setRNG(Math.random);
+    });
+
+    test('la Magnetita se blinda cada 3er turno: su defensa cuenta doble', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        setRNG(() => 0.5);
+        const player = new Player(0, 0, 'kes'); player.attack = 20; // que la resta se vea
+        const cs = new CombatSystem(player, new Enemy(0, 0, 'magnetite'));
+        cs.enemyTurnCount = 2;
+        cs.resolveEnemyTurn();
+        expect(cs.enemyShield).toBe(true);
+        const hp0 = cs.enemy.hp;
+        cs.executePlayerAction(0); // 20 − DEF 5 (blindaje) − DEF 5 (takeDamage) = 10
+        expect(hp0 - cs.enemy.hp).toBe(10);
+        const player2 = new Player(0, 0, 'kes'); player2.attack = 20;
+        const cs2 = new CombatSystem(player2, new Enemy(0, 0, 'magnetite'));
+        const hp2 = cs2.enemy.hp;
+        cs2.executePlayerAction(0); // sin blindar: 20 − 5 = 15
+        expect(hp2 - cs2.enemy.hp).toBe(15);
+        setRNG(Math.random);
+    });
+
+    test('el Espectro Iónico drena 1 EN por golpe — Defendido, el reactor queda blindado', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        setRNG(() => 0.5);
+        const player = new Player(0, 0, 'kes'); player.maxHp = 999; player.hp = 999;
+        const cs = new CombatSystem(player, new Enemy(0, 0, 'ionwisp'));
+        cs.resolveEnemyTurn(); // turno 1: ataca y muerde el reactor
+        expect(player.energy).toBe(9);
+        expect(cs.message).toMatch(/−1 EN/);
+        cs.defending = true;
+        cs.resolveEnemyTurn(); // turno 2, defendido: 0 EN robada
+        expect(player.energy).toBe(9);
+        setRNG(Math.random);
+    });
+
+    test('el Dron sigue simple (es el tutorial), y los turnos 1-2 de todos son ataques normales', () => {
+        const { Player, Enemy, CombatSystem, setRNG } = loadGame();
+        setRNG(() => 0.5);
+        for (const type of ['drone', 'crawler', 'spiker', 'magnetite']) {
+            const cs = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, type));
+            cs.player.maxHp = 999; cs.player.hp = 999;
+            cs.resolveEnemyTurn();
+            expect(cs.message).toMatch(/ataca/);
+            cs.resolveEnemyTurn();
+            expect(cs.message).toMatch(/ataca/);
+        }
+        // el Dron ni al 3º: siempre ataca
+        const drone = new CombatSystem(new Player(0, 0, 'kes'), new Enemy(0, 0, 'drone'));
+        drone.player.maxHp = 999; drone.player.hp = 999;
+        for (let i = 0; i < 6; i++) { drone.resolveEnemyTurn(); expect(drone.message).toMatch(/ataca/); }
+        setRNG(Math.random);
+    });
+});

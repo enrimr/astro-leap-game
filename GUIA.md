@@ -75,7 +75,9 @@ Sin habilidad aérea — la ruta baja de piedras de paso existe para él. A camb
 
 El daño que recibes sin defender es `ATQ enemigo × (0.8–1.2) − tu DEF` (mínimo 1).
 
-**Los jefes drenan Energía**: cada golpe suyo que entra a plena potencia te roba EN además del daño (Reina/Centinela **−1**, Overlord/Nodo Cero **−2**). **Defender también blinda el reactor** (golpe defendido = 0 EN robada) — salvo contra los golpes que ignoran defensas. Cada golpe que encajas son Habilidades y saltos extra que pierdes: contra un jefe, la Energía también es vida.
+**Los jefes drenan Energía**: cada golpe suyo que entra a plena potencia te roba EN además del daño (Reina/Centinela **−1**, Overlord/Nodo Cero **−2** — y el **Espectro Iónico −1**, el único de la morralla que muerde el reactor). **Defender también blinda el reactor** (golpe defendido = 0 EN robada) — salvo contra los golpes que ignoran defensas. Cada golpe que encajas son Habilidades y saltos extra que pierdes: contra un jefe, la Energía también es vida.
+
+**La fauna también maniobra**: repliegues, púas erizadas, esquivas y blindajes — cada tipo tiene su jugada y su contrajugada, siempre anunciada un turno antes (ver [Maniobras de duelo](#maniobras-de-duelo-la-fauna-también-juega) en el Bestiario).
 
 **Acelerar los turnos**: mantén pulsado **ESPACIO** (o el dedo en la pantalla, en táctil) y las pausas de mensaje corren a 4×. Mantener ya no dispara acciones en cadena — pulsar decide, mantener acelera.
 
@@ -95,6 +97,19 @@ El daño que recibes sin defender es `ATQ enemigo × (0.8–1.2) − tu DEF` (m�
 | Espectro Iónico | 6 | 20 | 9 | 3 | 22 | **Vuela** rápido y con recorrido amplio | Lv7 |
 
 Los voladores son los más traicioneros de pisotear: su vaivén vertical hace fácil comerse el contacto lateral.
+
+### Maniobras de duelo: la fauna también juega
+
+La morralla ya no es un saco que siempre ataca — cada tipo maniobra según su identidad, y **toda postura se anuncia un turno antes de importar**: el mensaje del duelo se lee, no se machaca. El Dron es la excepción a propósito: es el enemigo tutorial y su simpleza es la línea base.
+
+| Enemigo | Maniobra | La contrajugada |
+|---|---|---|
+| Dron | Ninguna — siempre ataca | La línea base: aquí se aprende el ritmo |
+| Reptante | Cada 3er turno **se repliega**: tu próximo golpe hace la mitad | Pegar contra el caparazón es medio turno tirado — Defiende (o pega igual, si vas sobrado) |
+| Erizo de Púas | Cada 3er turno **se eriza**: ATACAR te pincha un **10% de tu vida máxima** (tu golpe entra igual) | La **Habilidad** es una descarga a distancia: cero peaje — o Defiende y deja pasar el turno |
+| Hoverbot | **Esquiva el ataque básico un 30%** de las veces (pasivo, azar sembrado en el Reto Diario) | La **Habilidad nunca falla**: contra voladores, el daño fijo vale su Energía |
+| Magnetita | Cada 3er turno **se blinda**: su defensa cuenta **doble** hasta su próximo turno | Ese turno tu daño no compensa — Defiende, y guarda la Habilidad para el turno limpio |
+| Espectro Iónico | Sus golpes **drenan 1 EN**, como los de un jefe | **Defender blinda el reactor**: golpe defendido = 0 EN robada |
 
 ## 4b. Peligros del terreno
 
