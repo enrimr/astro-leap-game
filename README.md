@@ -4,7 +4,7 @@ Plataformas + duelos por turnos, ambientado en dos lunas alienígenas, una estac
 
 **Juega ya: <https://astroleap.enri.me/>** — gratis, sin instalar nada, en móvil y escritorio. En **7 idiomas**: español, inglés, italiano, francés, alemán, japonés y chino (se detecta solo; selector junto a los ajustes de sonido).
 
-📖 **[Guía completa](./GUIA.md)**: pilotos, fórmulas de combate, bestiario, estrategia contra cada jefe y el mapa completo de los 12 niveles con todos los secretos.
+📖 **[Guía completa](./GUIA.md)**: pilotos, fórmulas de combate, bestiario con sus maniobras de duelo, estrategia contra cada jefe y el mapa completo de los 12 niveles (más las dos torres Extra) con todos los secretos.
 
 ![Gameplay de ASTRO LEAP](gameplay.gif)
 
@@ -22,11 +22,15 @@ Plataformas + duelos por turnos, ambientado en dos lunas alienígenas, una estac
 |---|---|
 | ![Duelo por turnos contra Nodo Cero](screenshots/combate-jefe.png) | ![Cuenta atrás del núcleo](screenshots/tunel.png) |
 
+| Scroll vertical (Torre de Vigía) | La fauna maniobra en el duelo |
+|---|---|
+| ![A media escalada de la torre de cinco pisos](screenshots/torre.png) | ![La Magnetita se blinda, anunciado un turno antes](screenshots/maniobra.png) |
+
 Hay clips en vídeo de la habilidad de cada piloto, grabados por un bot que juega de verdad: [Kes](gameplay-kes.mp4) · [Bolt](gameplay-bolt.mp4) · [Shade](gameplay-shade.mp4) · [Scrap](gameplay-scrap.mp4) (ver `npm run record-gameplay` más abajo).
 
 ## La mecánica central: Energía compartida
 
-La Energía es un recurso **único** que alimenta tanto la habilidad aérea en plataformas como la Habilidad en combate (daño ×1.5, cuesta 3). No se regenera con el tiempo — solo derrotando enemigos (+2 por derrota, sea pisotón o duelo) o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo. Y los **jefes drenan Energía** con cada golpe que encajas sin Defender: contra ellos, tu reactor también está en juego.
+La Energía es un recurso **único** que alimenta tanto la habilidad aérea en plataformas como la Habilidad en combate (daño ×1.5, cuesta 3). No se regenera con el tiempo — solo derrotando enemigos (+2 por derrota, sea pisotón o duelo) o al empezar un nivel. Cada salto extra que gastas es una carga menos para el próximo duelo. Y los **jefes drenan Energía** con cada golpe que encajas sin Defender (el Espectro Iónico también, el único de la fauna): contra ellos, tu reactor está en juego.
 
 Y cada enemigo es una elección de riesgo: **si le caes encima desde arriba y tu nivel supera al suyo, muere al instante** (pisotón, XP directa, sin menú). Cualquier otro contacto abre el duelo por turnos: Atacar, Habilidad, Defender (mitad de daño ese turno) o Huir (50%). Dos excepciones con carácter: el **Erizo de Púas** no se pisa (pincha) y la **Magnetita** muere pisada pero **te repele en diagonal**. Y en el duelo **la fauna también juega**: se repliegan, erizan púas, esquivan tu ataque o drenan Energía — cada maniobra se anuncia un turno antes de importar, y cada una tiene contrajugada (ver la [guía](./GUIA.md)).
 
@@ -140,7 +144,7 @@ Para generar los instalables (`dist/`): `npm run dist:mac` (.dmg/.zip), `dist:wi
 
 ## Probar/depurar
 
-- `?level=N` (1-14) — entra directo a ese nivel con todo al máximo. Ej: `?level=8` para el Túnel de Escape, `?level=13` para el nivel extra vertical (Torre de Vigía, aún sin nodo en el mapa).
+- `?level=N` (1-14) — entra directo a ese nivel con todo al máximo. Ej: `?level=8` para el Túnel de Escape, `?level=13` para la Torre de Vigía (la torre de 5 pisos con scroll vertical) sin reunir los cristales.
 - `?char=bolt|shade|scrap` — pilota ese héroe directamente (se da por desbloqueado).
 - `?unlock=all` — desbloquea todos los nodos del mapa.
 - `?dailyDate=YYYY-MM-DD` — simula "hoy" para el Reto Diario sin esperar días reales.
@@ -152,14 +156,21 @@ Para generar los instalables (`dist/`): `npm run dist:mac` (.dmg/.zip), `dist:wi
 ```
 index.html                  punto de entrada, controles en pantalla, meta tags OG
 style.css                   tema visual (neón espacial)
-js/audio.js                 SFX y música sintetizados con Web Audio (sin archivos externos)
+js/i18n.js                  los 7 idiomas: diccionario de claves + t() (se pinta en el momento)
+js/audio.js                 SFX y música sintetizados con Web Audio (6 loops, sin archivos externos)
 js/entities.js              Player, Enemy, Platform, ParticleSystem, WorldMap, CombatSystem
 js/scenery.js               fondos con parallax y atrezzo por mundo (presentación pura, determinista)
-js/levels.js                definición de los 12 niveles y stats de enemigos
+js/levels.js                definición de los 14 niveles (12 del mapa + 2 torres) y stats de enemigos
 js/game.js                  bucle principal (timestep fijo 60Hz), input, guardado, render, Reto Diario
-__tests__/                  suite de Jest: lógica núcleo + ficheros reales vía jsdom (68 tests)
-scripts/generate-og-image.js  genera el banner og-image.png (dev-time, node-canvas)
-scripts/record-gameplay.js    graba los clips de gameplay: un bot juega en Chrome headless
+js/gamepad.js               soporte de mando: sondea la Gamepad API y sintetiza eventos de teclado
+desktop/                    envoltorio Electron (app de escritorio; save.json, enlaces al navegador)
+fonts/                      subset latino autoalojado de Orbitron/Rajdhani (~40KB, funciona offline)
+__tests__/                  suite de Jest: lógica núcleo + ficheros reales vía jsdom (236 tests)
+scripts/generate-og-image.js   genera el banner og-image.png (dev-time, node-canvas)
+scripts/generate-level-maps.js genera los mapas de GUIA.md con el motor real (guia/*.png)
+scripts/generate-app-icon.js   genera el icono de la app de escritorio
+scripts/record-gameplay.js     graba los clips de gameplay: un bot juega en Chrome headless
+guia/                       mapas de nivel de la guía (generados, deterministas)
 screenshots/                capturas usadas en este README
 ```
 
@@ -170,7 +181,7 @@ npm install
 npm test
 ```
 
-68 tests, incluido un BFS de alcanzabilidad que simula la física real contra los 12 niveles: si un cambio en `levels.js` deja algún nivel imposible sin habilidad aérea, la suite falla y dice cuál.
+236 tests, incluido un BFS de alcanzabilidad que simula la física real contra los 14 niveles (los 12 del mapa exigen salto simple puro; las torres Extra admiten además ascensores y salto con carrerilla): si un cambio en `levels.js` deja algún nivel imposible sin habilidad aérea, la suite falla y dice cuál.
 
 ## Grabar gameplay
 

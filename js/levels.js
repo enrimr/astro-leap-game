@@ -416,7 +416,8 @@ const LEVELS = [
         goal: 1370, boss: 'nodo_cero', final: true
     },
 
-    // ===== NIVEL EXTRA (sin nodo en el mapa todavía — se entra con ?level=13) =====
+    // ===== NIVELES EXTRA (las torres): su nodo APARECE en el mapa al reunir Cristales de
+    // Señal (SIGNAL_GATES en game.js: 8 la Torre, 20 la Aguja) — ?level=13/14 como atajo dev =====
     {
         name: 'Torre de Vigía', world: 5, variant: 'normal', extra: true,
         // El primer nivel VERTICAL — y desde §2.45, el primero con SCROLL vertical de verdad:

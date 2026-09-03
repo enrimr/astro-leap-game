@@ -1,6 +1,6 @@
 # GUÍA COMPLETA DE ASTRO LEAP
 
-Todo lo que hay en el juego: pilotos, fórmulas de combate, bestiario, estrategia contra cada jefe y el mapa completo de los 12 niveles con sus secretos. Los mapas se generan con el motor real del juego (`npm run generate-level-maps`), así que son exactamente lo que te vas a encontrar.
+Todo lo que hay en el juego: pilotos, fórmulas de combate, bestiario con sus maniobras de duelo, estrategia contra cada jefe y el mapa completo de los 12 niveles (más las dos torres Extra) con sus secretos. Los mapas se generan con el motor real del juego (`npm run generate-level-maps`), así que son exactamente lo que te vas a encontrar.
 
 **Cómo leer los mapas:**
 
@@ -132,7 +132,7 @@ Todos los peligros con ciclo van con reloj **de frames, no de tiempo real**: el 
 
 Restos de la red de vigilancia de quienes construyeron al Centinela «hace mucho, para detener esto». Hay **tres cristales por nivel del mapa (36 en total)** — uno fácil, uno intermedio y uno «de firma» del nivel — siempre fuera del camino directo. Reunirlos **triangula los emisores supervivientes** de esa red: las torres.
 
-- Con **8 cristales** aparece en el mapa estelar la puerta de la **[Torre de Vigía](#nivel-extra--torre-de-vigía--vertical)** — al alcance de quien explora el Mundo 1 a fondo.
+- Con **8 cristales** aparece en el mapa estelar la puerta de la **[Torre de Vigía](#nivel-extra--torre-de-vigía--vertical--scroll)** — al alcance de quien explora el Mundo 1 a fondo.
 - Con **20** aparece la de la **[Aguja Glacial](#nivel-extra-2--aguja-glacial--vertical--hielo--ascensores)** — hacia la mitad del juego.
 - Sobran 16 de margen: ni de lejos hace falta el pleno para abrirlo todo.
 
@@ -304,7 +304,7 @@ El primer nivel **vertical** del juego — y el primero con **scroll vertical de
 
 ![Mapa del nivel extra 2](guia/nivel-14.png)
 
-La torre difícil de verdad: el mismo serpentín de tres pisos que la Torre de Vigía, pero **el suelo resbala** y las escaleras son **ascensores** — dos plataformas móviles verticales que recorren un piso entero (viaje de ~4,4s) y hay que esperar a que bajen y abordarlas. Fallar el abordaje del 1º te deja en un bolsillo de recogida (reintenta desde ahí); fallar el 2º te devuelve al piso 1.
+La torre difícil de verdad: el serpentín de la Torre de Vigía —aquí en tres pisos y sin scroll, la torre compacta—, pero **el suelo resbala** y las escaleras son **ascensores** — dos plataformas móviles verticales que recorren un piso entero (viaje de ~4,4s) y hay que esperar a que bajen y abordarlas. Fallar el abordaje del 1º te deja en un bolsillo de recogida (reintenta desde ahí); fallar el 2º te devuelve al piso 1.
 
 - **Piso 1**: todo hielo, con huecos letales y **dos puertas de energía desfasadas** — frenar sobre hielo ante una puerta es el examen del piso. Recuerda: suelta la dirección con ~40 de antelación o pulsa la contraria.
 - **Piso 2** (derecha→izquierda): mixto — metal, hielo y **dos frágiles seguidas**. El borde izquierdo es hielo: llega frenado o te caerás al piso 1 esperando el ascensor.

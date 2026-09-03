@@ -28,7 +28,7 @@ const ROOT = path.join(__dirname, '..');
 // duelTypes: tipos de enemigo que el bot NO pisotea aunque pueda — camina hacia ellos y abre
 // duelo por turnos, para que cada clip enseñe también el combate (con su menú bien visible).
 const SHOWCASES = {
-    kes:   { level: 2, playerLevel: 4, duelTypes: [], note: 'Grietas de Hielo — doble salto + pisotones (plataformas puras)' },
+    kes:   { level: 2, playerLevel: 4, duelTypes: [], note: 'Grietas de Hielo — doble salto, carrerilla y duelos con la fauna del hielo (los Erizos no se pisan: se les planta cara)' },
     bolt:  { level: 4, playerLevel: 6, duelTypes: ['magnetite'], note: 'Chatarral Magnético — vuelo sostenido + duelo + pisotón' },
     shade: { level: 7, playerLevel: 7, duelTypes: ['crawler'], note: 'Muelle de Carga — dash + duelo + pisotón' },
     scrap: { level: 1, playerLevel: 3, duelTypes: ['drone'], note: 'Cráter de Amerizaje — duelo + bóveda reforzada con cápsula' }
@@ -103,8 +103,9 @@ async function record(browser, hero) {
 
             // Pisotón: enemigo común vivo, a la altura del suelo actual y pisoteable → saltarle
             // encima un poco antes de llegar (el arco del salto cae sobre su cabeza).
+            // El Erizo NUNCA (pincha, §2.32): saltarle encima rebotaba al bot en bucle.
             const stompTarget = g.enemies.some(e => e.alive && !e.isBoss && !e.isFlying
-                && e.level < p.level
+                && e.level < p.level && e.type !== 'spiker'
                 && !cfg.duelTypes.includes(e.type) // estos se dejan para el duelo, no se pisotean
                 && Math.abs((e.y + e.h) - footY) < 20
                 && e.x > p.x + p.w && e.x - (p.x + p.w) < 34);
