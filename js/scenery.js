@@ -160,13 +160,14 @@ const SCENERY = (() => {
         };
     }
 
-    // w opcional: los renders estáticos de la guía pintan el nivel entero, más ancho que el viewport.
-    function drawSky(ctx, layout, w = GAME_WIDTH) {
+    // w/h opcionales: los renders estáticos de la guía pintan el nivel entero — más ancho que
+    // el viewport, y más alto si el nivel es ALTO (scroll vertical, §2.45).
+    function drawSky(ctx, layout, w = GAME_WIDTH, h = GAME_HEIGHT) {
         const [top, bottom] = SKIES[layout.theme] || SKIES.cenizal;
-        const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
         grad.addColorStop(0, top); grad.addColorStop(1, bottom);
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, GAME_HEIGHT);
+        ctx.fillRect(0, 0, w, h);
     }
 
     const GROUND = 165; // línea de "horizonte" de las siluetas, bajo el suelo jugable (y=150)
@@ -362,8 +363,12 @@ const SCENERY = (() => {
 
     // viewW (opcional): ancho del lienzo de destino — GAME_WIDTH en el juego; el ancho del
     // nivel entero en los renders estáticos de la guía (si no, el culling recortaría el fondo).
-    function drawLayers(ctx, layout, cameraX, reduce, viewW = GAME_WIDTH) {
+    // yOff (opcional): desplaza el horizonte hacia abajo — en los niveles ALTOS (scroll
+    // vertical, DESIGN.md §2.45) el paisaje se ancla al PIE del nivel (yOff = altura − 180),
+    // así que en la cumbre solo queda cielo: has subido por encima del paisaje.
+    function drawLayers(ctx, layout, cameraX, reduce, viewW = GAME_WIDTH, yOff = 0) {
         ctx.save();
+        if (yOff) ctx.translate(0, yOff);
         drawLayer(ctx, layout.far, layout.farColor, cameraX, FAR, reduce, viewW);
         drawLayer(ctx, layout.near, layout.nearColor, cameraX, NEAR, reduce, viewW);
         ctx.restore();

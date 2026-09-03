@@ -384,7 +384,7 @@ class Game {
         this.currentLevel = 0; this.platforms = []; this.enemies = []; this.goalFlag = null; this.capsules = []; this.energyCells = []; this.beams = [];
         this.crystals = []; // instancias de SignalCrystal del nivel actual
         this.signalCrystals = new Set(); // índices de nivel cuyo cristal ya se recogió — persiste con el guardado, se pierde en Game Over
-        this.combat = null; this.combatTransition = null; this.keys = {}; this.cameraX = 0; this.gameStarted = false;
+        this.combat = null; this.combatTransition = null; this.keys = {}; this.cameraX = 0; this.cameraY = 0; this.gameStarted = false;
         this.combatTouchHold = false; // toque sostenido en pantalla durante un duelo = acelerar turnos
         this.finale = null; // máquina de estados del final del juego (colapso → nave → despegue)
         this.wallStarted = false; // muro con disparador (forcedScroll.triggerX) ya en marcha
@@ -1047,8 +1047,13 @@ class Game {
             if (this.signalCrystals.has(cry.key)) cry.collected = true;
             return cry;
         });
-        this.player.x = 20; this.player.y = 100; this.player.vx = 0; this.player.vy = 0;
+        // spawnY opcional (niveles ALTOS con scroll vertical, DESIGN.md §2.45): el punto de
+        // aparición baja al pie de la torre; fallLimit mueve el plano de muerte a su fondo real.
+        this.player.x = 20; this.player.y = level.spawnY ?? 100; this.player.vx = 0; this.player.vy = 0;
+        this.player.fallLimit = level.height || GAME_HEIGHT;
         this.player.energy = this.player.maxEnergy; this.cameraX = 0;
+        // La cámara vertical arranca YA encuadrada al spawn (sin lerp desde el cielo).
+        this.cameraY = this.cameraTargetY(level);
         this.autoScrollX = 0;
         this.forcedScrollDelay = level.forcedScroll ? level.forcedScroll.startDelay : 0;
         // Tormenta iónica (ver ionStorm en levels.js): el reloj arranca en calma SIEMPRE —
@@ -1095,6 +1100,25 @@ class Game {
     // acelera — dos gestos, dos significados.
     combatFastForward() {
         return !!(this.keys.Space || this.keys.Enter || this.combatTouchHold);
+    }
+
+    // ---- Cámara vertical (DESIGN.md §2.45) ----
+    // Solo existe en niveles ALTOS (level.height > 180): el objetivo encuadra al jugador con
+    // el 55% de pantalla por encima (se ve más hacia arriba, que es hacia donde se escala),
+    // acotado a los bordes del nivel. En los niveles normales es SIEMPRE 0 — su render queda
+    // idéntico al de siempre, y los peligros con overlay de pantalla (tormenta, barrido, muro)
+    // solo están permitidos ahí (hay test de invariante).
+    cameraTargetY(level) {
+        const levelH = level.height || GAME_HEIGHT;
+        if (levelH <= GAME_HEIGHT) return 0;
+        return Math.max(0, Math.min(this.player.y - GAME_HEIGHT * 0.55, levelH - GAME_HEIGHT));
+    }
+    updateCameraY(level) {
+        const target = this.cameraTargetY(level);
+        // Lerp suave: un salto (ápice ~29) mece la cámara en vez de zarandearla; al aterrizar
+        // vuelve sola. Con el objetivo a menos de medio píxel, se clava (sin micro-deriva).
+        this.cameraY += (target - this.cameraY) * 0.12;
+        if (Math.abs(target - this.cameraY) < 0.5) this.cameraY = target;
     }
 
     // Loop de exploración según dónde estés (DESIGN.md §2.44): dentro de un nivel, el de su
@@ -1542,7 +1566,7 @@ class Game {
         this.combatTransition = {
             t: 0, enemy,
             x: enemy.x - this.cameraX + enemy.w / 2,
-            y: enemy.y + enemy.h / 2
+            y: enemy.y - this.cameraY + enemy.h / 2 // coordenadas de PANTALLA (la cámara vertical también cuenta)
         };
         if (window.SFX) { enemy.isBoss ? SFX.bossEncounter() : SFX.encounter(); SFX.music.playCombat(enemy.isBoss); }
     }
@@ -2126,6 +2150,7 @@ class Game {
             } else {
                 this.cameraX = Math.max(0, Math.min(this.player.x - GAME_WIDTH / 2, maxScroll));
             }
+            this.updateCameraY(level); // scroll vertical: solo se mueve en niveles altos (§2.45)
             if (this.playerInvulnerable > 0) this.playerInvulnerable--;
 
             for (const enemy of this.enemies) {
@@ -2483,10 +2508,14 @@ class Game {
         stars.forEach(s => {
             const sx = s.x - this.cameraX * parallax;
             if (sx < -4 || sx > GAME_WIDTH + 4) return;
+            // La cámara vertical (§2.45) también mueve el cielo, con el mismo parallax y
+            // envolviendo en pantalla (wrap): al escalar una torre las estrellas fluyen hacia
+            // abajo sin agotarse. En niveles normales cameraY es 0 y sy === s.y, como siempre.
+            const sy = ((s.y - this.cameraY * parallax) % GAME_HEIGHT + GAME_HEIGHT) % GAME_HEIGHT;
             const tw = 0.5 + Math.sin(s.tw + Date.now() * 0.002) * 0.5;
             ctx.globalAlpha = 0.4 + tw * 0.6;
             ctx.fillStyle = PALETTE.ink;
-            ctx.fillRect(sx, s.y, s.size, s.size);
+            ctx.fillRect(sx, sy, s.size, s.size);
         });
         ctx.globalAlpha = 1;
     }
@@ -2542,7 +2571,6 @@ class Game {
         if (this.backdrop && window.SCENERY) {
             SCENERY.drawSky(ctx, this.backdrop);
             this.drawStars(this.levelStars, 0.35);
-            SCENERY.drawLayers(ctx, this.backdrop, this.cameraX, this.reduceEffects);
         } else {
             const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
             grad.addColorStop(0, PALETTE.bg2); grad.addColorStop(1, PALETTE.bg1);
@@ -2553,6 +2581,20 @@ class Game {
         if (this.combat) {
             this.combat.draw(ctx);
         } else {
+            const level = LEVELS[this.currentLevel];
+            const levelH = level.height || GAME_HEIGHT;
+            // El mundo entero (fondo con parallax, plataformas, pickups, enemigos, jugador) se
+            // dibuja bajo UN translate vertical (§2.45): en los niveles normales cameraY es 0 y
+            // el render queda idéntico al de siempre; en los altos, la cámara sigue al jugador.
+            // Los overlays de pantalla (tormenta, barrido, muro, fantasma del duelo, HUD) quedan
+            // FUERA — solo existen en niveles sin scroll vertical (invariante fijado por test).
+            ctx.save();
+            ctx.translate(0, -this.cameraY);
+            if (this.backdrop && window.SCENERY) {
+                // yOff ancla el horizonte del fondo al PIE del nivel: en lo alto de una torre
+                // solo queda cielo y estrellas — has subido por encima del paisaje.
+                SCENERY.drawLayers(ctx, this.backdrop, this.cameraX, this.reduceEffects, GAME_WIDTH, levelH - GAME_HEIGHT);
+            }
             for (const p of this.platforms) p.draw(ctx, this.cameraX);
             for (const beam of this.beams) beam.draw(ctx, this.cameraX);
             if (this.goalFlag && !this.finale) this.goalFlag.draw(ctx, this.cameraX); // en la finale, la meta es la nave
@@ -2572,8 +2614,8 @@ class Game {
             } else if (this.playerInvulnerable === 0 || Math.floor(this.playerInvulnerable / 8) % 2 === 0) {
                 this.player.draw(ctx, this.cameraX);
             }
+            ctx.restore(); // fin del translate vertical: de aquí en adelante, coordenadas de pantalla
 
-            const level = LEVELS[this.currentLevel];
             // ¿El muro está en marcha? (modo disparador o modo cuenta atrás) — y con la Red
             // caída (finale), apagado.
             const wallActive = level.forcedScroll && !this.finale

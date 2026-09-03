@@ -22,8 +22,9 @@ const OUT_DIR = path.join(ROOT, 'guia');
     const count = await page.evaluate(() => LEVELS.length);
     for (let i = 0; i < count; i++) {
         const dataURL = await page.evaluate((i) => {
-            const SCALE = 2, H = 180;
+            const SCALE = 2;
             const level = LEVELS[i];
+            const H = level.height || 180; // niveles ALTOS (scroll vertical): el mapa crece con ellos
             const W = level.goal + 60;
             const c = document.createElement('canvas');
             c.width = W * SCALE; c.height = H * SCALE;
@@ -35,16 +36,16 @@ const OUT_DIR = path.join(ROOT, 'guia');
             // cielo y las siluetas del mapa son exactamente los del juego. flatWidth=W y
             // viewW=W: el mapa es un render estático del nivel entero, sin cámara ni parallax.
             const layout = SCENERY.prepare(level, W);
-            SCENERY.drawSky(g, layout, W);
+            SCENERY.drawSky(g, layout, W, H);
             for (let s = 0; s < W / 5; s++) {
-                const x = (s * 97.3) % W, y = (s * 61.7) % 165;
+                const x = (s * 97.3) % W, y = (s * 61.7) % (H - 15);
                 g.globalAlpha = 0.25 + ((s * 13) % 7) / 12;
                 g.fillStyle = PALETTE.ink;
                 const sz = s % 9 === 0 ? 1.6 : 0.9;
                 g.fillRect(x, y, sz, sz);
             }
             g.globalAlpha = 1;
-            SCENERY.drawLayers(g, layout, 0, true, W); // reduce=true: siluetas quietas, sin pulsos
+            SCENERY.drawLayers(g, layout, 0, true, W, H - 180); // reduce=true: siluetas quietas; yOff ancla el horizonte al pie del nivel
 
             // theme: el atrezzo por mundo de las losas grandes (Platform.draw → decoratePlatform)
             const theme = SCENERY.themeFor(level);
@@ -57,15 +58,22 @@ const OUT_DIR = path.join(ROOT, 'guia');
             (level.capsules || []).forEach(([x, y]) => { const cp = new LifeCapsule(x, y); cp.t = 0; cp.draw(g, 0); });
             (level.energyCells || []).forEach(([x, y]) => { const ce = new EnergyCell(x, y); ce.t = 0; ce.draw(g, 0); });
             (level.crystals || []).forEach(([x, y]) => { const cr = new SignalCrystal(x, y); cr.t = 0; cr.draw(g, 0); });
-            level.enemies.forEach(e => new Enemy(...e).draw(g, 0)); // dibuja también su "LvN" (y "JEFE")
+            level.enemies.forEach(e => {
+                const en = new Enemy(...e);
+                // Fase de animación FIJA: Enemy nace con animT/blinkTimer aleatorios (bob,
+                // pulso, parpadeo) y cada ejecución daba PNGs distintos byte a byte — el
+                // "diffs limpios" que promete la cabecera exige congelarla aquí.
+                en.animT = 0; en.blinkTimer = 999;
+                en.draw(g, 0); // dibuja también su "LvN" (y "JEFE")
+            });
             new GoalFlag(level.goal, level.goalY ?? 128).draw(g, 0); // goalY: niveles verticales (Torre de Vigía)
 
             // Punto de partida: Kes de pie en el arranque real del nivel (x=20, sobre el suelo)
-            const pl = new Player(20, 137, 'kes');
+            const pl = new Player(20, H - 43, 'kes'); // de pie sobre el suelo del nivel (y = H−30)
             pl.onGround = true;
             pl.draw(g, 0);
             g.fillStyle = PALETTE.accent; g.font = '7px "Rajdhani", sans-serif';
-            g.fillText('INICIO', 10, 131);
+            g.fillText('INICIO', 10, H - 49);
 
             return c.toDataURL('image/png');
         }, i);

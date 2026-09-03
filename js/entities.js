@@ -186,6 +186,10 @@ class Player {
             groundPlatform: null, iceMomentum: false,
             dashTimer: 0, dashSpeed: 3.2, flyDrainTimer: 0,
             prevJumpKey: false, squash: 1, animT: 0, blinkTimer: 90 + Math.random() * 120,
+            // Plano de muerte: caer por debajo de esta y es perder la vida. GAME_HEIGHT por
+            // defecto; Game.loadLevel lo sube en los niveles ALTOS (level.height > 180, con
+            // scroll vertical — DESIGN.md §2.45), donde 180 ya no es "el fondo del mundo".
+            fallLimit: GAME_HEIGHT,
             level: 1, maxHp: 22, hp: 22, maxEnergy: 10, energy: 10,
             xp: 0, xpToNextLevel: 10, attack: 5, defense: 2,
             lives: MAX_LIVES, maxLives: MAX_LIVES,
@@ -299,7 +303,7 @@ class Player {
         this.blinkTimer--;
         if (this.blinkTimer <= 0) this.blinkTimer = 90 + Math.random() * 140;
         if (this.x < 0) this.x = 0;
-        if (this.y > GAME_HEIGHT) return 'fell';
+        if (this.y > (this.fallLimit || GAME_HEIGHT)) return 'fell';
     }
     collides(e) { return this.x < e.x + e.w && this.x + this.w > e.x && this.y < e.y + e.h && this.y + this.h > e.y; }
     collidesFromAbove(e) { return this.vy > 0 && this.y + this.h <= e.y + e.h / 2 && this.collides(e); }

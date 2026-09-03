@@ -419,56 +419,77 @@ const LEVELS = [
     // ===== NIVEL EXTRA (sin nodo en el mapa todavía — se entra con ?level=13) =====
     {
         name: 'Torre de Vigía', world: 5, variant: 'normal', extra: true,
-        // El primer nivel VERTICAL: tres pisos (y=150, y=92, y=34 — separación 58, que no la sube
-        // NI el doble salto: su ápice + ventana de aterrizaje llega a ~56; solo el vuelo de
-        // Bolt se salta las escaleras) recorridos en serpentín: → por el suelo, escalera al fondo
-        // derecho, ← por el piso 2, escalera al fondo izquierdo, → por el piso 3 hasta la BASE.
+        // El primer nivel VERTICAL — y desde §2.45, el primero con SCROLL vertical de verdad:
+        // CINCO pisos (y=266, 208, 150, 92, 34 — separación 58, que no la sube NI el doble
+        // salto: su ápice + ventana de aterrizaje llega a ~56; solo el vuelo de Bolt se salta
+        // las escaleras) en serpentín: → por el suelo, peldaño al fondo derecho, ← por el piso
+        // 2, peldaño a la izquierda, → por el 3, peldaño a la derecha, ← por el 4, peldaño a
+        // la izquierda, y → por el piso 5 hasta la BASE, arriba del todo. height=296: la
+        // cámara sigue al jugador en Y — ya no ves la torre entera, y caerte cuesta re-subir
+        // lo que ya no está en pantalla.
         // La meta sigue siendo una X (player.x >= goal), así que el serpentín se fuerza por
-        // geometría: NINGÚN piso salvo el 3º se acerca a goal ni en pleno salto (extremo + ~42).
-        // Caerse de un piso castiga con tiempo, no con vidas: cada hueco de los pisos 2-3 tiene
-        // suelo debajo (incluido el suelo de recogida bajo la escalera derecha) — los únicos
-        // huecos letales son los dos del piso 1.
-        goalY: 12, // la bandera pisa el piso 3 (y=34), no el suelo
+        // geometría: NINGÚN piso salvo el 5º se acerca a goal ni en pleno salto (extremo + ~42).
+        // Caerse de un piso castiga con tiempo, no con vidas: cada hueco de los pisos 2-5 cae
+        // sobre tramo sólido (o sobre una frágil que acaba en sólido) — los únicos huecos
+        // letales son los dos del piso 1.
+        height: 296, spawnY: 240,
+        goalY: 12, // la bandera pisa el piso 5 (y=34)
         platforms: [
-            // Piso 1 (izquierda → derecha). El tramo central es largo a propósito: queda justo
-            // bajo la frágil del piso 2 — quien caiga cuando se desmorone aterriza en suelo
-            // firme, no en un hueco.
-            [0, 150, 120, 15], [145, 150, 170, 15], [340, 150, 120, 15],
-            // Suelo de recogida bajo la escalera derecha: recoge cualquier caída del extremo
-            // derecho del piso 2. Termina en 590 (590+42 < 640): ni en pleno salto alcanza la meta.
-            [462, 150, 128, 15],
-            // Escalera derecha (piso 1 → piso 2): peldaño a media altura (subidas de 29, al
+            // Piso 1 (izquierda → derecha), el único que cubre el spawn (x=20): el BFS de los
+            // tests elige como salida la plataforma MÁS ALTA que cubre x=20 — por eso ningún
+            // piso superior baja de x=26. El tramo central es largo a propósito: queda justo
+            // bajo las frágiles del piso 2.
+            [0, 266, 120, 15], [145, 266, 170, 15], [340, 266, 120, 15],
+            // Suelo de recogida bajo la escalera derecha (termina en 590: 590+42 < 650 — ni en
+            // pleno salto alcanza la meta... que además espera cuatro pisos más arriba).
+            [462, 266, 128, 15],
+            // Escalera derecha A (piso 1 → 2): peldaño a media altura (subidas de 29, al
             // límite cómodo del salto simple).
+            [472, 237, 24, 6],
+            // Piso 2 (derecha → izquierda). Aterrizaje no-techo a la derecha [440,208] (se
+            // salta A TRAVÉS desde el peldaño), dos frágiles cortas en el medio (dos de 38 con
+            // temporizador propio, no una larga: cruzarla andando rozaba su propia cuenta
+            // atrás) y TECHO MACIZO en el resto — sella el atajo de Bolt sin tocar la ruta de
+            // nadie: el serpentín por las escaleras es LA ruta. El margen vertical de siempre:
+            // desde un piso el salto simple deja la cabeza a 16 del techo de arriba (58−13−29);
+            // el doble salto ahí se estampa (a propósito).
+            [440, 208, 65, 8], [330, 208, 80, 8, 'roof'],
+            [215, 208, 38, 8, 'fragile'], [262, 208, 38, 8, 'fragile'],
+            [95, 208, 90, 8, 'roof'], [30, 208, 40, 8, 'roof'],
+            // Escalera izquierda B (piso 2 → 3), arrancando en x=34 (no pisa el x=20 del spawn).
+            [34, 179, 24, 6],
+            // Piso 3 (izquierda → derecha): aterrizaje no-techo a la izquierda y techos hasta
+            // su extremo derecho (590: 590+42 < 650, gating intacto), con una puerta de energía
+            // en el corredor — bajo techo, la puerta se cronometra, no se salta (§2.33).
+            [26, 150, 80, 8], [130, 150, 85, 8, 'roof'], [240, 150, 105, 8, 'roof'], [370, 150, 85, 8, 'roof'], [480, 150, 110, 8, 'roof'],
+            // Escalera derecha C (piso 3 → 4): mismo x que la A — el zigzag se aprende una vez.
             [472, 121, 24, 6],
-            // Piso 2 (derecha → izquierda). El tramo derecho acaba en 505 a propósito
-            // (505+42 < goal). El del medio son DOS frágiles cortas, no una larga: con una sola
-            // de 85, cruzarla andando (47-49 frames) rozaba su cuenta atrás de 50 y el margen
-            // real era de 1-3 frames — injugable. Dos de 38 con temporizador propio se cruzan
-            // con margen de sobra... si no te paras en ninguna.
-            // Pisos 2 y 3 con TECHO MACIZO ('roof') salvo dos aterrizajes: [440,92] (donde
-            // desemboca la escalera derecha, saltando A TRAVÉS desde el peldaño) y [26,34]
-            // (ídem con la izquierda) — y las frágiles, que ya tienen su propio drama. Sella
-            // el atajo de Bolt (volar a través de los suelos) sin tocar la ruta de nadie: el
-            // serpentín por las escaleras es LA ruta. Ojo con el margen vertical: desde un
-            // piso (y=92) el salto simple deja la cabeza a ~51, y la cara inferior del techo
-            // de arriba queda en 42 — pasa limpio; el doble salto ahí se estampa (a propósito).
+            // Piso 4 (derecha → izquierda): espejo del piso 2, frágiles incluidas — a esta
+            // altura ya sabes cruzarlas; lo que cambia es el precio de fallar, con la cámara
+            // ya lejos del suelo.
             [440, 92, 65, 8], [330, 92, 80, 8, 'roof'],
             [215, 92, 38, 8, 'fragile'], [262, 92, 38, 8, 'fragile'],
             [95, 92, 90, 8, 'roof'], [30, 92, 40, 8, 'roof'],
-            // Escalera izquierda (piso 2 → piso 3), en zigzag: arranca en x=34 y no en el borde
-            // para no pisar el x=20 del spawn (el BFS de los tests elige como salida la
-            // plataforma MÁS ALTA que cubre x=20 — si el peldaño lo cubriera, validaría un
-            // camino que el jugador real no tiene).
+            // Escalera izquierda D (piso 4 → 5).
             [34, 63, 24, 6],
-            // Piso 3 (izquierda → derecha), con la meta al final. Sus huecos caen siempre sobre
-            // tramo sólido del piso 2 (o del suelo de recogida), nunca sobre un pozo encadenado.
+            // Piso 5 (izquierda → derecha), la cumbre con la meta al final. Sus huecos caen
+            // siempre sobre tramo sólido del piso 4 (o del 3), nunca sobre un pozo encadenado.
             [26, 34, 80, 8], [130, 34, 85, 8, 'roof'], [240, 34, 105, 8, 'roof'], [370, 34, 85, 8, 'roof'], [480, 34, 65, 8, 'roof'], [568, 34, 150, 8, 'roof']
         ],
-        beams: [[310, 110, 40, 0]],
-        enemies: [[180, 138, 'crawler'], [400, 138, 'spiker', 20], [355, 80, 'magnetite'], [130, 77, 'hoverbot', 40], [270, 27, 'ionwisp', 45], [600, 22, 'spiker', 25]],
-        // Cápsula flotando entre pisos, bajo la frágil: un salto deliberado desde el corredor
-        // del piso 1 la roza en el ápice.
-        capsules: [[250, 118]],
+        // Dos puertas desfasadas: una en el corredor del suelo (bajo el hueco de las frágiles
+        // del piso 2: la habilidad aérea puede comprar el paso) y otra en el piso 3, bajo
+        // techo — esa se cronometra o se paga.
+        beams: [[205, 226, 40, 0], [310, 110, 40, 75]],
+        enemies: [
+            [180, 254, 'crawler'], [400, 254, 'spiker', 20],
+            [355, 196, 'magnetite'], [120, 196, 'hoverbot', 40],
+            [270, 138, 'crawler'], [500, 138, 'ionwisp', 45],
+            [355, 80, 'magnetite'], [130, 77, 'hoverbot', 40],
+            [270, 27, 'ionwisp', 45], [600, 22, 'spiker', 25]
+        ],
+        // Cápsula flotando entre los pisos 1 y 2, bajo las frágiles: un salto deliberado desde
+        // el corredor del suelo la roza en el ápice.
+        capsules: [[250, 234]],
         // 650 y no 640: el suelo de recogida acaba en 590 y un salto desde su borde plantaba al
         // jugador en x≈630 en el aire — a 12 de la meta. Con 650 el margen sube a ~20.
         goal: 650

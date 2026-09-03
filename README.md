@@ -61,7 +61,7 @@ Cada mundo tiene identidad audiovisual propia: **fondo con parallax** (la luna r
 | 4 · Núcleo Expuesto | 10 | Bóveda Sellada | El mundo que Scrap abre; todos los peligros combinados y **debutan los techos macizos** (no se atraviesan saltando desde abajo) |
 | | 11 | Galería de Ecos | Huecos largos + móviles, frágiles y una puerta de energía |
 | | 12 | Nodo Cero | **La prueba final en 3 actos**: precisión → todos los peligros combinados (tormenta zonal, cinta+puerta, hielo) → huida con el muro detrás. **Jefe final: Nodo Cero**, y al ganar... la Red se derrumba y escapas EN LA NAVE |
-| Extra | 13 | Torre de Vigía | **Vertical en serpentín**: tres pisos, escaleras alternas y la BASE arriba del todo — aparece al reunir **8 ◆** |
+| Extra | 13 | Torre de Vigía | **Vertical con scroll**: cinco pisos en serpentín, cámara que sube contigo y la BASE en la cumbre — aparece al reunir **8 ◆** |
 | | 14 | Aguja Glacial | **La torre difícil**: suelo helado, puertas, y **ascensores obligatorios**; final de salto con carrerilla — aparece con **20 ◆** |
 
 ## Bestiario

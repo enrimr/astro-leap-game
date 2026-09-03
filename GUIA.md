@@ -272,16 +272,17 @@ La **prueba final del juego, en tres actos**:
 - **Jefe**: [Nodo Cero](#-nodo-cero--nodo-cero-nivel-12-jefe-final), entre dos puertas desfasadas. Llega con la Energía alta: el duelo premia encadenar Habilidades.
 - **El final**: ganar el duelo **derrumba la Red en pantalla** — los fragmentos caen en cascada, los peligros se apagan... y en la meta aparece **LA NAVE**. Súbete y despega: así se termina ASTRO LEAP, no cruzando una bandera.
 
-### Nivel Extra · Torre de Vigía — VERTICAL
+### Nivel Extra · Torre de Vigía — VERTICAL + SCROLL
 
 ![Mapa del nivel extra](guia/nivel-13.png)
 
-El primer nivel **vertical** del juego: tres pisos (suelo, y=92 y y=34) recorridos en **serpentín** — derecha por el suelo, escalera al fondo derecho, izquierda por el piso 2, escalera en zigzag al fondo izquierdo, y derecha por el piso 3 hasta la BASE, que espera arriba del todo. La separación entre pisos (**58**) no la sube **ni el doble salto** (su ápice + ventana de aterrizaje llega a ~56): de piso a piso solo se sube por los peldaños de las escaleras (subidas de 29, salto simple). Y desde que los pisos 2-3 son **techo macizo** (remaches en su cara inferior), tampoco el vuelo de Bolt se cuela a través de ellos: solo quedan pasables los dos tramos donde desembocan las escaleras (saltas *a través* desde el peldaño) y las frágiles. El serpentín es LA ruta para los cuatro pilotos.
+El primer nivel **vertical** del juego — y el primero con **scroll vertical de verdad**: la torre mide casi dos pantallas de alto y la cámara sigue al piloto al escalar, así que **nunca ves la torre entera**. **Cinco pisos** recorridos en **serpentín**: derecha por el suelo, peldaño al fondo derecho, izquierda por el piso 2, peldaño a la izquierda, derecha por el 3, peldaño a la derecha (mismo lado que el primero: el zigzag se aprende una vez), izquierda por el 4, y derecha por el piso 5 hasta la BASE, en la cumbre. La separación entre pisos (**58**) no la sube **ni el doble salto** (su ápice + ventana de aterrizaje llega a ~56): de piso a piso solo se sube por los peldaños (subidas de 29, salto simple). Y como los pisos 2-5 son **techo macizo** (remaches en su cara inferior), tampoco el vuelo de Bolt se cuela a través de ellos: solo quedan pasables los tramos donde desembocan los peldaños (saltas *a través* desde el peldaño) y las frágiles. El serpentín es LA ruta para los cuatro pilotos.
 
-- **Caerse de un piso cuesta tiempo, no vidas**: cada hueco de los pisos 2-3 tiene suelo debajo (incluido un suelo de recogida bajo la escalera derecha). Los únicos huecos letales son los dos del suelo.
-- El piso 2 se cruza de derecha a izquierda sobre **dos frágiles seguidas** — el peaje del serpentín: crúzalas de una pasada, cada una con su propia cuenta atrás. Si caen contigo, aterrizas en el suelo firme de abajo y a re-subir.
-- Una **puerta de energía** corta el corredor del suelo, y en cada piso patrulla su fauna (reptante y erizo abajo, magnetita y hoverbot en el 2, espectro y erizo guardián arriba).
-- **♥ Cápsula**: flotando entre pisos bajo las frágiles — un salto deliberado desde el corredor del suelo la roza en el ápice.
+- **Caerse de un piso cuesta tiempo, no vidas**: cada hueco de los pisos 2-5 cae sobre tramo sólido (o sobre una frágil que acaba en sólido — puede encadenarse una caída de dos pisos). Los únicos huecos letales son los dos del suelo. Con el scroll, el castigo se siente: el piso del que caes desaparece por arriba de la pantalla, y a re-subir.
+- Los pisos 2 y 4 se cruzan de derecha a izquierda sobre **dos frágiles seguidas** — el peaje del serpentín, dos veces: crúzalas de una pasada, cada una con su propia cuenta atrás.
+- **Dos puertas de energía desfasadas**: una corta el corredor del suelo (la habilidad aérea puede saltarla) y otra el piso 3 — esa va **bajo techo**: se cronometra o se paga (§4b).
+- Fauna en los cinco pisos (10 enemigos): reptante y erizo abajo, magnetita y hoverbot en los pisos 2 y 4, reptante y espectro en el 3, y espectro más erizo guardián en la cumbre.
+- **♥ Cápsula**: flotando entre los pisos 1 y 2, bajo las frágiles — un salto deliberado desde el corredor del suelo la roza en el ápice.
 - **Cómo se entra**: reúne **8 Cristales de Señal ◆** (ver §4c) y su puerta aparece en el mapa estelar (nodo dorado con anillo). Completarla marca su ✓ pero no desbloquea nada más — es un desafío aparte, rejugable. (`?level=13` sigue funcionando como acceso de depuración.)
 
 ### Nivel Extra 2 · Aguja Glacial — VERTICAL + HIELO + ASCENSORES

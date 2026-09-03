@@ -2994,3 +2994,79 @@ describe('Escenografía por mundo (contra js/scenery.js real — DESIGN.md §2.4
         expect(bare._decor).toBeUndefined();
     });
 });
+
+describe('Scroll vertical — niveles altos (contra el código real, DESIGN.md §2.45)', () => {
+    test('la Torre de Vigía es ALTA (5 pisos): la cámara arranca encuadrando el spawn y sube con el jugador', () => {
+        const { game, LEVELS } = loadGame();
+        const idx = LEVELS.findIndex(l => l.name === 'Torre de Vigía');
+        expect(LEVELS[idx].height).toBeGreaterThan(180);
+        game.gameStarted = true;
+        game.loadLevel(idx);
+        // encuadre inicial: el spawn está al pie de la torre — cámara clavada abajo del todo
+        expect(game.cameraY).toBe(LEVELS[idx].height - 180);
+        // el jugador escala hasta la cumbre: la cámara converge a 0 (el tope)
+        game.player.y = 21;
+        for (let i = 0; i < 300; i++) game.updateCameraY(LEVELS[idx]);
+        expect(game.cameraY).toBe(0);
+    });
+
+    test('en los niveles normales la cámara vertical es SIEMPRE 0 — su render no cambia', () => {
+        const { game, LEVELS } = loadGame();
+        game.gameStarted = true;
+        game.loadLevel(0);
+        expect(game.cameraY).toBe(0);
+        game.player.y = 30; // ni un jugador por las nubes la mueve
+        for (let i = 0; i < 60; i++) game.updateCameraY(LEVELS[0]);
+        expect(game.cameraY).toBe(0);
+    });
+
+    test('el plano de muerte baja con el nivel: en la torre no mueres al cruzar y=180', () => {
+        const { game, LEVELS, Player } = loadGame();
+        const idx = LEVELS.findIndex(l => l.name === 'Torre de Vigía');
+        game.gameStarted = true;
+        game.loadLevel(idx);
+        expect(game.player.fallLimit).toBe(LEVELS[idx].height);
+        // caída controlada: por debajo de 180 (el fondo de los niveles normales) sigue vivo...
+        const p = new Player(300, 200, 'kes');
+        p.fallLimit = LEVELS[idx].height;
+        expect(p.update({}, [], { burst() {} })).toBeUndefined();
+        // ...y muere solo al cruzar el fondo REAL de la torre
+        p.y = LEVELS[idx].height + 1;
+        expect(p.update({}, [], { burst() {} })).toBe('fell');
+        // y al volver a un nivel normal, el plano de muerte vuelve a 180
+        game.loadLevel(0);
+        expect(game.player.fallLimit).toBe(180);
+    });
+
+    test('invariante: los niveles altos son Extra, sin peligros de overlay de pantalla y fuera del pool diario', () => {
+        // Los overlays de tormenta/barrido/muro (y el fantasma del duelo) se dibujan en
+        // coordenadas de PANTALLA, fuera del translate vertical — solo son correctos con
+        // cameraY=0. Y la ruta del fantasma cuantiza y en 6 bits (máx 252): un nivel alto
+        // en el pool diario grabaría rutas corruptas.
+        const { LEVELS, DAILY_LEVEL_POOL } = loadGame();
+        LEVELS.forEach((lvl, i) => {
+            if ((lvl.height || 180) <= 180) return;
+            expect(lvl.extra).toBe(true);
+            expect(lvl.ionStorm).toBeUndefined();
+            expect(lvl.sentinelWatch).toBeUndefined();
+            expect(lvl.forcedScroll).toBeUndefined();
+            expect(DAILY_LEVEL_POOL).not.toContain(i);
+        });
+    });
+
+    test('Torre de Vigía a 5 pisos: la separación 58 se mantiene en TODOS los saltos de piso', () => {
+        const { LEVELS } = loadGame();
+        const torre = LEVELS.find(l => l.name === 'Torre de Vigía');
+        // pisos = alturas únicas de plataformas de piso (h≥8), ordenadas de abajo arriba
+        const floors = [...new Set(torre.platforms.filter(p => p[3] >= 8).map(p => p[1]))].sort((a, b) => b - a);
+        expect(floors.length).toBe(5);
+        for (let i = 1; i < floors.length; i++) expect(floors[i - 1] - floors[i]).toBe(58);
+        // y cada peldaño de escalera parte la subida en dos tramos de 29 (salto simple)
+        torre.platforms.filter(p => p[3] === 6).forEach(step => {
+            const below = floors.find(f => f - step[1] === 29);
+            const above = floors.find(f => step[1] - f === 29);
+            expect(below).toBeDefined();
+            expect(above).toBeDefined();
+        });
+    });
+});
