@@ -10,7 +10,7 @@
 
 ## El resto de convenciones del repo
 
-- Tests con `npm test` antes de cada commit — incluyen un BFS de alcanzabilidad que valida que los 14 niveles (12 del mapa + 2 torres Extra) se completan con salto simple (Scrap); si tocas niveles y falla, el nivel quedó imposible sin habilidad aérea.
+- Tests con `npm test` antes de cada commit — incluyen un BFS de alcanzabilidad que valida que los 14 niveles (12 del mapa + 2 torres Extra) se completan con salto simple (Scrap); si tocas niveles y falla, el nivel quedó imposible sin habilidad aérea. El CI de GitHub (`.github/workflows/tests.yml`) repite la suite en cada push.
 - Regla de level design: huecos ≤30 en llano para salto simple; subidas solo con hueco corto; camino bajo de piedras de paso donde la ruta alta exige habilidad aérea.
 - `git push` a `main` despliega automáticamente a https://astroleap.enri.me/.
 - Commits en español, estilo del historial (imperativo, cuerpo con el porqué).

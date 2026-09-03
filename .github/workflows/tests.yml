@@ -1,0 +1,31 @@
+# CI: la suite completa (jest + jsdom contra los ficheros reales del juego, sin navegador
+# real — ver __tests__/live.test.js) en cada push y en cada PR. Es la misma `npm test` de la
+# regla del repo ("tests antes de cada commit"), repetida por una máquina que no se la salta.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+# Si llegan varios commits seguidos a la misma rama, solo importa el último.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # electron es devDependency del build de escritorio: su postinstall descarga ~100MB
+      # de binario que los tests no usan — fuera del camino crítico del CI.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # npm ci respeta package-lock.json; el conflicto de peers jsdom@16↔canvas@3 lo
+      # resuelve el .npmrc del repo (legacy-peer-deps), igual que en local.
+      - run: npm ci
+      - run: npm test

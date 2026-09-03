@@ -1,5 +1,7 @@
 # ASTRO LEAP
 
+[![tests](https://github.com/enrimr/astro-leap-game/actions/workflows/tests.yml/badge.svg)](https://github.com/enrimr/astro-leap-game/actions/workflows/tests.yml)
+
 Plataformas + duelos por turnos, ambientado en dos lunas alienígenas, una estación abandonada y el núcleo de una IA hostil. Como si **Super Mario Bros. y Pokémon compartieran motor**: exploras y saltas en tiempo real, pero cada enemigo es una decisión táctica. Construido sobre la misma mecánica que [Monster Jump](https://github.com/enrimr/juego-rol-plataformas) — ver [`DESIGN.md`](./DESIGN.md) para el diseño completo y [`LORE.md`](./LORE.md) para la historia.
 
 **Juega ya: <https://astroleap.enri.me/>** — gratis, sin instalar nada, en móvil y escritorio. En **7 idiomas**: español, inglés, italiano, francés, alemán, japonés y chino (se detecta solo; selector junto a los ajustes de sonido).
@@ -134,7 +136,7 @@ O simplemente abre `index.html` en el navegador. El sonido (efectos y seis loops
 ## Jugar en escritorio (Electron)
 
 ```bash
-npm install --legacy-peer-deps
+npm install   # el .npmrc del repo ya aplica legacy-peer-deps
 npm run desktop
 ```
 
@@ -182,6 +184,8 @@ npm test
 ```
 
 236 tests, incluido un BFS de alcanzabilidad que simula la física real contra los 14 niveles (los 12 del mapa exigen salto simple puro; las torres Extra admiten además ascensores y salto con carrerilla): si un cambio en `levels.js` deja algún nivel imposible sin habilidad aérea, la suite falla y dice cuál.
+
+La misma suite corre en **GitHub Actions** con cada push y cada PR (`.github/workflows/tests.yml`) — el badge de arriba es su estado. El conflicto de peers `jsdom@16`↔`canvas@3` lo resuelve el `.npmrc` del repo: `npm install` y `npm ci` funcionan a pelo, sin flags.
 
 ## Grabar gameplay
 
